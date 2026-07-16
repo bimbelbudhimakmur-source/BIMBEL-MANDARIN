@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin TU — BMM</title>
+  <link rel="stylesheet" href="../assets/styles.css">
+  <style>
+    .btn-sheng { background:#2563eb;color:#fff;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700; }
+    .btn-liu   { background:#d97706;color:#fff;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700; }
+    .btn-sheng:hover { background:#1d4ed8; }
+    .btn-liu:hover   { background:#b45309; }
+    .kelas-option { display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:8px;margin-bottom:8px;cursor:pointer;transition:all 0.15s; }
+    .kelas-option:hover { border-color:#b01020;background:#fef2f2; }
+    .kelas-option.selected { border-color:#059669;background:#ecfdf5; }
+    .row-checkbox { width:16px;height:16px;cursor:pointer; }
+    .bulk-bar { background:#1c1c2e;color:white;padding:10px 16px;border-radius:8px;margin-bottom:12px;display:none;align-items:center;gap:12px;font-size:13px; }
+    .bulk-bar.show { display:flex; }
+  </style>
+</head>
+<body class="dash-page">
+
+<header class="dash-header">
+  <div class="header-brand">
+    <span class="header-zh">興毅南興山口洋補習所</span>
+    <span class="header-id">BUDHI MAKMUR MANDARIN</span>
+  </div>
+  <div class="header-right">
+    <div class="program-switcher" id="programSwitcherWrap" style="position:relative;margin-right:12px">
+      <button id="programSwitcherBtn" onclick="toggleProgramSwitcherMenu()" style="display:flex;align-items:center;gap:8px;padding:8px 14px;border:1px solid #e5b8c0;border-radius:8px;background:white;cursor:pointer;font-weight:600;font-size:13px;color:#b01020">
+        <span id="programSwitcherLabel">Memuat...</span>
+        <span style="font-size:10px">▼</span>
+      </button>
+      <div id="programSwitcherMenu" style="display:none;position:absolute;top:110%;right:0;background:white;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.12);min-width:180px;z-index:100;overflow:hidden"></div>
+    </div>
+    <div class="header-user">
+      <div class="header-name" id="headerName">—</div>
+      <div class="header-role">ADMIN TU</div>
+    </div>
+    <button class="btn-logout" id="logoutBtn">Keluar</button>
+  </div>
+</header>
+
+<div class="dash-body">
+  <aside class="dash-sidebar">
+    <div class="sidebar-section">Menu</div>
+    <div class="sidebar-item active" data-tab="dashboard"><span class="sidebar-icon">📊</span><span>Dashboard</span></div>
+    <div class="sidebar-item" data-tab="register"><span class="sidebar-icon">📋</span><span>Pendaftaran</span></div>
+    <div class="sidebar-item" data-tab="reregister"><span class="sidebar-icon">🔄</span><span>Pendaftaran Ulang</span></div>
+    <div class="sidebar-section">Data</div>
+    <div class="sidebar-item" data-tab="kelas"><span class="sidebar-icon">📚</span><span>Data Kelas</span></div>
+    <div class="sidebar-item" data-tab="murid"><span class="sidebar-icon">👨‍🎓</span><span>Data Murid</span></div>
+    <div class="sidebar-item" data-tab="approval-status"><span class="sidebar-icon">✅</span><span>Approval Status Murid</span></div>
+    <div class="sidebar-item" data-tab="guru"><span class="sidebar-icon">👩‍🏫</span><span>Data Guru</span></div>
+    <div class="sidebar-item" data-tab="kaldik"><span class="sidebar-icon">📅</span><span>Kaldik Semester</span></div>
+    <div class="sidebar-item" data-tab="pengaturan-wa"><span class="sidebar-icon">💬</span><span>Link Grup WhatsApp</span></div>
+  </aside>
+
+  <main class="dash-content">
+
+    <!-- ===== DASHBOARD ===== -->
+    <div id="tab-dashboard" class="tab-content active">
+      <div class="page-title">Dashboard Admin TU</div>
+      <div class="page-sub">Ringkasan operasional bimbel</div>
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-icon">👨‍🎓</div><div class="stat-label">Murid Aktif</div><div class="stat-value" id="statAktif">—</div></div>
+        <div class="stat-card"><div class="stat-icon">🚪</div><div class="stat-label">Murid Berhenti</div><div class="stat-value" id="statBerhenti">—</div></div>
+        <div class="stat-card"><div class="stat-icon">📋</div><div class="stat-label">Pendaftaran Baru</div><div class="stat-value" id="statPending">—</div></div>
+        <div class="stat-card"><div class="stat-icon">📚</div><div class="stat-label">Kelas Aktif</div><div class="stat-value" id="statKelas">—</div></div>
+      </div>
+
+      <!-- ===== KELAS BERLANGSUNG SEKARANG (khusus Mandarin) ===== -->
+      <div style="margin-top:28px" id="wrapKelasOngoing">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div>
+            <div style="font-size:16px;font-weight:700;color:var(--text)">🔴 Kelas Berlangsung Sekarang</div>
+            <div style="font-size:12px;color:var(--text-2)" id="ongoingClock">—</div>
+          </div>
+        </div>
+        <div id="kelasOngoing" style="display:flex;gap:14px;overflow-x:auto;padding-bottom:8px"></div>
+      </div>
+
+      <!-- ===== KELAS HARI INI (khusus Mandarin) ===== -->
+      <div style="margin-top:28px" id="wrapKelasHariIni">
+        <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:4px">📅 Kelas Hari Ini</div>
+        <div style="font-size:12px;color:var(--text-2);margin-bottom:12px" id="hariIniLabel">—</div>
+        <div id="kelasHariIni"></div>
+      </div>
+    </div>
+
+    <!-- ===== PENDAFTARAN ===== -->
+    <div id="tab-register" class="tab-content">
+      <div class="page-title">Pendaftaran Murid</div>
+      <div class="page-sub">Kelola pendaftaran masuk dan daftarkan murid baru</div>
+      <div class="toolbar">
+        <button class="btn btn-primary" onclick="openModalDaftarAdmin()">➕ Daftar Murid Baru</button>
+        <select class="filter-select" id="filterStatusDaftar" onchange="loadPendaftaran()">
+          <option value="pending">Pending</option>
+          <option value="approved">Disetujui</option>
+          <option value="rejected">Ditolak</option>
+          <option value="">Semua</option>
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Nama Indonesia</th><th id="thNamaMandarinDaftar">Nama Mandarin</th><th>Tanggal Join</th><th>Kelas</th><th>Status</th><th>Aksi</th></tr></thead>
+          <tbody id="tablePendaftaran"><tr class="loading-row"><td colspan="7">⏳ Memuat...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ===== PENDAFTARAN ULANG ===== -->
+    <div id="tab-reregister" class="tab-content">
+      <div class="page-title">Pendaftaran Ulang</div>
+      <div class="page-sub">Kelola status murid dan penempatan kelas semester baru</div>
+      <div class="toolbar">
+          <input class="search-input" id="searchRR" placeholder="🔍 Cari nama murid..." oninput="filterRR()">
+          <select class="filter-select" id="filterStatusRR" onchange="filterRR()">
+            <option value="">Semua Status</option>
+            <option value="true">Aktif</option>
+            <option value="false">Nonaktif</option>
+          </select>
+          <select class="filter-select" id="filterKelasRR" onchange="filterRR()">
+            <option value="">Semua Kelas</option>
+          </select>
+        </div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>No. Induk</th><th>Nama</th><th>Kelas Saat Ini</th><th>Status</th><th id="thPenentuanRR">Penentuan 升/留</th><th>Kelas Baru</th></tr></thead>
+          <tbody id="tableRR"><tr class="loading-row"><td colspan="6">⏳ Memuat...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ===== DATA KELAS ===== -->
+    <div id="tab-kelas" class="tab-content">
+      <div class="page-title">Data Kelas</div>
+      <div class="page-sub">Kelola semua kelas aktif</div>
+      <div class="toolbar">
+        <select class="filter-select" id="filterGuruKelas" onchange="loadKelas()"><option value="">Semua Guru</option></select>
+        <select class="filter-select" id="filterJilidKelas" onchange="loadKelas()">
+          <option value="">Semua Jilid</option>
+          <option value="1">Jilid 1</option><option value="2">Jilid 2</option><option value="3">Jilid 3</option>
+          <option value="4">Jilid 4</option><option value="5">Jilid 5</option><option value="6">Jilid 6</option>
+          <option value="7">Jilid 7</option><option value="8">Jilid 8</option><option value="9">Jilid 9</option>
+          <option value="10">Jilid 10</option><option value="11">Jilid 11</option><option value="12">Jilid 12</option>
+        </select>
+        <select class="filter-select" id="filterTingkatKelas" onchange="loadKelas()" style="display:none">
+          <option value="">Semua Tingkat</option>
+          <option value="TK A">TK A</option>
+          <option value="TK B">TK B</option>
+        </select>
+        <button class="btn btn-primary" onclick="openModalTambahKelas()">➕ Tambah Kelas</button>
+      </div>
+      <div class="bulk-bar" id="bulkBarKelas">
+        <span id="bulkCountKelas">0 kelas dipilih</span>
+        <button class="btn btn-danger btn-sm" onclick="bulkDeleteKelas()">🗑️ Hapus yang dipilih</button>
+        <button class="btn btn-secondary btn-sm" onclick="clearSelectKelas()">Batalkan</button>
+      </div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th><input type="checkbox" id="checkAllKelas" onchange="toggleAllKelas(this)"></th><th>Kode Kelas</th><th>Guru</th><th id="thJilidKelas">Jilid</th><th>Jadwal</th><th>Murid</th><th>Status</th><th>Aksi</th></tr></thead>
+          <tbody id="tableKelas"><tr class="loading-row"><td colspan="8">⏳ Memuat...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ===== DATA MURID ===== -->
+    <div id="tab-murid" class="tab-content">
+      <div class="page-title">Data Murid</div>
+      <div class="page-sub">Kelola seluruh data murid bimbel</div>
+      <div class="toolbar">
+        <input class="search-input" id="searchMurid" placeholder="🔍 Cari nama / no. induk..." oninput="filterMurid()">
+        <select class="filter-select" id="filterStatusMurid" onchange="filterMurid()">
+          <option value="">Semua Status</option><option value="true">Aktif</option><option value="false">Nonaktif</option>
+        </select>
+        <select class="filter-select" id="filterJilidMurid" onchange="filterMurid()">
+          <option value="">Semua Jilid</option>
+          <option value="1">Jilid 1</option><option value="2">Jilid 2</option><option value="3">Jilid 3</option>
+          <option value="4">Jilid 4</option><option value="5">Jilid 5</option><option value="6">Jilid 6</option>
+          <option value="7">Jilid 7</option><option value="8">Jilid 8</option><option value="9">Jilid 9</option>
+          <option value="10">Jilid 10</option><option value="11">Jilid 11</option><option value="12">Jilid 12</option>
+        </select>
+        <select class="filter-select" id="filterTingkatMurid" onchange="filterMurid()" style="display:none">
+          <option value="">Semua Tingkat</option>
+          <option value="TK A">TK A</option>
+          <option value="TK B">TK B</option>
+        </select>
+        <button class="btn btn-primary" onclick="openModalTambahMurid()">➕ Tambah Murid</button>
+      </div>
+      <div class="bulk-bar" id="bulkBarMurid">
+        <span id="bulkCountMurid">0 murid dipilih</span>
+        <button class="btn btn-danger btn-sm" onclick="bulkDeleteMurid()">🗑️ Hapus yang dipilih</button>
+        <button class="btn btn-secondary btn-sm" onclick="clearSelectMurid()">Batalkan</button>
+      </div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th><input type="checkbox" id="checkAllMurid" onchange="toggleAllMurid(this)"></th><th>No. Induk</th><th>Nama Indonesia</th><th id="thNamaMandarinMurid">Nama Mandarin</th><th>Kelas</th><th>Status</th><th>Aksi</th></tr></thead>
+          <tbody id="tableMurid"><tr class="loading-row"><td colspan="7">⏳ Memuat...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ===== APPROVAL STATUS MURID ===== -->
+    <div id="tab-approval-status" class="tab-content">
+      <div class="page-title">Approval Status Murid</div>
+      <div class="page-sub">Setujui atau tolak permintaan perubahan status murid dari Guru</div>
+      <div class="toolbar">
+        <select class="filter-select" id="filterStatusReq" onchange="loadApprovalStatus()">
+          <option value="pending">Menunggu Persetujuan</option>
+          <option value="approved">Disetujui</option>
+          <option value="rejected">Ditolak</option>
+          <option value="">Semua</option>
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>No. Induk</th><th>Nama Murid</th><th>Diminta Jadi</th><th>Status</th><th>Aksi</th></tr></thead>
+          <tbody id="tableApprovalStatus"><tr class="loading-row"><td colspan="5">⏳ Memuat...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ===== DATA GURU ===== -->
+
+    <!-- ===== DATA GURU (VIEW ONLY) ===== -->
+    <div id="tab-guru" class="tab-content">
+      <div class="page-title">Data Guru</div>
+      <div class="page-sub">Daftar pengajar bimbel — untuk pengelolaan akun dan data guru hubungi Leader</div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>No. Induk</th><th>Kode</th><th>Nama</th><th>No. HP</th><th>Kelas Aktif</th><th>Status</th></tr></thead>
+          <tbody id="tableGuruAdmin"><tr class="loading-row"><td colspan="6">⏳ Memuat...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ===== KALDIK SEMESTER ===== -->
+    <div id="tab-kaldik" class="tab-content">
+      <div class="page-title">Kalender Pendidikan</div>
+      <div class="page-sub">Atur jadwal & agenda semester — terlihat oleh semua role</div>
+      <div class="toolbar">
+        <select class="filter-select" id="filterSemesterKaldik" onchange="loadKaldik()">
+          <option value="">Semua Semester</option>
+        </select>
+        <button class="btn btn-primary" onclick="openModalTambahKaldik()">➕ Tambah Event</button>
+      </div>
+      <div id="kaldikContainer">
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Semester</th><th>Judul Event</th><th>Tanggal Mulai</th><th>Tanggal Selesai</th><th>Keterangan</th><th>Aksi</th></tr></thead>
+            <tbody id="tableKaldik"><tr class="loading-row"><td colspan="6">⏳ Memuat...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== PENGATURAN WA GRUP ===== -->
+    <div id="tab-pengaturan-wa" class="tab-content">
+      <div class="page-title">Link Grup WhatsApp</div>
+      <div class="page-sub">Atur link grup WhatsApp per program — link ini akan muncul ke pendaftar sesuai program yang mereka pilih setelah submit pendaftaran</div>
+
+      <div id="waGroupLinkList" style="margin-top:16px;max-width:640px;display:flex;flex-direction:column;gap:16px">
+        <div style="color:#9ca3af;font-size:13px">⏳ Memuat...</div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ===== MODALS ===== -->
+
+<!-- Modal: Detail Pendaftaran -->
+<div class="modal-overlay hidden" id="modalDetailDaftar">
+  <div class="modal-box">
+    <div class="modal-header"><span class="modal-title">📋 Detail Pendaftaran</span><button class="modal-close" onclick="closeModal('modalDetailDaftar')">✕</button></div>
+    <div id="detailDaftarContent"></div>
+    <div id="detailDaftarAksi" class="form-actions" style="margin-top:16px"></div>
+  </div>
+</div>
+
+<!-- Modal: Daftar Murid Baru (Admin) -->
+<div class="modal-overlay hidden" id="modalDaftarAdmin">
+  <div class="modal-box" style="max-width:620px">
+    <div class="modal-header"><span class="modal-title">➕ Daftar Murid Baru</span><button class="modal-close" onclick="closeModal('modalDaftarAdmin')">✕</button></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Nama Indonesia *</label><input type="text" id="da_namaIndo" placeholder="Nama lengkap"></div>
+      <div class="form-group" id="da_namaMandarinWrap"><label>Nama Mandarin</label><input type="text" id="da_namaMandarin" placeholder="华文名字"></div>
+      <div class="form-group"><label>HP Murid</label><input type="tel" id="da_hpMurid" placeholder="08xx-xxxx-xxxx"></div>
+      <div class="form-group"><label>HP Orang Tua *</label><input type="tel" id="da_hpOrtu" placeholder="08xx-xxxx-xxxx"></div>
+      <div class="form-group"><label>Tempat Lahir</label><input type="text" id="da_tempatLahir"></div>
+      <div class="form-group"><label>Tanggal Lahir</label><input type="date" id="da_tanggalLahir"></div>
+      <div class="form-group"><label>Tanggal Join *</label><input type="date" id="da_tanggalJoin"></div>
+      <div class="form-group"><label>Kelas *</label><select id="da_kelas"><option value="">-- Pilih Kelas --</option></select></div>
+    </div>
+    <div class="form-group" style="margin-top:12px"><label>Alamat</label><textarea id="da_alamat"></textarea></div>
+    <div class="form-actions"><button class="btn btn-primary" onclick="simpanDaftarAdmin()">✅ Daftarkan Murid</button><button class="btn btn-secondary" onclick="closeModal('modalDaftarAdmin')">Batal</button></div>
+  </div>
+</div>
+
+<!-- Modal: Penempatan Kelas (升/留) -->
+<div class="modal-overlay hidden" id="modalPenempatan">
+  <div class="modal-box" style="max-width:480px">
+    <div class="modal-header"><span class="modal-title" id="penempatanTitle">Pilih Kelas</span><button class="modal-close" onclick="closeModal('modalPenempatan')">✕</button></div>
+    <p style="font-size:13px;color:#6b7280;margin-bottom:16px" id="penempatanSub"></p>
+    <div id="penempatanList"></div>
+  </div>
+</div>
+
+<!-- Modal: Tambah/Edit Kelas -->
+<div class="modal-overlay hidden" id="modalKelas">
+  <div class="modal-box" style="max-width:520px">
+    <div class="modal-header"><span class="modal-title" id="modalKelasTitle">Tambah Kelas</span><button class="modal-close" onclick="closeModal('modalKelas')">✕</button></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Program</label><select id="mk_program" onchange="onProgramKelasChange()"><option value="">-- Pilih --</option></select></div>
+      <div class="form-group"><label>Guru Pengampu</label><select id="mk_guru" onchange="updateKodePreview()"><option value="">-- Pilih Program dulu --</option></select></div>
+      <div class="form-group" id="mk_jilid_wrap"><label>Jilid</label>
+        <select id="mk_jilid" onchange="updateKodePreview()">
+          <option value="">-- Pilih --</option>
+          <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option>
+          <option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option>
+          <option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option>
+        </select>
+      </div>
+      <div class="form-group" id="mk_tk_tingkat_wrap" style="display:none"><label>Tingkat</label>
+        <select id="mk_tk_tingkat" onchange="updateKodePreview()">
+          <option value="">-- Pilih --</option>
+          <option value="TK A">TK A</option>
+          <option value="TK B">TK B</option>
+        </select>
+      </div>
+      <div class="form-group" id="mk_tk_nomor_wrap" style="display:none"><label>Kelas Ke-</label>
+        <select id="mk_tk_nomor" onchange="updateKodePreview()">
+          <option value="">-- Pilih --</option>
+          <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+        </select>
+      </div>
+      <div class="form-group" id="mk_hari_select_wrap"><label>Hari</label>
+        <select id="mk_hari" onchange="updateKodePreview()">
+          <option value="">-- Pilih --</option>
+          <option value="135">135 — Sen·Rab·Jum</option>
+          <option value="246">246 — Sel·Kam·Sab</option>
+        </select>
+      </div>
+      <div class="form-group" id="mk_sesi_select_wrap"><label>Sesi</label>
+        <select id="mk_sesi" onchange="updateKodePreview()">
+          <option value="">-- Pilih --</option>
+          <option value="sore">Sore 16:00–17:45</option>
+          <option value="malam">Malam 18:00–19:45</option>
+        </select>
+      </div>
+      <div class="form-group" id="mk_sesi_text_wrap" style="display:none"><label>Sesi</label>
+        <input type="text" id="mk_sesi_text" placeholder="Contoh: 08.00" onkeyup="updateKodePreview()">
+      </div>
+    </div>
+    <div id="mk_note_manual" style="display:none;font-size:12px;color:#92400e;background:#fef3c7;padding:8px 12px;border-radius:8px;margin-top:8px">
+      ℹ️ Program ini otomatis pakai jadwal Senin–Jumat. Isi kolom Sesi bebas sesuai keinginan (misal jam kelasnya).
+    </div>
+    <div class="kode-preview" id="mk_kodePreview">Kode akan muncul otomatis</div>
+    <div class="form-actions"><button class="btn btn-primary" onclick="simpanKelas()">💾 Simpan</button><button class="btn btn-secondary" onclick="closeModal('modalKelas')">Batal</button></div>
+  </div>
+</div>
+
+<!-- Modal: Tambah/Edit Murid -->
+<div class="modal-overlay hidden" id="modalMurid">
+  <div class="modal-box" style="max-width:620px">
+    <div class="modal-header"><span class="modal-title" id="modalMuridTitle">Tambah Murid</span><button class="modal-close" onclick="closeModal('modalMurid')">✕</button></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Nama Indonesia *</label><input type="text" id="mm_namaIndo"></div>
+      <div class="form-group" id="mm_namaMandarinWrap"><label>Nama Mandarin</label><input type="text" id="mm_namaMandarin" placeholder="华文名字"></div>
+      <div class="form-group"><label>HP Murid</label><input type="tel" id="mm_hpMurid"></div>
+      <div class="form-group"><label>HP Orang Tua *</label><input type="tel" id="mm_hpOrtu"></div>
+      <div class="form-group"><label>Tempat Lahir</label><input type="text" id="mm_tempatLahir"></div>
+      <div class="form-group"><label>Tanggal Lahir</label><input type="date" id="mm_tanggalLahir"></div>
+      <div class="form-group"><label>Tanggal Join</label><input type="date" id="mm_tanggalJoin"></div>
+      <div class="form-group"><label>Pilih Kelas</label>
+        <select id="mm_kelas">
+          <option value="">-- Pilih --</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Status</label>
+        <select id="mm_status"><option value="true">Aktif</option><option value="false">Nonaktif</option></select>
+      </div>
+    </div>
+    <div class="form-group" style="margin-top:12px"><label>Alamat</label><textarea id="mm_alamat"></textarea></div>
+    <input type="hidden" id="mm_id">
+    <div class="form-actions"><button class="btn btn-primary" onclick="simpanMurid()">💾 Simpan</button><button class="btn btn-secondary" onclick="closeModal('modalMurid')">Batal</button></div>
+  </div>
+</div>
+
+<!-- Modal: Detail Murid (view all fields) -->
+<div class="modal-overlay hidden" id="modalDetailMurid">
+  <div class="modal-box">
+    <div class="modal-header"><span class="modal-title">👤 Profil Murid</span><button class="modal-close" onclick="closeModal('modalDetailMurid')">✕</button></div>
+    <div id="detailMuridContent"></div>
+  </div>
+</div>
+
+<!-- Modal: Kaldik -->
+<div class="modal-overlay hidden" id="modalKaldik">
+  <div class="modal-box">
+    <div class="modal-header"><span class="modal-title" id="modalKaldikTitle">Tambah Event Kaldik</span><button class="modal-close" onclick="closeModal('modalKaldik')">✕</button></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Semester <span style="color:red">*</span></label>
+        <input type="text" id="kd_semester" placeholder="Contoh: Semester 1 2025"></div>
+      <div class="form-group"><label>Judul Event <span style="color:red">*</span></label>
+        <input type="text" id="kd_judul" placeholder="Contoh: Ujian Tengah Semester"></div>
+      <div class="form-group"><label>Tanggal Mulai <span style="color:red">*</span></label>
+        <input type="date" id="kd_tglMulai"></div>
+      <div class="form-group"><label>Tanggal Selesai</label>
+        <input type="date" id="kd_tglSelesai"></div>
+    </div>
+    <div class="form-group"><label>Keterangan</label>
+      <textarea id="kd_keterangan" placeholder="Catatan tambahan (opsional)" style="height:70px"></textarea></div>
+    <div class="form-actions"><button class="btn btn-primary" onclick="simpanKaldik()">💾 Simpan</button><button class="btn btn-secondary" onclick="closeModal('modalKaldik')">Batal</button></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/supabase-client.js"></script>
+<script src="../assets/admin.js"></script>
+</body>
+</html>

@@ -1,0 +1,2008 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Bendahara — BMM</title>
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body class="dash-page">
+
+<header class="dash-header">
+  <div class="header-brand">
+    <span class="header-zh">興毅南興山口洋補習所</span>
+    <span class="header-id">BUDHI MAKMUR MANDARIN</span>
+  </div>
+  <div class="header-right">
+    <div class="program-switcher" id="programSwitcherWrap" style="position:relative;margin-right:12px">
+      <button id="programSwitcherBtn" onclick="toggleProgramSwitcherMenu()" style="display:flex;align-items:center;gap:8px;padding:8px 14px;border:1px solid #e5b8c0;border-radius:8px;background:white;cursor:pointer;font-weight:600;font-size:13px;color:#b01020">
+        <span id="programSwitcherLabel">Memuat...</span>
+        <span style="font-size:10px">▼</span>
+      </button>
+      <div id="programSwitcherMenu" style="display:none;position:absolute;top:110%;right:0;background:white;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.12);min-width:180px;z-index:100;overflow:hidden"></div>
+    </div>
+    <div class="header-user">
+      <div class="header-name" id="headerName">—</div>
+      <div class="header-role">BENDAHARA</div>
+    </div>
+    <button class="btn-logout" id="logoutBtn">Keluar</button>
+  </div>
+</header>
+
+<div class="dash-body">
+
+  <aside class="dash-sidebar">
+    <div class="sidebar-section">Menu</div>
+    <div class="sidebar-item active" data-tab="dashboard">
+      <span class="sidebar-icon">📊</span><span>Dashboard</span>
+    </div>
+    <div class="sidebar-item finance-menu-item" data-tab="setoran">
+      <span class="sidebar-icon">📥</span><span>Verifikasi Setoran</span>
+    </div>
+    <div class="sidebar-item finance-menu-item" data-tab="iuran">
+      <span class="sidebar-icon">💳</span><span>Status Iuran</span>
+    </div>
+    <div class="sidebar-item finance-menu-item" data-tab="biaya">
+      <span class="sidebar-icon">⚙️</span><span>Setting Biaya</span>
+    </div>
+    <div class="sidebar-section finance-menu-item">Keuangan</div>
+    <div class="sidebar-item finance-menu-item" data-tab="penggajian">
+      <span class="sidebar-icon">💰</span><span>Penggajian</span>
+    </div>
+    <div class="sidebar-item finance-menu-item" data-tab="transaksi">
+      <span class="sidebar-icon">📒</span><span>Transaksi</span>
+    </div>
+    <div class="sidebar-item finance-menu-item" data-tab="laporan">
+      <span class="sidebar-icon">📈</span><span>Laporan Keuangan</span>
+    </div>
+    <div class="sidebar-item" data-tab="kelas">
+      <span class="sidebar-icon">🏫</span><span>Data Kelas</span>
+    </div>
+    <div class="sidebar-item" data-tab="kaldik">
+      <span class="sidebar-icon">📅</span><span>Kaldik Semester</span>
+    </div>
+  </aside>
+
+  <main class="dash-content">
+
+    <!-- TAB: DASHBOARD -->
+    <div id="tab-dashboard" class="tab-content active">
+      <div class="page-title">Dashboard Bendahara</div>
+      <div class="page-sub">Ringkasan keuangan bimbel bulan ini</div>
+
+      <div id="bendaharaNonMandarinNotice" style="display:none;background:#f3f4f6;border:1px dashed #d1d5db;border-radius:12px;padding:32px;text-align:center;color:#6b7280">
+        ℹ️ Fitur keuangan (setoran, iuran, gaji) untuk program ini belum tersedia.<br>Silakan cek tab <strong>Data Kelas</strong>, atau ganti mode ke Mandarin untuk lihat ringkasan keuangan.
+      </div>
+
+      <div id="bendaharaFinanceDashboard">
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-icon">📥</div>
+          <div class="stat-label">Setoran Pending</div>
+          <div class="stat-value" id="statSetoran">—</div>
+          <div class="stat-desc">Menunggu verifikasi</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">💳</div>
+          <div class="stat-label">Iuran Dikonfirmasi</div>
+          <div class="stat-value" id="statIuran">—</div>
+          <div class="stat-desc">Menunggu finalisasi</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">💰</div>
+          <div class="stat-label">Penggajian Pending</div>
+          <div class="stat-value" id="statGaji">—</div>
+          <div class="stat-desc">Belum dibayar</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">📈</div>
+          <div class="stat-label">Total Pemasukan</div>
+          <div class="stat-value" id="statPemasukan">—</div>
+          <div class="stat-desc">Bulan ini</div>
+        </div>
+      </div>
+
+      <!-- Ringkasan per guru -->
+      <div class="form-section">
+        <div class="form-title">👩‍🏫 Ringkasan Setoran per Guru — Bulan Ini</div>
+        <div class="table-wrap" style="margin-top:0;border:none">
+          <table class="table">
+            <thead>
+              <tr><th>Kode</th><th>Nama Guru</th><th>Kelas Aktif</th><th>Total Setoran</th><th>🏫 Kas Bimbel</th><th>🎓 Gaji Guru</th><th>Status Gaji</th></tr>
+            </thead>
+            <tbody id="tableRingkasanGuru">
+              <tr class="loading-row"><td colspan="7">⏳ Memuat...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      </div>
+    </div>
+
+    <!-- TAB: VERIFIKASI SETORAN -->
+    <div id="tab-setoran" class="tab-content">
+      <div class="page-title">Verifikasi Setoran SPP</div>
+      <div class="page-sub">Cek dan verifikasi laporan setoran dari guru</div>
+
+      <div class="toolbar">
+        <select class="filter-select" id="filterGuruSetoran" onchange="loadSetoran()">
+          <option value="">Semua Guru</option>
+        </select>
+        <select class="filter-select" id="filterStatusSetoran" onchange="loadSetoran()">
+          <option value="pending">Menunggu Verifikasi</option>
+          <option value="diverifikasi">Verified by Bendahara</option>
+          <option value="disetujui_leader">Verified by Leader</option>
+          <option value="tercairkan">Tercairkan</option>
+          <option value="">Semua</option>
+        </select>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr><th>Bulan</th><th>Guru</th><th>Kelas</th><th>Murid</th><th>Total Iuran</th><th>Tgl Setor</th><th>Catatan Guru</th><th>Bukti</th><th>Status Pencairan</th><th>Aksi</th></tr>
+          </thead>
+          <tbody id="tableSetoran">
+            <tr class="loading-row"><td colspan="10">⏳ Memuat data...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB: STATUS IURAN -->
+    <div id="tab-iuran" class="tab-content">
+      <div class="page-title">Status Iuran Murid</div>
+      <div class="page-sub">Monitor status pelunasan iuran per murid</div>
+
+      <div class="toolbar">
+        <input type="month" class="filter-select" id="filterBulanIuran" onchange="loadIuran()">
+        <select class="filter-select" id="filterGuruIuran" onchange="loadIuran()">
+          <option value="">Semua Guru</option>
+        </select>
+        <select class="filter-select" id="filterKelasIuran" onchange="loadIuran()">
+          <option value="">Semua Kelas</option>
+        </select>
+        <select class="filter-select" id="filterStatusIuran" onchange="loadIuran()">
+          <option value="belum_bayar">Belum Bayar</option>
+          <option value="lunas">Lunas</option>
+          <option value="">Semua</option>
+        </select>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr><th>No. Induk</th><th>Nama Murid</th><th>Kelas</th><th>Bulan</th><th>Jumlah</th><th>Status</th></tr>
+          </thead>
+          <tbody id="tableIuran">
+            <tr class="loading-row"><td colspan="6">⏳ Memuat data...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB: SETTING BIAYA -->
+    <div id="tab-biaya" class="tab-content">
+      <div class="page-title">Setting Biaya</div>
+      <div class="page-sub">Atur nominal biaya per jilid/tingkat — berlaku untuk pendaftaran dan tagihan iuran</div>
+
+      <!-- ============ MANDARIN: SETTING BIAYA (per jilid) ============ -->
+      <div id="biayaMandarinSection">
+
+      <!-- Step 1: Pilih range jilid -->
+      <div id="biayaStep1" class="form-section" style="margin-top:16px">
+        <div class="form-title">📋 Pilih Jilid yang Ingin Diatur</div>
+        <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+          <div class="form-group" style="margin:0;min-width:140px">
+            <label>Dari Jilid</label>
+            <select id="biayaDari" onchange="updateBiayaSampai()">
+              <option value="">-- Pilih --</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin:0;min-width:140px">
+            <label>Sampai Jilid</label>
+            <select id="biayaSampai">
+              <option value="">-- Pilih --</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" onclick="loadBiayaRange()">Lanjut →</button>
+        </div>
+        <div id="biayaRangeInfo" style="font-size:12px;color:#6b7280;margin-top:8px"></div>
+      </div>
+
+      <!-- Step 2: Edit harga per jilid -->
+      <div id="biayaStep2" style="display:none;margin-top:20px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div id="biayaRangeTitle" style="font-weight:700;color:var(--red);font-size:15px"></div>
+          <button class="btn btn-secondary btn-sm" onclick="resetBiayaStep()">← Pilih Range Lain</button>
+        </div>
+        <div id="biayaEditContainer"></div>
+        <div style="margin-top:16px;display:flex;gap:10px">
+          <button class="btn btn-primary" onclick="simpanBiayaRange()">💾 Simpan Semua</button>
+          <button class="btn btn-secondary" onclick="resetBiayaStep()">Batal</button>
+        </div>
+      </div>
+
+      <!-- Ringkasan semua jilid (read view) -->
+      <div class="form-section" style="margin-top:24px">
+        <div class="form-title">📊 Ringkasan Harga Saat Ini</div>
+        <div id="biayaRingkasan">
+          <div style="text-align:center;padding:20px;color:#6b7280">⏳ Memuat...</div>
+        </div>
+      </div>
+
+      <!-- ====== BIAYA PENDAFTARAN ULANG ====== -->
+      <div class="form-section" style="margin-top:28px;border-top:2px solid #f3f4f6;padding-top:24px">
+        <div class="form-title">🔄 Biaya Pendaftaran Ulang</div>
+        <div class="page-sub" style="margin:-8px 0 16px">Atur biaya yang dikenakan saat murid mendaftar ulang tiap semester</div>
+
+        <!-- Lock banner (hidden by default, shown by JS when bulan terkunci) -->
+        <div id="duLockBanner" style="display:none;padding:12px 16px;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;margin-bottom:16px;font-size:13px;color:#9a3412">
+          🔒 <strong>Fitur terkunci.</strong> Edit biaya pendaftaran ulang hanya bisa dilakukan pada bulan Mei, Juni, Juli (Sem 1) dan November, Desember, Januari (Sem 2).
+        </div>
+
+        <!-- Edit form per jilid -->
+        <div id="daftarUlangStep1" class="form-section" style="margin-top:0;background:#fafafa">
+          <div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:10px">📋 Pilih Jilid yang Ingin Diatur</div>
+          <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+            <div class="form-group" style="margin:0;min-width:140px">
+              <label>Dari Jilid</label>
+              <select id="duDari" onchange="updateDuSampai()">
+                <option value="">-- Pilih --</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin:0;min-width:140px">
+              <label>Sampai Jilid</label>
+              <select id="duSampai">
+                <option value="">-- Pilih --</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" onclick="loadDuRange()">Lanjut →</button>
+          </div>
+          <div id="duRangeInfo" style="font-size:12px;color:#6b7280;margin-top:8px"></div>
+        </div>
+
+        <!-- Step 2: Edit inputs -->
+        <div id="daftarUlangStep2" style="display:none;margin-top:16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <div id="duRangeTitle" style="font-weight:700;color:var(--red);font-size:15px"></div>
+            <button class="btn btn-secondary btn-sm" onclick="resetDuStep()">← Pilih Range Lain</button>
+          </div>
+          <div id="duEditContainer"></div>
+          <div style="margin-top:16px;display:flex;gap:10px">
+            <button class="btn btn-primary" onclick="simpanDuRange()">💾 Simpan Semua</button>
+            <button class="btn btn-secondary" onclick="resetDuStep()">Batal</button>
+          </div>
+        </div>
+
+        <!-- Ringkasan biaya daftar ulang -->
+        <div style="margin-top:20px">
+          <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:10px">📊 Ringkasan Biaya Pendaftaran Ulang</div>
+          <div id="duRingkasan">
+            <div style="text-align:center;padding:20px;color:#6b7280">⏳ Memuat...</div>
+          </div>
+        </div>
+      </div>
+
+      </div>
+      <!-- ============ /MANDARIN SECTION ============ -->
+
+      <!-- ============ CALISTUNG: SETTING BIAYA (per tingkat) ============ -->
+      <div id="biayaCalistungSection" style="display:none">
+
+        <div class="form-section" style="margin-top:16px">
+          <div class="form-title">📋 Biaya Awal per Tingkat</div>
+          <div id="biayaCalistungEditContainer"></div>
+          <div style="margin-top:16px">
+            <button class="btn btn-primary" onclick="simpanBiayaCalistung()">💾 Simpan Semua</button>
+          </div>
+        </div>
+
+        <div class="form-section" style="margin-top:24px">
+          <div class="form-title">📊 Ringkasan Harga Saat Ini</div>
+          <div id="biayaCalistungRingkasan">
+            <div style="text-align:center;padding:20px;color:#6b7280">⏳ Memuat...</div>
+          </div>
+        </div>
+
+        <!-- ====== BIAYA PENDAFTARAN ULANG (CALISTUNG) ====== -->
+        <div class="form-section" style="margin-top:28px;border-top:2px solid #f3f4f6;padding-top:24px">
+          <div class="form-title">🔄 Biaya Pendaftaran Ulang</div>
+          <div class="page-sub" style="margin:-8px 0 16px">Atur biaya yang dikenakan saat murid mendaftar ulang tiap semester</div>
+
+          <div id="duCalistungEditContainer"></div>
+          <div style="margin-top:16px">
+            <button class="btn btn-primary" onclick="simpanDuCalistung()">💾 Simpan Semua</button>
+          </div>
+
+          <div style="margin-top:20px">
+            <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:10px">📊 Ringkasan Biaya Pendaftaran Ulang</div>
+            <div id="duCalistungRingkasan">
+              <div style="text-align:center;padding:20px;color:#6b7280">⏳ Memuat...</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <!-- ============ /CALISTUNG SECTION ============ -->
+
+    </div>
+
+
+    <!-- TAB: PENGGAJIAN -->
+    <div id="tab-penggajian" class="tab-content">
+      <div class="page-title">Penggajian Guru</div>
+      <div class="page-sub">Generate slip gaji dan proses penggajian bulanan</div>
+
+      <div class="toolbar">
+        <input type="month" id="bulanGaji" class="filter-select">
+        <button class="btn btn-primary" onclick="generateSlipGaji()">⚡ Generate Semua Slip Gaji</button>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr><th>Guru</th><th>Kelas</th><th>Gaji Tetap</th><th>Bagi Hasil</th><th>Total Gaji</th><th>Status</th><th>Aksi</th></tr>
+          </thead>
+          <tbody id="tablePenggajian">
+            <tr class="loading-row"><td colspan="7">⏳ Pilih bulan dan klik Generate</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB: TRANSAKSI -->
+    <div id="tab-transaksi" class="tab-content">
+      <div class="page-title">Transaksi Keuangan</div>
+      <div class="page-sub">Catat pengeluaran dan pemasukan operasional</div>
+
+      <!-- Form tambah transaksi -->
+      <div class="form-section">
+        <div class="form-title">➕ Tambah Transaksi</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Jenis</label>
+            <select id="trxJenis">
+              <option value="masuk">💚 Pemasukan</option>
+              <option value="keluar">❤️ Pengeluaran</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Kategori</label>
+            <input type="text" id="trxKategori" placeholder="cth: SPP, Operasional, Gaji...">
+          </div>
+          <div class="form-group">
+            <label>Jumlah (Rp)</label>
+            <input type="number" id="trxJumlah" placeholder="0" min="0">
+          </div>
+          <div class="form-group">
+            <label>Tanggal</label>
+            <input type="date" id="trxTanggal">
+          </div>
+        </div>
+        <div class="form-group" style="margin-top:12px">
+          <label>Keterangan</label>
+          <textarea id="trxKeterangan" placeholder="Keterangan transaksi..."></textarea>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-primary" onclick="simpanTransaksi()">💾 Simpan Transaksi</button>
+        </div>
+      </div>
+
+      <!-- List transaksi -->
+      <div class="toolbar">
+        <input type="month" id="filterBulanTrx" class="filter-select" onchange="loadTransaksi()">
+        <select class="filter-select" id="filterJenisTrx" onchange="loadTransaksi()">
+          <option value="">Semua</option>
+          <option value="masuk">Pemasukan</option>
+          <option value="keluar">Pengeluaran</option>
+        </select>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr><th>Tanggal</th><th>Jenis</th><th>Kategori</th><th>Jumlah</th><th>Keterangan</th><th>Status</th></tr>
+          </thead>
+          <tbody id="tableTransaksi">
+            <tr class="loading-row"><td colspan="5">⏳ Memuat...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB: LAPORAN KEUANGAN -->
+    <div id="tab-laporan" class="tab-content">
+      <div class="page-title">Laporan Keuangan</div>
+      <div class="page-sub">Ringkasan keuangan otomatis berdasarkan data transaksi yang disetujui</div>
+
+      <div class="toolbar">
+        <input type="month" id="filterBulanLaporan" class="filter-select">
+        <button class="btn btn-primary" onclick="generateLaporan()">📊 Generate Laporan</button>
+      </div>
+
+      <div id="laporanContainer" style="display:none">
+        <div class="stat-grid" style="margin-bottom:20px">
+          <div class="stat-card" style="border-left:4px solid var(--green);cursor:pointer;transition:transform 0.15s,box-shadow 0.15s"
+            onclick="bukaDetailLaporanB('masuk')"
+            onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 24px rgba(0,150,0,0.15)'"
+            onmouseout="this.style.transform='';this.style.boxShadow=''">
+            <div class="stat-label">💚 Total Pemasukan</div>
+            <div class="stat-value" id="lapPemasukan" style="color:var(--green)">—</div>
+            <div style="font-size:11px;color:#6b7280;margin-top:4px">Klik untuk detail ▼</div>
+          </div>
+          <div class="stat-card" style="border-left:4px solid var(--red);cursor:pointer;transition:transform 0.15s,box-shadow 0.15s"
+            onclick="bukaDetailLaporanB('keluar')"
+            onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 24px rgba(180,0,0,0.12)'"
+            onmouseout="this.style.transform='';this.style.boxShadow=''">
+            <div class="stat-label">❤️ Total Pengeluaran</div>
+            <div class="stat-value" id="lapPengeluaran" style="color:var(--red)">—</div>
+            <div style="font-size:11px;color:#6b7280;margin-top:4px">Klik untuk detail ▼</div>
+          </div>
+          <div class="stat-card" style="border-left:4px solid var(--blue);cursor:pointer;transition:transform 0.15s,box-shadow 0.15s"
+            onclick="bukaDetailLaporanB('labarugi')"
+            onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 24px rgba(0,80,200,0.15)'"
+            onmouseout="this.style.transform='';this.style.boxShadow=''">
+            <div class="stat-label">💙 Laba Bersih</div>
+            <div class="stat-value" id="lapSaldo">—</div>
+            <div style="font-size:11px;color:#6b7280;margin-top:4px">Klik untuk Laporan L/R ▼</div>
+          </div>
+          <div class="stat-card" style="border-left:4px solid var(--yellow);cursor:pointer;transition:transform 0.15s,box-shadow 0.15s"
+            onclick="bukaDetailLaporanB('gaji')"
+            onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 24px rgba(200,150,0,0.15)'"
+            onmouseout="this.style.transform='';this.style.boxShadow=''">
+            <div class="stat-label">🎓 Total Gaji Dibayar</div>
+            <div class="stat-value" id="lapGaji" style="color:var(--yellow)">—</div>
+            <div style="font-size:11px;color:#6b7280;margin-top:4px">Klik untuk detail ▼</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== DATA KELAS (READ-ONLY) ===== -->
+    <div id="tab-kelas" class="tab-content">
+      <div class="page-title">Data Kelas</div>
+      <div class="page-sub">Daftar kelas aktif — hanya lihat</div>
+      <div class="toolbar">
+        <select class="filter-select" id="filterJilidKelasB" onchange="loadKelasB()">
+          <option value="">Semua Jilid</option>
+          <option value="0">TK</option>
+          <option value="1">Jilid 1</option><option value="2">Jilid 2</option><option value="3">Jilid 3</option>
+          <option value="4">Jilid 4</option><option value="5">Jilid 5</option><option value="6">Jilid 6</option>
+          <option value="7">Jilid 7</option><option value="8">Jilid 8</option><option value="9">Jilid 9</option>
+          <option value="10">Jilid 10</option><option value="11">Jilid 11</option><option value="12">Jilid 12</option>
+        </select>
+        <select class="filter-select" id="filterTingkatKelasB" onchange="loadKelasB()" style="display:none">
+          <option value="">Semua Tingkat</option>
+          <option value="TK A">TK A</option>
+          <option value="TK B">TK B</option>
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Kode Kelas</th><th>Guru</th><th id="thJilidKelasB">Jilid</th><th>Jadwal</th><th>Jumlah Murid</th><th>Status</th></tr></thead>
+          <tbody id="tableKelasB"><tr class="loading-row"><td colspan="6">⏳ Memuat...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ===== DATA MURID (READ-ONLY) ===== -->
+    <!-- ===== KALDIK SEMESTER ===== -->
+    <div id="tab-kaldik" class="tab-content">
+      <div class="page-title">Kalender Pendidikan</div>
+      <div class="page-sub">Jadwal & agenda semester yang ditetapkan Admin</div>
+      <div class="toolbar">
+        <select class="filter-select" id="filterSemesterKaldik" onchange="loadKaldikReadOnly()">
+          <option value="">Semua Semester</option>
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Semester</th><th>Judul Event</th><th>Tanggal Mulai</th><th>Tanggal Selesai</th><th>Keterangan</th></tr></thead>
+          <tbody id="tableKaldik"><tr class="loading-row"><td colspan="5">⏳ Memuat...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- MODAL SLIP GAJI -->
+<div class="modal-overlay hidden" id="modalSlip">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">💰 Slip Gaji</span>
+      <button class="modal-close" onclick="closeModal('modalSlip')">✕</button>
+    </div>
+    <div id="slipContent"></div>
+    <div class="form-actions" style="margin-top:16px">
+      <button class="btn btn-primary" id="btnApproveSlip" onclick="approveSlip()">✅ Setujui & Kirim ke Leader</button>
+      <button class="btn btn-secondary" onclick="closeModal('modalSlip')">Tutup</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/supabase-client.js"></script>
+<script>
+let currentUserId = null;
+let currentSlipId = null;
+let sysSettings = {};
+
+async function loadSysSettingsB() {
+  const { data } = await db.from('system_settings').select('key,value');
+  sysSettings = {};
+  (data || []).forEach(r => { sysSettings[r.key] = r.value === 'true'; });
+}
+
+// ============================================
+// INIT
+// ============================================
+(async () => {
+  const { data: { session } } = await db.auth.getSession();
+  if (!session) { window.location.replace('../index.html'); return; }
+
+  const { data: profile } = await db.from('profiles')
+    .select('nama_lengkap, role').eq('id', session.user.id).single();
+
+  if (!profile || profile.role !== 'bendahara') {
+    await db.auth.signOut();
+    window.location.replace('../index.html'); return;
+  }
+
+  currentUserId = session.user.id;
+  document.getElementById('headerName').textContent = profile.nama_lengkap;
+  await initProgramSwitcherB();
+
+  await loadSysSettingsB();
+
+  // Set default bulan
+  const thisMonth = new Date().toISOString().slice(0, 7);
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('filterBulanIuran').value  = thisMonth;
+  document.getElementById('bulanGaji').value         = thisMonth;
+  document.getElementById('filterBulanTrx').value    = thisMonth;
+  document.getElementById('filterBulanLaporan').value = thisMonth;
+  document.getElementById('trxTanggal').value        = today;
+
+  document.querySelectorAll('.sidebar-item').forEach(item => {
+    item.addEventListener('click', () => switchTab(item.dataset.tab));
+  });
+
+  document.getElementById('logoutBtn').addEventListener('click', async () => {
+    await db.auth.signOut();
+    window.location.replace('../index.html');
+  });
+
+  await loadDashboard();
+})();
+
+// ============================================
+// TAB
+// ============================================
+function switchTab(tab) {
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+  if (tab === 'setoran')    loadSetoran();
+  if (tab === 'iuran')      loadIuran();
+  if (tab === 'biaya')      { loadBiaya(); loadDaftarUlang(); }
+  if (tab === 'penggajian') loadPenggajian();
+  if (tab === 'transaksi')  loadTransaksi();
+  if (tab === 'kelas')      loadKelasB();
+  if (tab === 'kaldik')     loadKaldikReadOnly();
+}
+
+// ============================================
+// DASHBOARD
+// ============================================
+async function loadDashboard() {
+  const thisMonth = new Date().toISOString().slice(0, 7);
+
+  let qSetoran = db.from('setoran_spp').select('*, guru:guru_id!inner(program_id)', { count: 'exact', head: true }).eq('status', 'pending');
+  let qIuran   = db.from('iuran').select('*, kelas:kelas_id!inner(program_id)', { count: 'exact', head: true }).eq('status', 'dikonfirmasi_guru');
+  let qGaji    = db.from('penggajian').select('*, guru:guru_id!inner(program_id)', { count: 'exact', head: true }).eq('status', 'pending');
+  if (activeProgramId) {
+    qSetoran = qSetoran.eq('guru.program_id', activeProgramId);
+    qIuran   = qIuran.eq('kelas.program_id', activeProgramId);
+    qGaji    = qGaji.eq('guru.program_id', activeProgramId);
+  }
+
+  const [
+    { count: cSetoran },
+    { count: cIuran },
+    { count: cGaji },
+  ] = await Promise.all([qSetoran, qIuran, qGaji]);
+
+  let qTrxMasuk = db.from('transaksi').select('jumlah').eq('jenis', 'masuk').like('tanggal', thisMonth + '%');
+  if (activeProgramId) qTrxMasuk = qTrxMasuk.eq('program_id', activeProgramId);
+  const { data: trxMasuk } = await qTrxMasuk;
+  const totalMasuk = (trxMasuk || []).reduce((s, t) => s + Number(t.jumlah), 0);
+
+  document.getElementById('statSetoran').textContent  = cSetoran  ?? 0;
+  document.getElementById('statIuran').textContent    = cIuran    ?? 0;
+  document.getElementById('statGaji').textContent     = cGaji     ?? 0;
+  document.getElementById('statPemasukan').textContent = totalMasuk
+    ? 'Rp ' + totalMasuk.toLocaleString('id-ID') : 'Rp 0';
+
+  // Ringkasan per guru
+  let qGuruList = db.from('guru').select('id, nama_lengkap, kode_guru').eq('is_active', true);
+  if (activeProgramId) qGuruList = qGuruList.eq('program_id', activeProgramId);
+  const { data: guruList } = await qGuruList;
+  const tbody = document.getElementById('tableRingkasanGuru');
+  if (!guruList?.length) { tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:20px;color:#6b7280">Belum ada data guru</td></tr>`; return; }
+
+  const rows = await Promise.all(guruList.map(async g => {
+    const { count: jmlKelas } = await db.from('kelas')
+      .select('*', { count: 'exact', head: true }).eq('guru_id', g.id).eq('is_active', true);
+    const { data: setoran } = await db.from('setoran_spp')
+      .select('total_iuran').eq('guru_id', g.id).eq('bulan', thisMonth);
+    const totalSetoran = (setoran || []).reduce((s, x) => s + Number(x.total_iuran), 0);
+    const { data: gaji } = await db.from('penggajian')
+      .select('status').eq('guru_id', g.id).eq('bulan', thisMonth).maybeSingle();
+    const { data: pg } = await db.from('pengaturan_gaji')
+      .select('persentase_bagi_hasil, gaji_per_kelas').eq('guru_id', g.id).maybeSingle();
+    const persen      = Number(pg?.persentase_bagi_hasil || 0);
+    const gajiPerKelas= Number(pg?.gaji_per_kelas || 0);
+    const kasPersen   = 100 - persen;
+    const modelTetap  = gajiPerKelas > 0;
+    const gajiGuru    = modelTetap ? (gajiPerKelas * (jmlKelas || 0)) : (totalSetoran * persen / 100);
+    const kasKelas    = modelTetap ? (totalSetoran - gajiGuru) : (totalSetoran * kasPersen / 100);
+    return { g, jmlKelas, totalSetoran, gajiStatus: gaji?.status, persen, kasPersen, gajiGuru, kasKelas, modelTetap, gajiPerKelas };
+  }));
+
+  const rp = v => 'Rp ' + Number(v).toLocaleString('id-ID');
+  tbody.innerHTML = rows.map(({ g, jmlKelas, totalSetoran, gajiStatus, persen, kasPersen, gajiGuru, kasKelas, modelTetap, gajiPerKelas }) => `
+    <tr>
+      <td><span style="font-family:monospace;font-weight:700;color:var(--red)">${g.kode_guru}</span></td>
+      <td>${g.nama_lengkap}</td>
+      <td>${jmlKelas || 0} kelas</td>
+      <td>${rp(totalSetoran)}</td>
+      <td style="color:#92400e;font-weight:600">
+        ${modelTetap
+          ? (kasKelas >= 0
+              ? rp(kasKelas) + ' <span style="font-size:11px;color:#9ca3af">(sisa)</span>'
+              : '<span style="color:#dc2626;font-weight:700">' + rp(Math.abs(kasKelas)) + ' <span style="font-size:11px">(defisit)</span></span>')
+          : rp(kasKelas) + ' <span style="font-size:11px;color:#9ca3af">(' + kasPersen + '%)</span>'}
+      </td>
+      <td style="color:#15803d;font-weight:600">${rp(gajiGuru)} ${modelTetap ? `<span style="font-size:11px;color:#9ca3af">(tetap ${rp(gajiPerKelas)}/kelas)</span>` : `<span style="font-size:11px;color:#9ca3af">(${persen}%)</span>`}</td>
+      <td>
+        ${!gajiStatus ? '<span class="badge badge-gray">Belum di-generate</span>' : ''}
+        ${gajiStatus === 'pending' ? '<span class="badge badge-yellow">Pending Bendahara</span>' : ''}
+        ${gajiStatus === 'disetujui_bendahara' ? '<span class="badge badge-blue">Menunggu Leader</span>' : ''}
+        ${gajiStatus === 'disetujui_leader' ? '<span class="badge badge-green">Disetujui Leader</span>' : ''}
+        ${gajiStatus === 'dibayar' ? '<span class="badge badge-green">✅ Dibayar</span>' : ''}
+      </td>
+    </tr>
+  `).join('');
+}
+
+// ============================================
+// SETORAN SPP
+// ============================================
+async function loadSetoran() {
+  const guruId = document.getElementById('filterGuruSetoran').value;
+  const status = document.getElementById('filterStatusSetoran').value;
+  let query = db.from('setoran_spp')
+    .select('*, guru:guru_id(id, nama_lengkap, kode_guru), kelas:kelas_id(kode_kelas)')
+    .order('created_at', { ascending: false });
+  if (status) query = query.eq('status', status);
+  if (guruId) query = query.eq('guru_id', guruId);
+
+  const { data } = await query;
+  const tbody = document.getElementById('tableSetoran');
+
+  // Populate guru dropdown dari data yang ada
+  populateGuruDropdownSetoran(data || []);
+
+  if (!data?.length) {
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:40px;color:#6b7280">Tidak ada data setoran</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = data.map(s => `<tr>
+    <td>${s.bulan}</td>
+    <td><strong>${s.guru?.nama_lengkap}</strong> <span style="color:var(--red);font-family:monospace">[${s.guru?.kode_guru}]</span></td>
+    <td style="font-family:monospace">${s.kelas?.kode_kelas || '-'}</td>
+    <td>${s.jumlah_murid} murid</td>
+    <td>Rp ${Number(s.total_iuran).toLocaleString('id-ID')}</td>
+    <td>${new Date(s.tanggal_setor).toLocaleDateString('id-ID')}</td>
+    <td style="font-size:12px;color:#6b7280;max-width:140px">${s.catatan_guru || '—'}</td>
+    <td>${s.bukti_url
+      ? `<button class="btn btn-secondary btn-sm" onclick="lihatBuktiBendahara('${s.bukti_url}')">📎 Lihat</button>`
+      : '—'}</td>
+    <td>
+      ${s.status === 'pending'          ? '<span class="badge badge-yellow">⏳ Menunggu Verifikasi</span>'                              : ''}
+      ${s.status === 'diverifikasi'     ? '<span class="badge badge-blue">✅ Verified by Bendahara</span>'                             : ''}
+      ${s.status === 'disetujui_leader' ? '<span class="badge badge-green">✅ Verified by Leader</span>'                               : ''}
+      ${s.status === 'tercairkan'       ? '<span class="badge badge-green" style="background:#065f46;color:#fff">💸 Tercairkan</span>'  : ''}
+    </td>
+    <td>
+      ${s.status === 'pending' ? `
+        <button class="btn btn-success btn-sm" onclick="verifikasiSetoran('${s.id}')">✓ Verifikasi</button>
+      ` : '—'}
+    </td>
+  </tr>`).join('');
+}
+
+async function lihatBuktiBendahara(path) {
+  const { data, error } = await db.storage.from('bukti-setoran').createSignedUrl(path, 300);
+  if (error || !data?.signedUrl) { alert('❌ Gagal membuka bukti: ' + (error?.message || 'URL tidak tersedia')); return; }
+  window.open(data.signedUrl, '_blank');
+}
+
+async function verifikasiSetoran(id) {
+  if (!confirm('Verifikasi setoran ini?')) return;
+  const { error } = await db.from('setoran_spp').update({
+    status: 'diverifikasi',
+    diverifikasi_oleh: currentUserId,
+    waktu_verifikasi: new Date().toISOString()
+  }).eq('id', id);
+  if (error) { alert('❌ Gagal: ' + error.message); return; }
+  await loadSetoran();
+  await loadDashboard();
+}
+
+// ============================================
+// IURAN
+// ============================================
+async function loadIuran() {
+  const bulan   = document.getElementById('filterBulanIuran').value;
+  const status  = document.getElementById('filterStatusIuran').value;
+  const guruId  = document.getElementById('filterGuruIuran').value;
+  const kelasId = document.getElementById('filterKelasIuran').value;
+
+  let query = db.from('iuran')
+    .select('*, siswa:siswa_id(nomor_induk, nama_lengkap), kelas:kelas_id(id, kode_kelas, guru:guru_id(id, nama_lengkap, kode_guru))')
+    .order('created_at', { ascending: false });
+  if (bulan)   query = query.eq('bulan_tagihan', bulan);
+  if (status)  query = query.eq('status', status);
+  if (kelasId) query = query.eq('kelas_id', kelasId);
+
+  const { data } = await query;
+  const tbody = document.getElementById('tableIuran');
+
+  populateGuruDropdownIuran(data || []);
+  populateKelasDropdownIuran(data || []);
+
+  const filtered = guruId
+    ? (data || []).filter(i => i.kelas?.guru?.id === guruId)
+    : (data || []);
+
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:#6b7280">Tidak ada data iuran</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(i => `<tr>
+    <td>${i.siswa?.nomor_induk || '-'}</td>
+    <td><strong>${i.siswa?.nama_lengkap || '-'}</strong></td>
+    <td style="font-family:monospace">${i.kelas?.kode_kelas || '-'}<br><small style="color:#9ca3af">${i.kelas?.guru?.nama_lengkap || ''}</small></td>
+    <td>${i.bulan_tagihan}</td>
+    <td>Rp ${Number(i.jumlah).toLocaleString('id-ID')}</td>
+    <td>
+      ${i.status === 'belum_bayar' ? '<span class="badge badge-red">Belum Bayar</span>'  : ''}
+      ${i.status === 'lunas'       ? '<span class="badge badge-green">Lunas ✓</span>'     : ''}
+    </td>
+  </tr>`).join('');
+}
+
+function populateGuruDropdownSetoran(data) {
+  const el = document.getElementById('filterGuruSetoran');
+  if (!el) return;
+  const cur = el.value;
+  // Kumpulkan guru unik dari data
+  const guruMap = {};
+  data.forEach(s => { if (s.guru?.id) guruMap[s.guru.id] = s.guru; });
+  // Kalau belum ada data sama sekali, fetch dari DB sekali
+  if (!Object.keys(guruMap).length && el.options.length <= 1) {
+    let gq = db.from('guru').select('id, nama_lengkap, kode_guru').order('nama_lengkap');
+    if (activeProgramId) gq = gq.eq('program_id', activeProgramId);
+    gq.then(({ data: gList }) => {
+      el.innerHTML = '<option value="">Semua Guru</option>' +
+        (gList||[]).map(g => `<option value="${g.id}">${g.nama_lengkap} [${g.kode_guru}]</option>`).join('');
+    });
+    return;
+  }
+  el.innerHTML = '<option value="">Semua Guru</option>' +
+    Object.values(guruMap).map(g => `<option value="${g.id}"${g.id===cur?' selected':''}>${g.nama_lengkap} [${g.kode_guru}]</option>`).join('');
+}
+
+function populateGuruDropdownIuran(data) {
+  const el = document.getElementById('filterGuruIuran');
+  if (!el) return;
+  const cur = el.value;
+  const guruMap = {};
+  data.forEach(i => { if (i.kelas?.guru?.id) guruMap[i.kelas.guru.id] = i.kelas.guru; });
+  if (!Object.keys(guruMap).length && el.options.length <= 1) {
+    let gq = db.from('guru').select('id, nama_lengkap, kode_guru').order('nama_lengkap');
+    if (activeProgramId) gq = gq.eq('program_id', activeProgramId);
+    gq.then(({ data: gList }) => {
+      el.innerHTML = '<option value="">Semua Guru</option>' +
+        (gList||[]).map(g => `<option value="${g.id}">${g.nama_lengkap} [${g.kode_guru}]</option>`).join('');
+    });
+    return;
+  }
+  el.innerHTML = '<option value="">Semua Guru</option>' +
+    Object.values(guruMap).map(g => `<option value="${g.id}"${g.id===cur?' selected':''}>${g.nama_lengkap} [${g.kode_guru}]</option>`).join('');
+}
+
+function populateKelasDropdownIuran(data) {
+  const el = document.getElementById('filterKelasIuran');
+  if (!el) return;
+  const cur = el.value;
+  const kelasMap = {};
+  data.forEach(i => { if (i.kelas?.id) kelasMap[i.kelas.id] = i.kelas; });
+  if (!Object.keys(kelasMap).length && el.options.length <= 1) {
+    let kq = db.from('kelas').select('id, kode_kelas').eq('is_active', true).order('kode_kelas');
+    if (activeProgramId) kq = kq.eq('program_id', activeProgramId);
+    kq.then(({ data: kList }) => {
+      el.innerHTML = '<option value="">Semua Kelas</option>' +
+        (kList||[]).map(k => `<option value="${k.id}">${k.kode_kelas}</option>`).join('');
+    });
+    return;
+  }
+  el.innerHTML = '<option value="">Semua Kelas</option>' +
+    Object.values(kelasMap).map(k => `<option value="${k.id}"${k.id===cur?' selected':''}>${k.kode_kelas}</option>`).join('');
+}
+
+async function finalisasiIuran(id) {
+  await db.from('iuran').update({
+    status: 'lunas',
+    diverifikasi_bendahara: currentUserId,
+    waktu_verifikasi_bendahara: new Date().toISOString()
+  }).eq('id', id);
+  await loadIuran();
+  await loadDashboard();
+  alert('✅ Iuran berhasil difinalisasi sebagai LUNAS!');
+}
+
+// ============================================
+// PENGGAJIAN
+// ============================================
+async function loadPenggajian() {
+  const bulan = document.getElementById('bulanGaji').value;
+  let q = db.from('penggajian')
+    .select('*, guru:guru_id!inner(nama_lengkap, kode_guru, program_id)')
+    .eq('bulan', bulan)
+    .order('created_at');
+  if (activeProgramId) q = q.eq('guru.program_id', activeProgramId);
+  const { data } = await q;
+
+  const tbody = document.getElementById('tablePenggajian');
+  if (!data?.length) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:#6b7280">Belum ada slip gaji untuk bulan ini. Klik "Generate Semua Slip Gaji".</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = data.map(p => `<tr>
+    <td><strong>${p.guru?.nama_lengkap}</strong> <span style="color:var(--red);font-family:monospace">[${p.guru?.kode_guru}]</span></td>
+    <td>${p.jumlah_kelas} kelas</td>
+    <td>Rp ${Number(p.subtotal_gaji_tetap).toLocaleString('id-ID')}</td>
+    <td>Rp ${Number(p.subtotal_bagi_hasil).toLocaleString('id-ID')} <span style="font-size:11px;color:#6b7280">(${p.persentase}%)</span></td>
+    <td><strong>Rp ${Number(p.total_gaji).toLocaleString('id-ID')}</strong></td>
+    <td>
+      ${p.status === 'pending'             ? '<span class="badge badge-yellow">Pending</span>'           : ''}
+      ${p.status === 'disetujui_bendahara' ? '<span class="badge badge-blue">Menunggu Leader</span>'     : ''}
+      ${p.status === 'disetujui_leader'    ? '<span class="badge badge-green">Disetujui Leader</span>'  : ''}
+      ${p.status === 'dibayar'             ? '<span class="badge badge-green">✅ Dibayar</span>'         : ''}
+    </td>
+    <td>
+      <button class="btn btn-secondary btn-sm" onclick="lihatSlip('${p.id}')">📄 Lihat Slip</button>
+      ${p.status === 'pending' ? `<button class="btn btn-primary btn-sm" style="margin-left:4px" onclick="approveSlipById('${p.id}')">✓ Setujui</button>` : ''}
+    </td>
+  </tr>`).join('');
+}
+
+async function generateSlipGaji() {
+  const bulan = document.getElementById('bulanGaji').value;
+  if (!bulan) { alert('Pilih bulan dulu!'); return; }
+  if (!confirm(`Generate slip gaji untuk bulan ${bulan}?`)) return;
+
+  let qGuru = db.from('guru')
+    .select('*, pengaturan_gaji(gaji_per_kelas, persentase_bagi_hasil)')
+    .eq('is_active', true);
+  if (activeProgramId) qGuru = qGuru.eq('program_id', activeProgramId);
+  const { data: guruList } = await qGuru;
+
+  let generated = 0;
+  for (const guru of (guruList || [])) {
+    // Cek sudah ada slip untuk bulan ini
+    const { data: existing } = await db.from('penggajian')
+      .select('id, status, total_gaji').eq('guru_id', guru.id).eq('bulan', bulan).maybeSingle();
+
+    // Skip jika sudah disetujui leader atau sudah tercairkan
+    if (existing && ['disetujui_leader','tercairkan','dibayar'].includes(existing.status)) continue;
+
+    // Hitung jumlah kelas
+    const { count: jmlKelas } = await db.from('kelas')
+      .select('*', { count: 'exact', head: true })
+      .eq('guru_id', guru.id).eq('is_active', true);
+
+    // Hitung total iuran dari setoran yang sudah diverifikasi (semua status pasca-verifikasi)
+    const { data: setoran } = await db.from('setoran_spp')
+      .select('total_iuran').eq('guru_id', guru.id)
+      .eq('bulan', bulan).in('status', ['diverifikasi', 'disetujui_leader', 'tercairkan']);
+    const totalIuran = (setoran || []).reduce((s, x) => s + Number(x.total_iuran), 0);
+
+    const gajiPerKelas  = Number(guru.pengaturan_gaji?.gaji_per_kelas || 0);
+    const persentase    = Number(guru.pengaturan_gaji?.persentase_bagi_hasil || 0);
+    const subtotalTetap = gajiPerKelas * (jmlKelas || 0);
+    const subtotalBagi  = (persentase / 100) * totalIuran;
+    const totalGaji     = subtotalTetap + subtotalBagi;
+
+    const payload = {
+      guru_id: guru.id, bulan,
+      jumlah_kelas: jmlKelas || 0,
+      gaji_per_kelas: gajiPerKelas,
+      subtotal_gaji_tetap: subtotalTetap,
+      total_iuran_terkumpul: totalIuran,
+      persentase, subtotal_bagi_hasil: subtotalBagi,
+      total_gaji: totalGaji, status: 'pending'
+    };
+
+    if (existing) {
+      // Update slip yang sudah ada (masih pending/diverifikasi)
+      await db.from('penggajian').update(payload).eq('id', existing.id);
+    } else {
+      await db.from('penggajian').insert(payload);
+    }
+    generated++;
+  }
+
+  alert(`✅ ${generated} slip gaji berhasil di-generate!`);
+  await loadPenggajian();
+  await loadDashboard();
+}
+
+async function lihatSlip(id) {
+  const { data: p } = await db.from('penggajian')
+    .select('*, guru:guru_id(nama_lengkap, kode_guru, nomor_induk)')
+    .eq('id', id).single();
+  if (!p) return;
+  currentSlipId = id;
+  document.getElementById('slipContent').innerHTML = `
+    <div style="border:2px solid var(--border);border-radius:12px;padding:24px;text-align:center;margin-bottom:16px">
+      <div style="font-size:13px;color:var(--text-2);margin-bottom:4px">興毅南興山口洋補習所</div>
+      <div style="font-size:16px;font-weight:700">SLIP GAJI GURU</div>
+      <div style="font-size:13px;color:var(--text-2)">Periode: ${p.bulan}</div>
+    </div>
+    <div class="modal-row"><span class="modal-label">Nama Guru</span><span class="modal-value"><strong>${p.guru?.nama_lengkap}</strong></span></div>
+    <div class="modal-row"><span class="modal-label">Kode Guru</span><span class="modal-value" style="font-family:monospace;font-weight:700;color:var(--red)">${p.guru?.kode_guru}</span></div>
+    <div class="modal-row"><span class="modal-label">No. Induk</span><span class="modal-value">${p.guru?.nomor_induk || '-'}</span></div>
+    <hr style="margin:16px 0;border-color:var(--border)">
+    <div class="modal-row"><span class="modal-label">Jumlah Kelas</span><span class="modal-value">${p.jumlah_kelas} kelas</span></div>
+    <div class="modal-row"><span class="modal-label">Gaji per Kelas</span><span class="modal-value">Rp ${Number(p.gaji_per_kelas).toLocaleString('id-ID')}</span></div>
+    <div class="modal-row"><span class="modal-label">Subtotal Gaji Tetap</span><span class="modal-value">Rp ${Number(p.subtotal_gaji_tetap).toLocaleString('id-ID')}</span></div>
+    <hr style="margin:16px 0;border-color:var(--border)">
+    <div class="modal-row"><span class="modal-label">Total Iuran Terkumpul</span><span class="modal-value">Rp ${Number(p.total_iuran_terkumpul).toLocaleString('id-ID')}</span></div>
+    <div class="modal-row"><span class="modal-label">Persentase Bagi Hasil</span><span class="modal-value">${p.persentase}%</span></div>
+    <div class="modal-row"><span class="modal-label">Subtotal Bagi Hasil</span><span class="modal-value">Rp ${Number(p.subtotal_bagi_hasil).toLocaleString('id-ID')}</span></div>
+    <hr style="margin:16px 0;border-color:var(--border)">
+    <div class="modal-row" style="background:var(--green-light);padding:12px;border-radius:8px">
+      <span class="modal-label" style="font-size:14px;font-weight:700">TOTAL GAJI</span>
+      <span class="modal-value" style="font-size:20px;font-weight:700;color:var(--green)">Rp ${Number(p.total_gaji).toLocaleString('id-ID')}</span>
+    </div>
+    <div style="margin-top:12px;font-size:12px;color:var(--text-2);text-align:center">
+      Status: ${p.status === 'pending' ? '⏳ Menunggu persetujuan Bendahara' : p.status === 'disetujui_bendahara' ? '⏳ Menunggu Leader' : '✅ ' + p.status}
+    </div>
+  `;
+  document.getElementById('btnApproveSlip').style.display = p.status === 'pending' ? '' : 'none';
+  document.getElementById('modalSlip').classList.remove('hidden');
+}
+
+async function approveSlip() {
+  if (!currentSlipId) return;
+  await approveSlipById(currentSlipId);
+  closeModal('modalSlip');
+}
+
+async function approveSlipById(id) {
+  await db.from('penggajian').update({
+    status: 'disetujui_bendahara',
+    disetujui_bendahara: currentUserId,
+    waktu_setujui_bendahara: new Date().toISOString()
+  }).eq('id', id);
+  alert('✅ Slip gaji disetujui! Menunggu konfirmasi Leader.');
+  await loadPenggajian();
+  await loadDashboard();
+}
+
+// ============================================
+// TRANSAKSI
+// ============================================
+async function simpanTransaksi() {
+  const jenis     = document.getElementById('trxJenis').value;
+  const kategori  = document.getElementById('trxKategori').value.trim();
+  const jumlah    = parseFloat(document.getElementById('trxJumlah').value);
+  const tanggal   = document.getElementById('trxTanggal').value;
+  const keterangan = document.getElementById('trxKeterangan').value;
+
+  if (!kategori || !jumlah || !tanggal) { alert('Lengkapi semua field!'); return; }
+
+  const { error } = await db.from('transaksi').insert({
+    jenis, kategori, jumlah, tanggal,
+    keterangan, dibuat_oleh: currentUserId,
+    status: 'pending_approval', program_id: activeProgramId
+  });
+
+  if (error) { alert('Error: ' + error.message); return; }
+  alert('✅ Transaksi berhasil dicatat!\n\nMenunggu konfirmasi dari Leader.');
+  document.getElementById('trxKategori').value  = '';
+  document.getElementById('trxJumlah').value    = '';
+  document.getElementById('trxKeterangan').value = '';
+  await loadTransaksi();
+  await loadDashboard();
+}
+
+async function loadTransaksi() {
+  const bulan = document.getElementById('filterBulanTrx').value;
+  const jenis = document.getElementById('filterJenisTrx').value;
+
+  let query = db.from('transaksi').select('*').order('tanggal', { ascending: false });
+  if (activeProgramId) query = query.eq('program_id', activeProgramId);
+  if (bulan) {
+  const [y, m] = bulan.split('-').map(Number);
+  const lastDay = new Date(y, m, 0).getDate();
+  query = query.gte('tanggal', bulan + '-01').lte('tanggal', bulan + '-' + lastDay);
+}
+  if (jenis) query = query.eq('jenis', jenis);
+
+  const { data } = await query;
+  const tbody = document.getElementById('tableTransaksi');
+
+  if (!data?.length) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:#6b7280">Tidak ada transaksi</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = data.map(t => `<tr>
+    <td>${new Date(t.tanggal).toLocaleDateString('id-ID')}</td>
+    <td>${t.jenis === 'masuk' ? '<span class="badge badge-green">💚 Pemasukan</span>' : '<span class="badge badge-red">❤️ Pengeluaran</span>'}</td>
+    <td>${t.kategori}</td>
+    <td><strong>Rp ${Number(t.jumlah).toLocaleString('id-ID')}</strong></td>
+    <td style="color:#6b7280">${t.keterangan || '—'}</td>
+    <td>${(t.status === 'approved') ? '<span class="badge badge-green">✅ Disetujui</span>' : '<span class="badge badge-yellow">⏳ Menunggu Leader</span>'}</td>
+  </tr>`).join('');
+}
+
+// ============================================
+// ============================================
+// SETTING BIAYA
+// ============================================
+function fmtInput(val) { return val || 0; }
+function biayaRow(id, label, b, isTK) {
+  const tgl = b.updated_at ? new Date(b.updated_at).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}) : '—';
+  const key = isTK ? 'tk' : b.jilid;
+  return `<tr style="border-bottom:1px solid #f3f4f6">
+    <td style="padding:8px 14px;font-weight:700">${label}</td>
+    <td style="padding:8px 12px"><div style="display:flex;align-items:center;gap:4px;justify-content:flex-end">
+      <span style="color:var(--text-2);font-size:12px">Rp</span>
+      <input type="number" id="b_bulanan_${key}" value="${fmtInput(b.biaya_bulanan)}" min="0" step="1000"
+        style="width:120px;border:1px solid #e5e7eb;border-radius:6px;padding:5px 8px;text-align:right;font-size:13px">
+    </div></td>
+    <td style="padding:8px 12px"><div style="display:flex;align-items:center;gap:4px;justify-content:flex-end">
+      <span style="color:var(--text-2);font-size:12px">Rp</span>
+      <input type="number" id="b_daftar_${key}" value="${fmtInput(b.biaya_pendaftaran)}" min="0" step="1000"
+        style="width:120px;border:1px solid #e5e7eb;border-radius:6px;padding:5px 8px;text-align:right;font-size:13px">
+    </div></td>
+    <td style="padding:8px 12px"><div style="display:flex;align-items:center;gap:4px;justify-content:flex-end">
+      <span style="color:var(--text-2);font-size:12px">Rp</span>
+      <input type="number" id="b_kas_${key}" value="${fmtInput(b.uang_kas_semester)}" min="0" step="1000"
+        style="width:120px;border:1px solid #e5e7eb;border-radius:6px;padding:5px 8px;text-align:right;font-size:13px">
+    </div></td>
+    <td style="padding:8px 12px"><div style="display:flex;align-items:center;gap:4px;justify-content:flex-end">
+      <span style="color:var(--text-2);font-size:12px">Rp</span>
+      <input type="number" id="b_buku_${key}" value="${fmtInput(b.uang_buku)}" min="0" step="1000"
+        style="width:120px;border:1px solid #e5e7eb;border-radius:6px;padding:5px 8px;text-align:right;font-size:13px">
+    </div></td>
+    <td style="padding:8px 12px;text-align:center;font-size:11px;color:var(--text-2)">${tgl}</td>
+    <td style="padding:8px 12px;text-align:center">
+      <button class="btn btn-primary btn-sm" onclick="simpanBiaya('${key}','${b.id}',${isTK})">💾 Simpan</button>
+    </td>
+  </tr>`;
+}
+
+async function loadBiaya() {
+  const isMandarin = isMandarinActive();
+  const mandarinSec = document.getElementById('biayaMandarinSection');
+  const calistungSec = document.getElementById('biayaCalistungSection');
+  if (mandarinSec) mandarinSec.style.display = isMandarin ? '' : 'none';
+  if (calistungSec) calistungSec.style.display = isMandarin ? 'none' : '';
+  if (!isMandarin) { await loadBiayaCalistung(); return; }
+
+  // Load ringkasan dan populate dropdowns
+  const [{ data: biaya }, { data: tk }] = await Promise.all([
+    db.from('pengaturan_biaya').select('*').order('jilid'),
+    db.from('pengaturan_biaya_tk').select('*').limit(1)
+  ]);
+  window._allBiaya = biaya || [];
+  window._biayaTK  = tk?.[0] || null;
+  renderBiayaRingkasan();
+  populateBiayaDropdowns();
+}
+
+function jilidOptions() {
+  return ['TK', ...Array.from({length:12}, (_,i) => String(i+1))];
+}
+
+function populateBiayaDropdowns() {
+  const allOpts = jilidOptions();
+  const configured = new Set();
+  if (window._biayaTK) configured.add('TK');
+  (window._allBiaya || []).forEach(b => configured.add(String(b.jilid)));
+
+  // Jilid yang BELUM diatur = available untuk dipilih pertama kali
+  const available = allOpts.filter(j => !configured.has(j));
+  const dari = document.getElementById('biayaDari');
+  const sampai = document.getElementById('biayaSampai');
+
+  // Kalau semua sudah diatur, tetap boleh edit ulang (tampilkan semua)
+  const optsToShow = available.length > 0 ? available : allOpts;
+
+  dari.innerHTML = '<option value="">-- Pilih --</option>' +
+    optsToShow.map(j => `<option value="${j}">${j==='TK'?'TK':'Jilid '+j}</option>`).join('');
+  sampai.innerHTML = '<option value="">-- Pilih --</option>';
+
+  // Info untuk bendahara
+  const infoEl = document.getElementById('biayaRangeInfo');
+  if (configured.size > 0 && available.length > 0) {
+    const configuredList = allOpts.filter(j => configured.has(j)).map(j => j==='TK'?'TK':'Jilid '+j).join(', ');
+    infoEl.innerHTML = `<span style="color:#059669">✅ Sudah diatur: ${configuredList}</span> &nbsp;|&nbsp; <span style="color:#6b7280">Pilih jilid yang belum diatur di bawah</span>`;
+  } else if (available.length === 0) {
+    infoEl.innerHTML = `<span style="color:#059669">✅ Semua jilid sudah diatur. Pilih untuk edit ulang.</span>`;
+  } else {
+    infoEl.innerHTML = '';
+  }
+}
+
+function updateBiayaSampai() {
+  const dari   = document.getElementById('biayaDari').value;
+  const allOpts = jilidOptions();
+  const configured = new Set();
+  if (window._biayaTK) configured.add('TK');
+  (window._allBiaya || []).forEach(b => configured.add(String(b.jilid)));
+  const available = allOpts.filter(j => !configured.has(j));
+  const optsToShow = available.length > 0 ? available : allOpts;
+
+  const idx = optsToShow.indexOf(dari);
+  const sampai = document.getElementById('biayaSampai');
+  if (idx < 0) return;
+  sampai.innerHTML = '<option value="">-- Pilih --</option>' +
+    optsToShow.slice(idx).map(j => `<option value="${j}">${j==='TK'?'TK':'Jilid '+j}</option>`).join('');
+  sampai.value = dari;
+}
+
+function renderBiayaRingkasan() {
+  const rp = v => 'Rp ' + Number(v||0).toLocaleString('id-ID');
+  const cont = document.getElementById('biayaRingkasan');
+  const tk = window._biayaTK;
+  const biaya = window._allBiaya || [];
+  const all = [
+    ...(tk ? [{label:'TK', key:'TK', d:tk}] : []),
+    ...biaya.map(b => ({label:'Jilid '+b.jilid, key:String(b.jilid), d:b}))
+  ];
+  if (!all.length) { cont.innerHTML = '<div style="text-align:center;padding:20px;color:#9ca3af">Belum ada data</div>'; return; }
+
+  // Group consecutive entries with identical prices
+  const groups = [];
+  all.forEach(item => {
+    const sig = [item.d.biaya_bulanan, item.d.biaya_pendaftaran, item.d.uang_kas_semester, item.d.uang_buku, item.d.updated_at?.slice(0,10)].join('|');
+    const last = groups[groups.length - 1];
+    if (last && last.sig === sig) {
+      last.labels.push(item.label);
+    } else {
+      groups.push({ sig, labels: [item.label], d: item.d });
+    }
+  });
+
+  const rows = groups.map(g => {
+    const range = g.labels.length === 1 ? g.labels[0] : g.labels[0] + ' – ' + g.labels[g.labels.length-1];
+    const tgl = g.d.updated_at ? new Date(g.d.updated_at).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}) : '—';
+    const total = Number(g.d.biaya_bulanan||0) + Number(g.d.biaya_pendaftaran||0) + Number(g.d.uang_kas_semester||0) + Number(g.d.uang_buku||0);
+    return `<tr>
+      <td><strong>${range}</strong></td>
+      <td>${rp(g.d.biaya_bulanan)}</td>
+      <td>${rp(g.d.biaya_pendaftaran)}</td>
+      <td>${rp(g.d.uang_kas_semester)}</td>
+      <td>${rp(g.d.uang_buku)}</td>
+      <td style="font-weight:600;color:#374151">${rp(total)}</td>
+      <td style="color:#9ca3af;font-size:12px">${tgl}</td>
+    </tr>`;
+  }).join('');
+
+  cont.innerHTML = `<div style="overflow-x:auto">
+    <table class="table">
+      <thead><tr><th>Jilid</th><th>Iuran/Bulan</th><th>Biaya Daftar</th><th>Uang Kas/Sem</th><th>Uang Buku</th><th>Total Awal</th><th>Terakhir Diubah</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+}
+
+async function loadBiayaRange() {
+  const dari   = document.getElementById('biayaDari').value;
+  const sampai = document.getElementById('biayaSampai').value;
+  if (!dari || !sampai) { alert('Pilih range jilid terlebih dahulu!'); return; }
+
+  const allOpts = jilidOptions();
+  const configured = new Set();
+  if (window._biayaTK) configured.add('TK');
+  (window._allBiaya || []).forEach(b => configured.add(String(b.jilid)));
+  const available = allOpts.filter(j => !configured.has(j));
+  const optsToShow = available.length > 0 ? available : allOpts;
+
+  const idxD = optsToShow.indexOf(dari), idxS = optsToShow.indexOf(sampai);
+  if (idxD > idxS) { alert('Dari harus lebih kecil atau sama dengan Sampai!'); return; }
+  const range = optsToShow.slice(idxD, idxS + 1);
+
+  const rp = v => Number(v||0);
+  const get = (jilid) => {
+    if (jilid === 'TK') return window._biayaTK || {};
+    return (window._allBiaya || []).find(b => String(b.jilid) === jilid) || {};
+  };
+
+  const rangeLabel = dari === sampai ? (dari==='TK'?'TK':'Jilid '+dari) : ((dari==='TK'?'TK':'Jilid '+dari)+' s/d Jilid '+sampai);
+  document.getElementById('biayaRangeTitle').textContent = '✏️ Edit Harga — ' + rangeLabel;
+
+  const masterJ  = range[0];
+  const isSingle = range.length === 1;
+
+  const html = range.map((j, idx) => {
+    const d        = get(j);
+    const label    = j === 'TK' ? 'TK' : 'Jilid ' + j;
+    const isMaster = idx === 0;
+    const syncBadge = !isMaster
+      ? `<span style="font-size:11px;background:#dbeafe;color:#2563eb;padding:2px 8px;border-radius:10px;font-weight:600;margin-left:8px">🔗 Ikut Jilid ${masterJ==='TK'?'TK':masterJ} — bisa diubah manual</span>`
+      : (isSingle ? '' : `<span style="font-size:11px;background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:10px;font-weight:600;margin-left:8px">✏️ Master — isi ini, lainnya ikut</span>`);
+    const followers = range.slice(1).map(r => `'${r}'`).join(',');
+
+    return `<div style="background:white;border:1px solid #e5e7eb;border-radius:10px;padding:16px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;margin-bottom:12px">
+        <span style="font-weight:700;color:var(--red)">${label}</span>${syncBadge}
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px">
+        <div class="form-group" style="margin:0">
+          <label style="font-size:12px">Iuran Bulanan (Rp)</label>
+          <input type="number" id="br_bulanan_${j}" value="${rp(d.biaya_bulanan)}" min="0" step="1000"
+            ${isMaster && !isSingle ? `oninput="brSyncFollowers('bulanan','${masterJ}',this.value,[${followers}])"` : ''}>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label style="font-size:12px">Biaya Pendaftaran (Rp)</label>
+          <input type="number" id="br_daftar_${j}" value="${rp(d.biaya_pendaftaran)}" min="0" step="1000"
+            ${isMaster && !isSingle ? `oninput="brSyncFollowers('daftar','${masterJ}',this.value,[${followers}])"` : ''}>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label style="font-size:12px">Uang Kas/Semester (Rp)</label>
+          <input type="number" id="br_kas_${j}" value="${rp(d.uang_kas_semester)}" min="0" step="1000"
+            ${isMaster && !isSingle ? `oninput="brSyncFollowers('kas','${masterJ}',this.value,[${followers}])"` : ''}>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label style="font-size:12px">Uang Buku (Rp)</label>
+          <input type="number" id="br_buku_${j}" value="${rp(d.uang_buku)}" min="0" step="1000"
+            ${isMaster && !isSingle ? `oninput="brSyncFollowers('buku','${masterJ}',this.value,[${followers}])"` : ''}>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('biayaEditContainer').innerHTML = html;
+  document.getElementById('biayaStep1').style.display = 'none';
+  document.getElementById('biayaStep2').style.display = 'block';
+  window._biayaEditRange = range;
+}
+
+function brSyncFollowers(field, masterJ, value, followers) {
+  followers.forEach(j => {
+    const el = document.getElementById(`br_${field}_${j}`);
+    if (el) el.value = value;
+  });
+}
+
+async function simpanBiayaRange() {
+  const range = window._biayaEditRange || [];
+  if (!range.length) return;
+  const { data: { user } } = await db.auth.getUser();
+  const now = new Date().toISOString();
+  let errors = [];
+
+  for (const j of range) {
+    const payload = {
+      biaya_bulanan:      parseFloat(document.getElementById(`br_bulanan_${j}`).value) || 0,
+      biaya_pendaftaran:  parseFloat(document.getElementById(`br_daftar_${j}`).value) || 0,
+      uang_kas_semester:  parseFloat(document.getElementById(`br_kas_${j}`).value) || 0,
+      uang_buku:          parseFloat(document.getElementById(`br_buku_${j}`).value) || 0,
+      updated_by: user.id,
+      updated_at: now
+    };
+    let err;
+    if (j === 'TK') {
+      const tkId = window._biayaTK?.id;
+      if (tkId) { ({ error: err } = await db.from('pengaturan_biaya_tk').update(payload).eq('id', tkId)); }
+      else      { ({ error: err } = await db.from('pengaturan_biaya_tk').insert(payload)); }
+    } else {
+      const existing = (window._allBiaya||[]).find(b => String(b.jilid) === j);
+      if (existing) { ({ error: err } = await db.from('pengaturan_biaya').update(payload).eq('id', existing.id)); }
+      else          { ({ error: err } = await db.from('pengaturan_biaya').insert({...payload, jilid: parseInt(j)})); }
+    }
+    if (err) errors.push(j + ': ' + err.message);
+  }
+
+  if (errors.length) { alert('❌ Gagal menyimpan:\n' + errors.join('\n')); return; }
+  alert('✅ Harga berhasil disimpan untuk ' + range.map(j=>j==='TK'?'TK':'Jilid '+j).join(', ') + '!');
+  resetBiayaStep();
+  await loadBiaya();
+}
+
+function resetBiayaStep() {
+  document.getElementById('biayaStep1').style.display = 'block';
+  document.getElementById('biayaStep2').style.display = 'none';
+  document.getElementById('biayaDari').value  = '';
+  document.getElementById('biayaSampai').value = '';
+  window._biayaEditRange = [];
+}
+
+// legacy compat
+async function simpanBiaya() {}
+async function simpanBiayaBulk() {}
+function biayaRow() { return ''; }
+
+// ============================================
+// BIAYA PENDAFTARAN ULANG
+// ============================================
+function duJilidOptions() {
+  return ['TK', ...Array.from({length:12}, (_,i) => String(i+1))];
+}
+
+async function loadDaftarUlang() {
+  const isMandarin = isMandarinActive();
+  if (!isMandarin) { await loadDuCalistung(); return; }
+
+  // Cek time-lock (+ override manual dari Leader)
+  const m = new Date().getMonth() + 1;
+  const bulanAktif = [5,6,7,11,12,1].includes(m);
+  const aktif = bulanAktif || !!sysSettings['override_biaya_du'];
+
+  // Disable/enable step1 form
+  const step1 = document.getElementById('daftarUlangStep1');
+  const lockBanner = document.getElementById('duLockBanner');
+  if (!aktif) {
+    if (step1) step1.style.display = 'none';
+    if (lockBanner) { lockBanner.style.display = 'block'; }
+  } else {
+    if (step1) step1.style.display = 'block';
+    if (lockBanner) { lockBanner.style.display = 'none'; }
+  }
+
+  const [{ data: du }, { data: duTk }] = await Promise.all([
+    db.from('pengaturan_biaya_daftar_ulang').select('*').order('jilid'),
+    db.from('pengaturan_biaya_daftar_ulang_tk').select('*').limit(1)
+  ]);
+  window._allDU   = du   || [];
+  window._duTK    = duTk?.[0] || null;
+  renderDuRingkasan();
+  populateDuDropdowns();
+}
+
+function populateDuDropdowns() {
+  const allOpts   = duJilidOptions();
+  const configured = new Set();
+  if (window._duTK) configured.add('TK');
+  (window._allDU || []).forEach(b => configured.add(String(b.jilid)));
+
+  const available = allOpts.filter(j => !configured.has(j));
+  const optsToShow = available.length > 0 ? available : allOpts;
+
+  const dari   = document.getElementById('duDari');
+  const sampai = document.getElementById('duSampai');
+  if (!dari) return;
+  dari.innerHTML   = '<option value="">-- Pilih --</option>' +
+    optsToShow.map(j => `<option value="${j}">${j==='TK'?'TK':'Jilid '+j}</option>`).join('');
+  sampai.innerHTML = '<option value="">-- Pilih --</option>';
+
+  const infoEl = document.getElementById('duRangeInfo');
+  if (configured.size > 0 && available.length > 0) {
+    const list = allOpts.filter(j => configured.has(j)).map(j => j==='TK'?'TK':'Jilid '+j).join(', ');
+    infoEl.innerHTML = `<span style="color:#059669">✅ Sudah diatur: ${list}</span> &nbsp;|&nbsp; <span style="color:#6b7280">Pilih jilid yang belum diatur</span>`;
+  } else if (available.length === 0) {
+    infoEl.innerHTML = `<span style="color:#059669">✅ Semua jilid sudah diatur. Pilih untuk edit ulang.</span>`;
+  } else {
+    infoEl.innerHTML = '';
+  }
+}
+
+function updateDuSampai() {
+  const dari     = document.getElementById('duDari').value;
+  const allOpts  = duJilidOptions();
+  const configured = new Set();
+  if (window._duTK) configured.add('TK');
+  (window._allDU || []).forEach(b => configured.add(String(b.jilid)));
+  const available  = allOpts.filter(j => !configured.has(j));
+  const optsToShow = available.length > 0 ? available : allOpts;
+  const idx        = optsToShow.indexOf(dari);
+  const sampai     = document.getElementById('duSampai');
+  if (idx < 0) return;
+  sampai.innerHTML = '<option value="">-- Pilih --</option>' +
+    optsToShow.slice(idx).map(j => `<option value="${j}">${j==='TK'?'TK':'Jilid '+j}</option>`).join('');
+  sampai.value = dari;
+}
+
+function loadDuRange() {
+  const dari    = document.getElementById('duDari').value;
+  const sampai  = document.getElementById('duSampai').value;
+  if (!dari || !sampai) { alert('Pilih range jilid terlebih dahulu!'); return; }
+
+  const allOpts  = duJilidOptions();
+  const configured = new Set();
+  if (window._duTK) configured.add('TK');
+  (window._allDU || []).forEach(b => configured.add(String(b.jilid)));
+  const available  = allOpts.filter(j => !configured.has(j));
+  const optsToShow = available.length > 0 ? available : allOpts;
+
+  const idxD = optsToShow.indexOf(dari), idxS = optsToShow.indexOf(sampai);
+  if (idxD > idxS) { alert('Dari harus lebih kecil atau sama dengan Sampai!'); return; }
+  const range = optsToShow.slice(idxD, idxS + 1);
+
+  const get = (jilid) => {
+    if (jilid === 'TK') return window._duTK || {};
+    return (window._allDU || []).find(b => String(b.jilid) === jilid) || {};
+  };
+  const val = v => Number(v||0);
+
+  const rangeLabel = dari === sampai
+    ? (dari==='TK'?'TK':'Jilid '+dari)
+    : (dari==='TK'?'TK':'Jilid '+dari)+' s/d Jilid '+sampai;
+  document.getElementById('duRangeTitle').textContent = '✏️ Edit Biaya Daftar Ulang — ' + rangeLabel;
+
+  const masterJ = range[0];
+  const isSingle = range.length === 1;
+
+  const html = range.map((j, idx) => {
+    const d     = get(j);
+    const label = j === 'TK' ? 'TK' : 'Jilid ' + j;
+    const isMaster = idx === 0;
+    const syncBadge = !isMaster
+      ? `<span style="font-size:11px;background:#dbeafe;color:#2563eb;padding:2px 8px;border-radius:10px;font-weight:600;margin-left:8px">🔗 Ikut Jilid ${masterJ==='TK'?'TK':masterJ} — bisa diubah manual</span>`
+      : (isSingle ? '' : `<span style="font-size:11px;background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:10px;font-weight:600;margin-left:8px">✏️ Master — isi ini, lainnya ikut</span>`);
+
+    return `<div style="background:white;border:1px solid #e5e7eb;border-radius:10px;padding:16px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;margin-bottom:12px">
+        <span style="font-weight:700;color:var(--red)">${label}</span>${syncBadge}
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px">
+        <div class="form-group" style="margin:0">
+          <label style="font-size:12px">Biaya Pendaftaran Ulang (Rp)</label>
+          <input type="number" id="du_daftar_${j}" value="${val(d.biaya_daftar_ulang)}" min="0" step="1000"
+            ${isMaster && !isSingle ? `oninput="duSyncFollowers('daftar','${masterJ}',this.value,[${range.slice(1).map(r=>`'${r}'`).join(',')}])"` : ''}>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label style="font-size:12px">Iuran Bulanan (Rp)</label>
+          <input type="number" id="du_bulanan_${j}" value="${val(d.iuran_bulanan)}" min="0" step="1000"
+            ${isMaster && !isSingle ? `oninput="duSyncFollowers('bulanan','${masterJ}',this.value,[${range.slice(1).map(r=>`'${r}'`).join(',')}])"` : ''}>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label style="font-size:12px">Kas (Rp)</label>
+          <input type="number" id="du_kas_${j}" value="${val(d.kas)}" min="0" step="1000"
+            ${isMaster && !isSingle ? `oninput="duSyncFollowers('kas','${masterJ}',this.value,[${range.slice(1).map(r=>`'${r}'`).join(',')}])"` : ''}>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label style="font-size:12px">Biaya Buku (Rp)</label>
+          <input type="number" id="du_buku_${j}" value="${val(d.biaya_buku)}" min="0" step="1000"
+            ${isMaster && !isSingle ? `oninput="duSyncFollowers('buku','${masterJ}',this.value,[${range.slice(1).map(r=>`'${r}'`).join(',')}])"` : ''}>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('duEditContainer').innerHTML = html;
+  document.getElementById('daftarUlangStep1').style.display = 'none';
+  document.getElementById('daftarUlangStep2').style.display = 'block';
+  window._duEditRange = range;
+}
+
+function duSyncFollowers(field, masterJ, value, followers) {
+  followers.forEach(j => {
+    const el = document.getElementById(`du_${field}_${j}`);
+    if (el) el.value = value;
+  });
+}
+
+async function simpanDuRange() {
+  const range = window._duEditRange || [];
+  if (!range.length) return;
+  const { data: { user } } = await db.auth.getUser();
+  const now    = new Date().toISOString();
+  let errors   = [];
+
+  for (const j of range) {
+    const payload = {
+      biaya_daftar_ulang: parseFloat(document.getElementById(`du_daftar_${j}`).value)  || 0,
+      iuran_bulanan:      parseFloat(document.getElementById(`du_bulanan_${j}`).value) || 0,
+      kas:                parseFloat(document.getElementById(`du_kas_${j}`).value)      || 0,
+      biaya_buku:         parseFloat(document.getElementById(`du_buku_${j}`).value)     || 0,
+      updated_by: user.id,
+      updated_at: now
+    };
+    let err;
+    if (j === 'TK') {
+      const tkId = window._duTK?.id;
+      if (tkId) { ({ error: err } = await db.from('pengaturan_biaya_daftar_ulang_tk').update(payload).eq('id', tkId)); }
+      else       { ({ error: err } = await db.from('pengaturan_biaya_daftar_ulang_tk').insert(payload)); }
+    } else {
+      const existing = (window._allDU || []).find(b => String(b.jilid) === j);
+      if (existing) { ({ error: err } = await db.from('pengaturan_biaya_daftar_ulang').update(payload).eq('id', existing.id)); }
+      else          { ({ error: err } = await db.from('pengaturan_biaya_daftar_ulang').insert({...payload, jilid: parseInt(j)})); }
+    }
+    if (err) errors.push(j + ': ' + err.message);
+  }
+
+  if (errors.length) { alert('❌ Gagal menyimpan:\n' + errors.join('\n')); return; }
+  alert('✅ Biaya daftar ulang berhasil disimpan untuk ' + range.map(j=>j==='TK'?'TK':'Jilid '+j).join(', ') + '!');
+  resetDuStep();
+  await loadDaftarUlang();
+}
+
+function resetDuStep() {
+  document.getElementById('daftarUlangStep1').style.display = 'block';
+  document.getElementById('daftarUlangStep2').style.display = 'none';
+  document.getElementById('duDari').value   = '';
+  document.getElementById('duSampai').value = '';
+  window._duEditRange = [];
+}
+
+function renderDuRingkasan() {
+  const rp   = v => 'Rp ' + Number(v||0).toLocaleString('id-ID');
+  const cont = document.getElementById('duRingkasan');
+  if (!cont) return;
+  const tk    = window._duTK;
+  const du    = window._allDU || [];
+  const all   = [
+    ...(tk ? [{label:'TK', key:'TK', d:tk}] : []),
+    ...du.map(b => ({label:'Jilid '+b.jilid, key:String(b.jilid), d:b}))
+  ];
+  if (!all.length) { cont.innerHTML = '<div style="text-align:center;padding:20px;color:#9ca3af">Belum ada data</div>'; return; }
+
+  // Group consecutive with identical values
+  const groups = [];
+  all.forEach(item => {
+    const sig  = [item.d.biaya_daftar_ulang, item.d.iuran_bulanan, item.d.kas, item.d.biaya_buku, item.d.updated_at?.slice(0,10)].join('|');
+    const last = groups[groups.length - 1];
+    if (last && last.sig === sig) { last.labels.push(item.label); }
+    else { groups.push({ sig, labels: [item.label], d: item.d }); }
+  });
+
+  const rows = groups.map(g => {
+    const range = g.labels.length === 1 ? g.labels[0] : g.labels[0] + ' – ' + g.labels[g.labels.length-1];
+    const tgl   = g.d.updated_at ? new Date(g.d.updated_at).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}) : '—';
+    const total = Number(g.d.biaya_daftar_ulang||0) + Number(g.d.iuran_bulanan||0) + Number(g.d.kas||0) + Number(g.d.biaya_buku||0);
+    return `<tr>
+      <td><strong>${range}</strong></td>
+      <td>${rp(g.d.biaya_daftar_ulang)}</td>
+      <td>${rp(g.d.iuran_bulanan)}</td>
+      <td>${rp(g.d.kas)}</td>
+      <td>${rp(g.d.biaya_buku)}</td>
+      <td style="font-weight:600;color:#374151">${rp(total)}</td>
+      <td style="color:#9ca3af;font-size:12px">${tgl}</td>
+    </tr>`;
+  }).join('');
+
+  cont.innerHTML = `<div style="overflow-x:auto">
+    <table class="table">
+      <thead><tr><th>Jilid</th><th>Biaya Daftar Ulang</th><th>Iuran/Bulan</th><th>Kas</th><th>Biaya Buku</th><th>Total</th><th>Terakhir Diubah</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+}
+
+// ============================================
+// SETTING BIAYA — CALISTUNG (per tingkat: TK A / TK B)
+// ============================================
+function calTingkatOptions() { return ['TK A', 'TK B']; }
+
+async function loadBiayaCalistung() {
+  const { data } = await db.from('pengaturan_biaya_calistung').select('*');
+  window._allBiayaCal = data || [];
+  renderBiayaCalistungEdit();
+  renderBiayaCalistungRingkasan();
+}
+
+function renderBiayaCalistungEdit() {
+  const container = document.getElementById('biayaCalistungEditContainer');
+  if (!container) return;
+  container.innerHTML = calTingkatOptions().map(t => {
+    const b = (window._allBiayaCal || []).find(x => x.tingkat === t) || {};
+    return `<div style="border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin-bottom:12px;background:#fafafa">
+      <div style="font-weight:700;color:var(--red);margin-bottom:10px">${t}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px">
+        <div class="form-group" style="margin:0"><label style="font-size:12px">Biaya Pendaftaran</label>
+          <input type="number" id="cal_daftar_${t.replace(' ','')}" value="${fmtInput(b.biaya_pendaftaran)}"></div>
+        <div class="form-group" style="margin:0"><label style="font-size:12px">Biaya Bulanan</label>
+          <input type="number" id="cal_bulanan_${t.replace(' ','')}" value="${fmtInput(b.biaya_bulanan)}"></div>
+        <div class="form-group" style="margin:0"><label style="font-size:12px">Uang Kas/Semester</label>
+          <input type="number" id="cal_kas_${t.replace(' ','')}" value="${fmtInput(b.uang_kas_semester)}"></div>
+        <div class="form-group" style="margin:0"><label style="font-size:12px">Uang Buku</label>
+          <input type="number" id="cal_buku_${t.replace(' ','')}" value="${fmtInput(b.uang_buku)}"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderBiayaCalistungRingkasan() {
+  const el = document.getElementById('biayaCalistungRingkasan');
+  if (!el) return;
+  const rp = v => 'Rp ' + Number(v||0).toLocaleString('id-ID');
+  const rows = calTingkatOptions().map(t => {
+    const b = (window._allBiayaCal || []).find(x => x.tingkat === t);
+    const tgl = b?.updated_at ? new Date(b.updated_at).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}) : '—';
+    const total = Number(b?.biaya_bulanan||0) + Number(b?.biaya_pendaftaran||0) + Number(b?.uang_kas_semester||0) + Number(b?.uang_buku||0);
+    return `<tr><td><strong>${t}</strong></td><td>${rp(b?.biaya_bulanan)}</td><td>${rp(b?.biaya_pendaftaran)}</td><td>${rp(b?.uang_kas_semester)}</td><td>${rp(b?.uang_buku)}</td><td style="font-weight:600;color:#374151">${rp(total)}</td><td style="font-size:12px;color:#6b7280">${tgl}</td></tr>`;
+  }).join('');
+  el.innerHTML = `<div class="table-wrap"><table class="table">
+    <thead><tr><th>Tingkat</th><th>Iuran/Bulan</th><th>Biaya Daftar</th><th>Uang Kas/Sem</th><th>Uang Buku</th><th>Total Biaya</th><th>Terakhir Diubah</th></tr></thead>
+    <tbody>${rows}</tbody></table></div>`;
+}
+
+async function simpanBiayaCalistung() {
+  for (const t of calTingkatOptions()) {
+    const key = t.replace(' ', '');
+    const payload = {
+      tingkat: t,
+      biaya_pendaftaran: Number(document.getElementById('cal_daftar_'+key).value) || 0,
+      biaya_bulanan:     Number(document.getElementById('cal_bulanan_'+key).value) || 0,
+      uang_kas_semester: Number(document.getElementById('cal_kas_'+key).value) || 0,
+      uang_buku:         Number(document.getElementById('cal_buku_'+key).value) || 0,
+      updated_by: currentUserId,
+      updated_at: new Date().toISOString()
+    };
+    const { error } = await db.from('pengaturan_biaya_calistung').upsert(payload, { onConflict: 'tingkat' });
+    if (error) { alert('❌ Gagal simpan '+t+': '+error.message); return; }
+  }
+  alert('✅ Harga berhasil disimpan untuk TK A & TK B!');
+  await loadBiayaCalistung();
+}
+
+// ====== BIAYA DAFTAR ULANG — CALISTUNG ======
+async function loadDuCalistung() {
+  const { data } = await db.from('pengaturan_biaya_daftar_ulang_calistung').select('*');
+  window._allDuCal = data || [];
+  renderDuCalistungEdit();
+  renderDuCalistungRingkasan();
+}
+
+function renderDuCalistungEdit() {
+  const container = document.getElementById('duCalistungEditContainer');
+  if (!container) return;
+  container.innerHTML = calTingkatOptions().map(t => {
+    const b = (window._allDuCal || []).find(x => x.tingkat === t) || {};
+    return `<div style="border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin-bottom:12px;background:#fafafa">
+      <div style="font-weight:700;color:var(--red);margin-bottom:10px">${t}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px">
+        <div class="form-group" style="margin:0"><label style="font-size:12px">Biaya Daftar Ulang</label>
+          <input type="number" id="calDu_daftar_${t.replace(' ','')}" value="${fmtInput(b.biaya_daftar_ulang)}"></div>
+        <div class="form-group" style="margin:0"><label style="font-size:12px">Iuran/Bulan</label>
+          <input type="number" id="calDu_iuran_${t.replace(' ','')}" value="${fmtInput(b.iuran_bulanan)}"></div>
+        <div class="form-group" style="margin:0"><label style="font-size:12px">Kas</label>
+          <input type="number" id="calDu_kas_${t.replace(' ','')}" value="${fmtInput(b.kas)}"></div>
+        <div class="form-group" style="margin:0"><label style="font-size:12px">Biaya Buku</label>
+          <input type="number" id="calDu_buku_${t.replace(' ','')}" value="${fmtInput(b.biaya_buku)}"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderDuCalistungRingkasan() {
+  const el = document.getElementById('duCalistungRingkasan');
+  if (!el) return;
+  const rp = v => 'Rp ' + Number(v||0).toLocaleString('id-ID');
+  const rows = calTingkatOptions().map(t => {
+    const b = (window._allDuCal || []).find(x => x.tingkat === t);
+    const tgl = b?.updated_at ? new Date(b.updated_at).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}) : '—';
+    const total = Number(b?.biaya_daftar_ulang||0) + Number(b?.iuran_bulanan||0) + Number(b?.kas||0) + Number(b?.biaya_buku||0);
+    return `<tr><td><strong>${t}</strong></td><td>${rp(b?.biaya_daftar_ulang)}</td><td>${rp(b?.iuran_bulanan)}</td><td>${rp(b?.kas)}</td><td>${rp(b?.biaya_buku)}</td><td style="font-weight:600;color:#374151">${rp(total)}</td><td style="font-size:12px;color:#6b7280">${tgl}</td></tr>`;
+  }).join('');
+  el.innerHTML = `<div class="table-wrap"><table class="table">
+    <thead><tr><th>Tingkat</th><th>Biaya Daftar Ulang</th><th>Iuran/Bulan</th><th>Kas</th><th>Biaya Buku</th><th>Total Biaya</th><th>Terakhir Diubah</th></tr></thead>
+    <tbody>${rows}</tbody></table></div>`;
+}
+
+async function simpanDuCalistung() {
+  for (const t of calTingkatOptions()) {
+    const key = t.replace(' ', '');
+    const payload = {
+      tingkat: t,
+      biaya_daftar_ulang: Number(document.getElementById('calDu_daftar_'+key).value) || 0,
+      iuran_bulanan:      Number(document.getElementById('calDu_iuran_'+key).value) || 0,
+      kas:                Number(document.getElementById('calDu_kas_'+key).value) || 0,
+      biaya_buku:         Number(document.getElementById('calDu_buku_'+key).value) || 0,
+      updated_by: currentUserId,
+      updated_at: new Date().toISOString()
+    };
+    const { error } = await db.from('pengaturan_biaya_daftar_ulang_calistung').upsert(payload, { onConflict: 'tingkat' });
+    if (error) { alert('❌ Gagal simpan '+t+': '+error.message); return; }
+  }
+  alert('✅ Biaya daftar ulang berhasil disimpan untuk TK A & TK B!');
+  await loadDuCalistung();
+}
+
+// ============================================
+// LAPORAN KEUANGAN
+// ============================================
+async function generateLaporan() {
+  const bulan = document.getElementById('filterBulanLaporan').value;
+  if (!bulan) { alert('Pilih bulan!'); return; }
+
+  const [y, m] = bulan.split('-').map(Number);
+  const lastDay = new Date(y, m, 0).getDate();
+  const endDate = bulan + '-' + String(lastDay).padStart(2, '0');
+
+  let qTrx = db.from('transaksi').select('*')
+    .gte('tanggal', bulan + '-01').lte('tanggal', endDate)
+    .eq('status', 'approved').order('tanggal');
+  let qGaji = db.from('penggajian').select('*, guru:guru_id!inner(nama_lengkap,kode_guru,program_id)').eq('bulan', bulan);
+  if (activeProgramId) { qTrx = qTrx.eq('program_id', activeProgramId); qGaji = qGaji.eq('guru.program_id', activeProgramId); }
+  const [{ data }, { data: gajiData }] = await Promise.all([qTrx, qGaji]);
+
+  window._laporanTrxB   = data || [];
+  window._laporanGajiB  = gajiData || [];
+  window._laporanBulanB = bulan;
+
+  const trxMasuk  = (data || []).filter(t => t.jenis === 'masuk');
+  const trxKeluar = (data || []).filter(t => t.jenis === 'keluar');
+  const totalMasuk  = trxMasuk.reduce((s, t) => s + Number(t.jumlah), 0);
+  const totalKeluar = trxKeluar.reduce((s, t) => s + Number(t.jumlah), 0);
+  const saldo = totalMasuk - totalKeluar;
+  const totalGaji = (gajiData||[]).filter(p=>p.status==='dibayar').reduce((s,p)=>s+Number(p.total_gaji),0);
+
+  document.getElementById('lapPemasukan').textContent  = 'Rp ' + totalMasuk.toLocaleString('id-ID');
+  document.getElementById('lapPengeluaran').textContent = 'Rp ' + totalKeluar.toLocaleString('id-ID');
+  document.getElementById('lapGaji').textContent        = 'Rp ' + totalGaji.toLocaleString('id-ID');
+  const saldoEl = document.getElementById('lapSaldo');
+  saldoEl.textContent = 'Rp ' + saldo.toLocaleString('id-ID');
+  saldoEl.style.color = saldo >= 0 ? 'var(--blue)' : 'var(--red)';
+
+  document.getElementById('laporanContainer').style.display = 'block';
+}
+
+function bukaDetailLaporanB(tipe) {
+  const rp = v => 'Rp ' + Number(v).toLocaleString('id-ID');
+  const trx   = window._laporanTrxB   || [];
+  const gaji  = window._laporanGajiB  || [];
+  const bulan = window._laporanBulanB || '—';
+  const modal = document.getElementById('modalDetailLaporanB');
+  const title = document.getElementById('modalDetailLaporanBTitle');
+  const body  = document.getElementById('modalDetailLaporanBContent');
+
+  const trxMasuk  = trx.filter(t => t.jenis === 'masuk');
+  const trxKeluar = trx.filter(t => t.jenis === 'keluar');
+  const totalMasuk  = trxMasuk.reduce((s,t)=>s+Number(t.jumlah),0);
+  const totalKeluar = trxKeluar.reduce((s,t)=>s+Number(t.jumlah),0);
+  const saldo = totalMasuk - totalKeluar;
+
+  const rowStyle = 'display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:13px';
+  const subRow   = 'display:flex;justify-content:space-between;padding:5px 0 5px 16px;border-bottom:1px dashed #f3f4f6;font-size:12px;color:#6b7280';
+
+  if (tipe === 'masuk') {
+    title.textContent = '💚 Detail Pemasukan Bulan ' + bulan;
+    const byKat = {};
+    trxMasuk.forEach(t => { if (!byKat[t.kategori]) byKat[t.kategori] = []; byKat[t.kategori].push(t); });
+    let html = '';
+    Object.entries(byKat).forEach(([kat, items]) => {
+      const sub = items.reduce((s,t)=>s+Number(t.jumlah),0);
+      html += `<div style="${rowStyle}"><span style="font-weight:600">${kat}</span><span style="color:var(--green);font-weight:700">${rp(sub)}</span></div>`;
+      items.forEach(t => { html += `<div style="${subRow}"><span>${new Date(t.tanggal).toLocaleDateString('id-ID')} — ${t.keterangan||'—'}</span><span>${rp(t.jumlah)}</span></div>`; });
+    });
+    html += `<div style="display:flex;justify-content:space-between;padding:12px 0;font-size:15px;font-weight:800;color:var(--green)"><span>TOTAL PEMASUKAN</span><span>${rp(totalMasuk)}</span></div>`;
+    body.innerHTML = html || '<div style="text-align:center;padding:20px;color:#9ca3af">Tidak ada pemasukan</div>';
+
+  } else if (tipe === 'keluar') {
+    title.textContent = '❤️ Detail Pengeluaran Bulan ' + bulan;
+    const byKat = {};
+    trxKeluar.forEach(t => { if (!byKat[t.kategori]) byKat[t.kategori] = []; byKat[t.kategori].push(t); });
+    let html = '';
+    Object.entries(byKat).forEach(([kat, items]) => {
+      const sub = items.reduce((s,t)=>s+Number(t.jumlah),0);
+      html += `<div style="${rowStyle}"><span style="font-weight:600">${kat}</span><span style="color:var(--red);font-weight:700">${rp(sub)}</span></div>`;
+      items.forEach(t => { html += `<div style="${subRow}"><span>${new Date(t.tanggal).toLocaleDateString('id-ID')} — ${t.keterangan||'—'}</span><span>${rp(t.jumlah)}</span></div>`; });
+    });
+    html += `<div style="display:flex;justify-content:space-between;padding:12px 0;font-size:15px;font-weight:800;color:var(--red)"><span>TOTAL PENGELUARAN</span><span>${rp(totalKeluar)}</span></div>`;
+    body.innerHTML = html || '<div style="text-align:center;padding:20px;color:#9ca3af">Tidak ada pengeluaran</div>';
+
+  } else if (tipe === 'gaji') {
+    title.textContent = '🎓 Detail Gaji Guru Bulan ' + bulan;
+    const totalG = gaji.filter(p=>p.status==="dibayar").reduce((s,p)=>s+Number(p.total_gaji),0);
+    let html = gaji.map(p => `<div style="${rowStyle};align-items:center">
+      <div><strong>${p.guru?.nama_lengkap}</strong> <span style="color:var(--red);font-family:monospace;font-size:11px">[${p.guru?.kode_guru}]</span></div>
+      <div style="display:flex;align-items:center;gap:8px">
+        ${p.status==='dibayar' ? '<span class="badge badge-green">✅ Dibayar</span>' : '<span class="badge badge-yellow">Pending</span>'}
+        <span style="font-weight:700">${rp(p.total_gaji)}</span>
+      </div></div>`).join('');
+    html += `<div style="display:flex;justify-content:space-between;padding:12px 0;font-size:15px;font-weight:800;color:var(--yellow)"><span>TOTAL GAJI DIBAYAR</span><span>${rp(totalG)}</span></div>`;
+    body.innerHTML = html || '<div style="text-align:center;padding:20px;color:#9ca3af">Belum ada data gaji</div>';
+
+  } else if (tipe === 'labarugi') {
+    title.textContent = '📊 Laporan Laba Rugi — ' + bulan;
+    const byMasuk = {}, byKeluar = {};
+    trxMasuk.forEach(t  => { byMasuk[t.kategori]  = (byMasuk[t.kategori]  || 0) + Number(t.jumlah); });
+    trxKeluar.forEach(t => { byKeluar[t.kategori] = (byKeluar[t.kategori] || 0) + Number(t.jumlah); });
+    let html = `<div style="font-size:13px;font-weight:700;color:#374151;padding:8px 0;border-bottom:2px solid #e5e7eb;margin-bottom:4px">PENDAPATAN</div>`;
+    Object.entries(byMasuk).forEach(([k,v]) => { html += `<div style="${rowStyle}"><span>${k}</span><span style="color:var(--green)">${rp(v)}</span></div>`; });
+    if (!Object.keys(byMasuk).length) html += `<div style="${rowStyle};color:#9ca3af">Tidak ada pendapatan</div>`;
+    html += `<div style="display:flex;justify-content:space-between;padding:10px 0;font-weight:700;border-top:1px solid #e5e7eb"><span>Total Pendapatan</span><span style="color:var(--green)">${rp(totalMasuk)}</span></div>`;
+    html += `<div style="font-size:13px;font-weight:700;color:#374151;padding:10px 0 8px;border-bottom:2px solid #e5e7eb;margin-top:12px">BEBAN / PENGELUARAN</div>`;
+    Object.entries(byKeluar).forEach(([k,v]) => { html += `<div style="${rowStyle}"><span>${k}</span><span style="color:var(--red)">(${rp(v)})</span></div>`; });
+    if (!Object.keys(byKeluar).length) html += `<div style="${rowStyle};color:#9ca3af">Tidak ada pengeluaran</div>`;
+    html += `<div style="display:flex;justify-content:space-between;padding:10px 0;font-weight:700;border-top:1px solid #e5e7eb"><span>Total Beban</span><span style="color:var(--red)">(${rp(totalKeluar)})</span></div>`;
+    const labaColor = saldo >= 0 ? '#059669' : '#dc2626';
+    const labaLabel = saldo >= 0 ? 'LABA BERSIH' : 'RUGI BERSIH';
+    html += `<div style="display:flex;justify-content:space-between;padding:14px;background:${saldo>=0?'#f0fdf4':'#fef2f2'};border-radius:8px;margin-top:16px;font-size:16px;font-weight:800;color:${labaColor}"><span>${labaLabel}</span><span>${rp(Math.abs(saldo))}</span></div>`;
+    body.innerHTML = html;
+  }
+  modal.classList.remove('hidden');
+}
+
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+// ============================================
+// PROGRAM SWITCHER (header)
+// ============================================
+const PROGRAM_FILTER_KEY = 'bmm_active_program_id';
+let activeProgramId = null;
+let programListCacheB = null;
+function isMandarinActive() {
+  const prog = (programListCacheB||[]).find(p => p.id === activeProgramId);
+  return !prog || prog.kode === 'MANDARIN';
+}
+function kelasLevelLabelB(k) {
+  if (k.jilid !== null && k.jilid !== undefined) return 'Jilid ' + jilidLabelB(k.jilid);
+  return k.nama_level || '';
+}
+
+function toggleFinanceMenu() {
+  // Sementara dinonaktifkan — semua menu & dashboard keuangan tetap
+  // ditampilkan apa adanya di semua mode program. Bisa diaktifkan lagi
+  // nanti kalau sudah jelas gimana behavior yang diinginkan.
+}
+
+async function getProgramListCacheB() {
+  if (!programListCacheB) {
+    const { data } = await db.from('program').select('*').eq('is_active', true).order('urutan');
+    programListCacheB = data || [];
+  }
+  return programListCacheB;
+}
+
+async function initProgramSwitcherB() {
+  const progs = await getProgramListCacheB();
+  if (!progs.length) { document.getElementById('programSwitcherLabel').textContent = 'Tidak ada program'; return; }
+  const saved = localStorage.getItem(PROGRAM_FILTER_KEY);
+  const found = progs.find(p => p.id === saved);
+  activeProgramId = found ? found.id : progs[0].id;
+  localStorage.setItem(PROGRAM_FILTER_KEY, activeProgramId);
+
+  const currentProg = progs.find(p => p.id === activeProgramId);
+  document.getElementById('programSwitcherLabel').textContent = currentProg ? currentProg.nama : '—';
+
+  document.getElementById('programSwitcherMenu').innerHTML = progs.map(p => `
+    <div onclick="switchActiveProgramB('${p.id}')" style="padding:10px 16px;cursor:pointer;font-size:13px;font-weight:600;${p.id===activeProgramId?'background:#fdf2f4;color:#b01020':'color:#374151'}" onmouseover="this.style.background='#fdf2f4'" onmouseout="this.style.background='${p.id===activeProgramId?'#fdf2f4':'white'}'">
+      ${p.id===activeProgramId?'✓ ':''}${p.nama}
+    </div>`).join('');
+
+  document.addEventListener('click', function(e) {
+    const wrap = document.getElementById('programSwitcherWrap');
+    if (wrap && !wrap.contains(e.target)) document.getElementById('programSwitcherMenu').style.display = 'none';
+  });
+
+  toggleFinanceMenu();
+}
+
+function toggleProgramSwitcherMenu() {
+  const menu = document.getElementById('programSwitcherMenu');
+  menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+}
+
+async function switchActiveProgramB(programId) {
+  if (programId === activeProgramId) { document.getElementById('programSwitcherMenu').style.display = 'none'; return; }
+  activeProgramId = programId;
+  localStorage.setItem(PROGRAM_FILTER_KEY, programId);
+  document.getElementById('programSwitcherMenu').style.display = 'none';
+  await initProgramSwitcherB();
+  const activeTab = document.querySelector('.tab-content.active');
+  if (!activeTab) return;
+  const tabName = activeTab.id.replace('tab-', '');
+  if (tabName === 'dashboard')  await loadDashboard();
+  if (tabName === 'kelas')      await loadKelasB();
+  if (tabName === 'setoran')    await loadSetoran();
+  if (tabName === 'iuran')      await loadIuran();
+  if (tabName === 'biaya')      { await loadBiaya(); await loadDaftarUlang(); }
+  if (tabName === 'penggajian') await loadPenggajian();
+  if (tabName === 'transaksi')  await loadTransaksi();
+  if (tabName === 'kaldik')     await loadKaldikReadOnly();
+}
+
+// ============================================
+// DATA KELAS (READ-ONLY)
+// ============================================
+var allKelasB = [];
+function jilidLabelB(j) { return (j === 0 || j === '0') ? 'TK' : j; }
+
+async function loadKelasB() {
+  const tbody = document.getElementById('tableKelasB');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr class="loading-row"><td colspan="6">⏳ Memuat...</td></tr>';
+  const isMandarin = isMandarinActive();
+  const jilidFilterEl = document.getElementById('filterJilidKelasB');
+  const tingkatFilterEl = document.getElementById('filterTingkatKelasB');
+  jilidFilterEl.style.display = isMandarin ? '' : 'none';
+  tingkatFilterEl.style.display = isMandarin ? 'none' : '';
+  const thJ = document.getElementById('thJilidKelasB');
+  if (thJ) thJ.textContent = isMandarin ? 'Jilid' : 'Tingkat';
+  const jilid = jilidFilterEl.value;
+  const tingkat = tingkatFilterEl.value;
+  let q = db.from('kelas').select('*, guru:guru_id(nama_lengkap), enrollment(id,is_active)').order('kode_kelas');
+  if (activeProgramId) q = q.eq('program_id', activeProgramId);
+  if (isMandarin && jilid !== '') q = q.eq('jilid', parseInt(jilid));
+  if (!isMandarin && tingkat) q = q.like('nama_level', tingkat+'%');
+  const { data, error } = await q;
+  if (error) { tbody.innerHTML = `<tr><td colspan="6" style="color:var(--pink)">Error: ${error.message}</td></tr>`; return; }
+  if (!data || !data.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-2)">Tidak ada data kelas</td></tr>'; return; }
+  tbody.innerHTML = data.map(k => {
+    const cnt = k.enrollment ? k.enrollment.filter(e => e.is_active).length : 0;
+    const hari = k.hari_belajar === '135' ? 'Sen·Rab·Jum' : k.hari_belajar === '246' ? 'Sel·Kam·Sab' : (k.hari_belajar || '—');
+    const jam  = k.sesi === 'sore' ? '16:00–17:45' : k.sesi === 'malam' ? '18:00–19:45' : (k.sesi || '');
+    const statusBadge = k.is_active ? '<span class="badge badge-green">Aktif</span>' : '<span class="badge badge-red">Nonaktif</span>';
+    return `<tr>
+      <td><strong style="font-family:monospace">${k.kode_kelas}</strong></td>
+      <td>${k.guru ? k.guru.nama_lengkap : '—'}</td>
+      <td>${kelasLevelLabelB(k)}</td>
+      <td>${hari}<br><small style="color:#6b7280">${jam}</small></td>
+      <td><strong>${cnt}</strong></td>
+      <td>${statusBadge}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ============================================
+// ============================================
+// KALDIK (READ-ONLY)
+// ============================================
+async function loadKaldikReadOnly() {
+  const tbody = document.getElementById('tableKaldik');
+  const filterEl = document.getElementById('filterSemesterKaldik');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr class="loading-row"><td colspan="5">⏳ Memuat...</td></tr>';
+  const filterVal = filterEl ? filterEl.value : '';
+  let q = db.from('kaldik').select('*').order('tanggal_mulai', { ascending: true });
+  if (typeof activeProgramId !== 'undefined' && activeProgramId) q = q.eq('program_id', activeProgramId);
+  if (filterVal) q = q.eq('semester', filterVal);
+  const { data, error } = await q;
+  if (error) { tbody.innerHTML = `<tr><td colspan="5" style="color:var(--pink)">Error: ${error.message}</td></tr>`; return; }
+  if (filterEl) {
+    const uniq = [...new Set((data||[]).map(d => d.semester))].sort();
+    const cur = filterEl.value;
+    filterEl.innerHTML = '<option value="">Semua Semester</option>' + uniq.map(s => `<option value="${s}"${s===cur?' selected':''}>${s}</option>`).join('');
+  }
+  if (!data || !data.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-2)">Belum ada event kaldik</td></tr>'; return; }
+  tbody.innerHTML = data.map(k => {
+    const tm = k.tanggal_mulai ? new Date(k.tanggal_mulai).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}) : '—';
+    const ts = k.tanggal_selesai ? new Date(k.tanggal_selesai).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}) : '—';
+    return `<tr>
+      <td><span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:12px;font-size:12px;font-weight:600">${k.semester}</span></td>
+      <td><strong>${k.judul}</strong></td>
+      <td>${tm}</td><td>${ts}</td>
+      <td style="color:var(--text-2);font-size:12px">${k.keterangan||'—'}</td>
+    </tr>`;
+  }).join('');
+}
+</script>
+
+<!-- MODAL DETAIL LAPORAN -->
+<div class="modal-overlay hidden" id="modalDetailLaporanB">
+  <div class="modal-box" style="max-width:560px;max-height:80vh;overflow-y:auto">
+    <div class="modal-header">
+      <span class="modal-title" id="modalDetailLaporanBTitle">Detail</span>
+      <button class="modal-close" onclick="closeModal('modalDetailLaporanB')">✕</button>
+    </div>
+    <div id="modalDetailLaporanBContent" style="margin-top:8px"></div>
+  </div>
+</div>
+
+</body>
+</html>

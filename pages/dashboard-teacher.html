@@ -1,0 +1,2208 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Guru — BMM</title>
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body class="dash-page">
+
+<header class="dash-header">
+  <div class="header-brand">
+    <span class="header-zh">興毅南興山口洋補習所</span>
+    <span class="header-id">BUDHI MAKMUR MANDARIN</span>
+  </div>
+  <div class="header-right">
+    <div class="header-user">
+      <div class="header-name" id="headerName">—</div>
+      <div class="header-role" id="headerKode">GURU</div>
+    </div>
+    <button class="btn-logout" id="logoutBtn">Keluar</button>
+  </div>
+</header>
+
+<div class="dash-body">
+
+  <aside class="dash-sidebar">
+    <div class="sidebar-section">Menu</div>
+    <div class="sidebar-item active" data-tab="dashboard">
+      <span class="sidebar-icon">📊</span><span>Dashboard</span>
+    </div>
+    <div class="sidebar-item" data-tab="kelas">
+      <span class="sidebar-icon">📚</span><span>Kelas & Murid</span>
+    </div>
+    <div class="sidebar-item" data-tab="absensi">
+      <span class="sidebar-icon">✅</span><span>Absensi</span>
+    </div>
+    <div class="sidebar-item" data-tab="pelunasan">
+      <span class="sidebar-icon">💳</span><span>Pelunasan Iuran</span>
+    </div>
+    <div class="sidebar-item" data-tab="nilai">
+      <span class="sidebar-icon">📝</span><span>Penilaian</span>
+    </div>
+    <div class="sidebar-item" data-tab="penggajian">
+      <span class="sidebar-icon">💰</span><span>Penggajian</span>
+    </div>
+    <div class="sidebar-item" data-tab="kaldik">
+      <span class="sidebar-icon">📅</span><span>Kaldik Semester</span>
+    </div>
+  </aside>
+
+  <main class="dash-content">
+
+    <!-- TAB: DASHBOARD -->
+    <div id="tab-dashboard" class="tab-content active">
+      <div class="page-title">Dashboard Guru</div>
+      <div class="page-sub">Selamat datang, <span id="namaGuru">—</span> · Kode: <strong id="kodeGuru" style="font-family:monospace;color:var(--red)">—</strong></div>
+
+      <div class="stat-grid">
+        <div class="stat-card" onclick="switchTab('kelas')" style="cursor:pointer;transition:transform 0.15s,box-shadow 0.15s" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 24px rgba(194,24,91,0.15)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+          <div class="stat-icon">📚</div>
+          <div class="stat-label">Kelas Diampu</div>
+          <div class="stat-value" id="statKelas">—</div>
+          <div class="stat-desc">Aktif saat ini</div>
+        </div>
+        <div class="stat-card" onclick="switchTab('kelas')" style="cursor:pointer;transition:transform 0.15s,box-shadow 0.15s" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 24px rgba(194,24,91,0.15)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+          <div class="stat-icon">👨‍🎓</div>
+          <div class="stat-label">Total Murid</div>
+          <div class="stat-value" id="statMurid">—</div>
+          <div class="stat-desc">Di semua kelas</div>
+        </div>
+        <div class="stat-card" onclick="switchTab('pelunasan')" style="cursor:pointer;transition:transform 0.15s,box-shadow 0.15s" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 24px rgba(194,24,91,0.15)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+          <div class="stat-icon">⏳</div>
+          <div class="stat-label">Belum Lunas</div>
+          <div class="stat-value" id="statBelumLunas">—</div>
+          <div class="stat-desc">Iuran bulan ini</div>
+        </div>
+        <div class="stat-card" onclick="switchTab('penggajian')" style="cursor:pointer;transition:transform 0.15s,box-shadow 0.15s" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 24px rgba(194,24,91,0.15)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+          <div class="stat-icon">💰</div>
+          <div class="stat-label">Penggajian</div>
+          <div class="stat-value" id="statGaji">—</div>
+          <div class="stat-desc">Status bulan ini</div>
+        </div>
+      </div>
+
+      <!-- Profile & Tugas -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div class="form-section">
+          <div class="form-title">👤 Profil Saya</div>
+          <div id="profileDetail">
+            <div class="modal-row"><span class="modal-label">Nama</span><span class="modal-value" id="pNama">—</span></div>
+            <div class="modal-row"><span class="modal-label">Kode Guru</span><span class="modal-value" id="pKode" style="font-family:monospace;font-weight:700;color:var(--red)">—</span></div>
+            <div class="modal-row"><span class="modal-label">No. Induk</span><span class="modal-value" id="pNoInduk">—</span></div>
+            <div class="modal-row"><span class="modal-label">Spesialisasi</span><span class="modal-value" id="pSpesialisasi">—</span></div>
+            <div class="modal-row"><span class="modal-label">Telepon</span><span class="modal-value" id="pTelepon">—</span></div>
+            <div class="modal-row"><span class="modal-label">Tanggal Join</span><span class="modal-value" id="pJoin">—</span></div>
+          </div>
+        </div>
+        <div class="form-section">
+          <div class="form-title">📋 Tugas & Wewenang</div>
+          <ul style="padding-left:16px;line-height:2;color:#374151;font-size:13px">
+            <li>Mengajar kelas sesuai jadwal yang ditetapkan</li>
+            <li>Melakukan absensi murid setiap pertemuan</li>
+            <li>Mengumpulkan iuran SPP dari murid</li>
+            <li>Mengkonfirmasi pelunasan iuran per murid</li>
+            <li>Menginput nilai ujian dan penilaian murid</li>
+            <li>Melaporkan setoran SPP kepada Bendahara</li>
+            <li>Menjaga kerahasiaan data murid</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: KELAS & MURID -->
+    <div id="tab-kelas" class="tab-content">
+      <div class="page-title">Kelas & Murid Saya</div>
+      <div class="page-sub">Daftar kelas yang Anda ampu beserta murid per kelas</div>
+      <div id="kelasContainer">
+        <div style="text-align:center;padding:40px;color:var(--text-2)">⏳ Memuat data kelas...</div>
+      </div>
+    </div>
+
+    <!-- TAB: ABSENSI -->
+    <div id="tab-absensi" class="tab-content">
+      <div class="page-title">Absensi Murid</div>
+      <div class="page-sub">Tandai kehadiran murid per pertemuan</div>
+
+      <!-- Input Absensi -->
+      <div class="form-section">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Pilih Kelas</label>
+            <select id="absensiKelas" onchange="loadTableAbsensi()">
+              <option value="">-- Pilih Kelas --</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Tanggal Pertemuan</label>
+            <input type="date" id="absensiTanggal" onchange="loadTableAbsensi()">
+          </div>
+        </div>
+      </div>
+
+      <div id="absensiWarning" style="display:none;margin-top:12px;padding:10px 14px;background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;font-size:13px;color:#991b1b"></div>
+
+      <div id="absensiTableWrap" style="display:none;margin-top:8px">
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Nama Indonesia</th>
+                <th>Nama Mandarin</th>
+                <th style="text-align:center">✅ Hadir</th>
+                <th style="text-align:center">🤒 Sakit</th>
+                <th style="text-align:center">📋 Izin</th>
+                <th style="text-align:center">❌ Tanpa Ket.</th>
+              </tr>
+            </thead>
+            <tbody id="tableAbsensi"></tbody>
+          </table>
+        </div>
+        <div style="margin-top:14px;display:flex;gap:10px;align-items:center">
+          <button id="btnSimpanAbsensi" class="btn btn-primary" onclick="simpanAbsensi()">💾 Simpan Absensi</button>
+          <button id="btnHadirSemua" class="btn btn-secondary" onclick="hadirSemuaTable()">✅ Hadir Semua</button>
+        </div>
+      </div>
+
+      <div id="absensiHistory" style="display:none;margin-top:20px;padding:14px;background:#f9fafb;border-radius:10px;border:1px solid var(--border)"></div>
+
+      <!-- Rekap Absensi per Semester -->
+      <div style="margin-top:36px;border-top:2px solid var(--border);padding-top:28px">
+        <div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:16px">📊 Rekap Absensi per Semester</div>
+        <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+          <div class="form-group" style="flex:1;min-width:160px">
+            <label>Pilih Kelas</label>
+            <select id="rekapKelas" onchange="loadRekap()">
+              <option value="">-- Pilih --</option>
+            </select>
+          </div>
+          <div class="form-group" style="flex:1;min-width:120px">
+            <label>Tahun</label>
+            <input type="number" id="rekapTahun" min="2020" max="2099" onchange="loadRekap()">
+          </div>
+          <div class="form-group" style="flex:1;min-width:140px">
+            <label>Semester</label>
+            <select id="rekapSemester" onchange="loadRekap()">
+              <option value="1">Semester 1 (Jan–Jun)</option>
+              <option value="2">Semester 2 (Jul–Des)</option>
+            </select>
+          </div>
+        </div>
+        <div id="rekapContainer">
+          <div style="text-align:center;padding:32px;color:var(--text-2)">Pilih kelas dan periode untuk melihat rekap</div>
+        </div>
+      </div>
+    </div>
+
+
+
+    <!-- TAB: PELUNASAN IURAN -->
+    <div id="tab-pelunasan" class="tab-content">
+      <div class="page-title">Pelunasan Iuran</div>
+      <div class="page-sub">Tandai murid yang sudah membayar iuran bulan ini</div>
+
+      <div class="form-section">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Pilih Kelas</label>
+            <select id="pelunasanKelas" onchange="loadPelunasan()">
+              <option value="">-- Pilih Kelas --</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Bulan</label>
+            <input type="month" id="pelunasanBulan" onchange="loadPelunasan()">
+          </div>
+        </div>
+      </div>
+
+      <div id="pelunasanContainer" style="display:none">
+        <div id="pelunasanInfoBiaya" style="margin-bottom:12px;padding:10px 14px;background:#f0fdf4;border-radius:8px;font-size:13px;color:#166534"></div>
+        <div id="pelunasanTableWrap" class="table-wrap">
+          <table class="table" id="tablePelunasanEl">
+            <thead>
+              <tr>
+                <th>No. Induk</th>
+                <th>Nama Murid</th>
+                <th style="text-align:center">Jumlah Iuran</th>
+                <th style="text-align:center">Status</th>
+                <th style="text-align:center">Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="tablePelunasan"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: PENILAIAN -->
+    <div id="tab-nilai" class="tab-content">
+      <div class="page-title">Penilaian Murid</div>
+      <div class="page-sub" style="display:flex;justify-content:space-between;align-items:center">
+        <span>Input nilai murid per kelas per jenis penilaian</span>
+        <a href="../pages/raport.html" target="_blank" class="btn btn-secondary btn-sm" style="text-decoration:none">🖨️ Cetak Raport</a>
+      </div>
+
+      <div id="nilaiMandarinSection">
+
+      <!-- Step 1: Pilih Kelas & Jenis -->
+      <div class="form-section">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Pilih Kelas</label>
+            <select id="nilaiKelas" onchange="onNilaiKelasChange()">
+              <option value="">-- Pilih Kelas --</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Semester</label>
+            <select id="nilaiSemester" onchange="loadNilaiForm()">
+              <option value="1">Semester 1</option>
+              <option value="2">Semester 2</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Jenis Penilaian</label>
+            <select id="nilaiJenis" onchange="onNilaiJenisChange()">
+              <option value="">-- Pilih Jenis --</option>
+              <option value="tingxie">听写 (Tīng xiě)</option>
+              <option value="ceyuan">测验 (Cè yàn)</option>
+              <option value="lianxi">练习 (Liàn xí)</option>
+              <option value="pinyin">汉语拼音 (Pīn yīn)</option>
+              <option value="tingshuo">听说读写</option>
+              <option value="zaoju">造句 (Zào jù)</option>
+              <option value="dakao">大考 (Dà kǎo)</option>
+              <option value="yanjiang">演讲 (Yǎn jiǎng)</option>
+            </select>
+          </div>
+          <!-- Sub-pilihan: muncul sesuai jenis -->
+          <div class="form-group" id="nilaiBabWrap" style="display:none">
+            <label>Pilih Bab</label>
+            <select id="nilaiBab" onchange="onNilaiBabChange()"></select>
+          </div>
+          <div class="form-group" id="nilaiSubWrap" style="display:none">
+            <label id="nilaiSubLabel">Sub Jenis</label>
+            <select id="nilaiSub" onchange="loadNilaiForm()"></select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Input Form -->
+      <div id="nilaiContainer" style="display:none;margin-top:8px">
+        <div id="nilaiFormInfo" style="margin-bottom:12px;padding:10px 14px;background:#f0f9ff;border-radius:8px;font-size:13px;color:#0369a1"></div>
+        <div class="table-wrap" style="overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--border);border-radius:8px">
+          <table class="table" style="min-width:max-content">
+            <thead id="nilaiThead"></thead>
+            <tbody id="tableNilai"></tbody>
+          </table>
+        </div>
+        <div style="margin-top:14px">
+          <button class="btn btn-primary" onclick="simpanNilai()">💾 Simpan Nilai</button>
+        </div>
+      </div>
+
+      <!-- Preview semua nilai -->
+      <div style="margin-top:32px;border-top:2px solid var(--border);padding-top:24px" id="nilaiPreviewSection" style="display:none">
+        <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:16px">📊 Rekap Nilai Murid</div>
+        <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+          <div class="form-group" style="flex:1;min-width:180px">
+            <label>Kelas</label>
+            <select id="previewKelas" onchange="loadPreviewNilai()"><option value="">-- Pilih --</option></select>
+          </div>
+          <div class="form-group" style="flex:0 0 140px">
+            <label>Semester</label>
+            <select id="previewSemester" onchange="loadPreviewNilai()">
+              <option value="1">Semester 1</option>
+              <option value="2">Semester 2</option>
+            </select>
+          </div>
+        </div>
+        <div id="previewNilaiContainer"></div>
+      </div>
+
+      <!-- PENILAIAN PERILAKU -->
+      <div style="margin-top:32px;border-top:2px solid var(--border);padding-top:24px">
+        <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:4px">🧠 Penilaian Perilaku Murid</div>
+        <div style="font-size:13px;color:var(--text-2);margin-bottom:16px">Tentukan nilai perilaku A–D untuk setiap murid per kelas per semester</div>
+
+        <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+          <div class="form-group" style="flex:1;min-width:180px">
+            <label>Kelas</label>
+            <select id="perilakuKelas" onchange="loadPerilakuMurid()"><option value="">-- Pilih Kelas --</option></select>
+          </div>
+          <div class="form-group" style="flex:0 0 150px">
+            <label>Semester</label>
+            <select id="perilakuSemester" onchange="loadPerilakuMurid()">
+              <option value="1">Semester 1</option>
+              <option value="2">Semester 2</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="perilakuContainer" style="display:none">
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th class="tl" style="min-width:180px">Nama Murid</th>
+                  <th style="min-width:120px">No. Induk</th>
+                  <th style="min-width:160px">Nilai Perilaku</th>
+                  <th style="min-width:160px">Keterangan</th>
+                </tr>
+              </thead>
+              <tbody id="tablePerilaku"></tbody>
+            </table>
+          </div>
+          <div style="margin-top:14px">
+            <button class="btn btn-primary" onclick="simpanPerilaku()">💾 Simpan Perilaku</button>
+          </div>
+        </div>
+        <div id="perilakuEmpty" style="text-align:center;padding:20px;color:#9ca3af;display:none">Pilih kelas untuk melihat daftar murid</div>
+      </div>
+
+      </div>
+      <!-- ============ /MANDARIN SECTION ============ -->
+
+      <!-- ============ CALISTUNG: PENILAIAN SIMPEL ============ -->
+      <div id="nilaiCalistungSection" style="display:none">
+        <div class="form-section">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Pilih Kelas</label>
+              <select id="calNilaiKelas" onchange="loadCalNilaiForm()">
+                <option value="">-- Pilih Kelas --</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Semester</label>
+              <select id="calNilaiSemester" onchange="loadCalNilaiForm()">
+                <option value="1">Ganjil</option>
+                <option value="2">Genap</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Tahun Ajaran</label>
+              <input type="text" id="calNilaiTahunAjaran" placeholder="Contoh: 2024/2025" onchange="loadCalNilaiForm()">
+            </div>
+          </div>
+        </div>
+
+        <div id="calNilaiContainer" style="display:none;margin-top:8px">
+          <div class="table-wrap" style="overflow-x:auto">
+            <table class="table">
+              <thead><tr><th>Nama Murid</th><th>Membaca</th><th>Menulis</th><th>Dikte</th><th>Berhitung</th><th>Peringkat</th><th>Sakit</th><th>Izin</th><th>Tanpa Ket.</th><th>Saran</th></tr></thead>
+              <tbody id="tableCalNilai"></tbody>
+            </table>
+          </div>
+          <div style="margin-top:14px">
+            <button class="btn btn-primary" onclick="simpanCalNilai()">💾 Simpan Nilai</button>
+          </div>
+        </div>
+        <div id="calNilaiEmpty" style="text-align:center;padding:20px;color:#9ca3af">Pilih kelas, semester, dan isi tahun ajaran untuk mulai input nilai</div>
+      </div>
+      <!-- ============ /CALISTUNG SECTION ============ -->
+
+    </div>
+
+    <!-- TAB: PENGGAJIAN -->
+    <div id="tab-penggajian" class="tab-content">
+      <div class="page-title">Laporan Penggajian</div>
+      <div class="page-sub">Laporkan setoran SPP ke Bendahara dan pantau status gaji</div>
+
+      <!-- Form lapor setoran -->
+      <div class="form-section">
+        <div class="form-title">📤 Lapor Setoran SPP ke Bendahara</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Kelas <span style="color:red">*</span></label>
+            <select id="setoranKelas" onchange="onKelasSetoranChange()">
+              <option value="">-- Pilih Kelas --</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Bulan <span style="color:red">*</span></label>
+            <input type="month" id="setoranBulan" value="" onchange="onKelasSetoranChange()">
+          </div>
+          <div class="form-group">
+            <label>Tanggal Setor <span style="color:red">*</span></label>
+            <input type="date" id="setoranTanggal" value="" onchange="validateSetoranForm()">
+          </div>
+          <div class="form-group">
+            <label>Jumlah Murid yang Bayar <span style="color:red">*</span> <span id="setoranMuridHint" style="font-weight:400;color:#6b7280;font-size:11px"></span></label>
+            <input type="number" id="setoranJumlahMurid" min="0" placeholder="0" oninput="hitungTotalSetoran()">
+          </div>
+          <div class="form-group">
+            <label>Total Iuran Disetor (Rp) <span style="color:red">*</span></label>
+            <input type="number" id="setoranTotal" min="0" placeholder="0" oninput="validateSetoranForm()">
+          </div>
+          <div class="form-group">
+            <label>Upload Bukti Setoran <span style="color:red">*</span></label>
+            <input type="file" id="setoranBukti" accept="image/*,application/pdf" onchange="validateSetoranForm()">
+          </div>
+        </div>
+        <div class="form-group" style="margin-top:12px">
+          <label>Catatan</label>
+          <textarea id="setoranCatatan" placeholder="Catatan tambahan (opsional)"></textarea>
+        </div>
+        <div id="warningSetoran" style="display:none;background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:12px 14px;margin-bottom:12px;font-size:13px;color:#92400e;line-height:1.6"></div>
+        <div class="form-actions">
+          <button class="btn btn-primary" id="btnKirimSetoran" onclick="kirimSetoran()" disabled style="opacity:0.5">📤 Kirim Laporan ke Bendahara</button>
+        </div>
+      </div>
+
+      <!-- Riwayat setoran -->
+      <div class="form-title" style="margin-bottom:12px">📋 Riwayat Setoran</div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr><th>Bulan</th><th>Kelas</th><th>Jumlah Murid</th><th>Total Iuran</th><th>Status Pencairan</th><th>Nominal Pencairan</th></tr>
+          </thead>
+          <tbody id="tableSetoran">
+            <tr class="loading-row"><td colspan="6">⏳ Memuat data...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB: KALDIK -->
+    <div id="tab-kaldik" class="tab-content">
+      <div class="page-title">Kalender Pendidikan</div>
+      <div class="page-sub">Jadwal & agenda semester yang ditetapkan oleh Admin</div>
+      <div class="toolbar">
+        <select class="filter-select" id="filterSemesterKaldikT" onchange="loadKaldikTeacher()">
+          <option value="">Semua Semester</option>
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Semester</th><th>Judul Event</th><th>Tanggal Mulai</th><th>Tanggal Selesai</th><th>Keterangan</th></tr></thead>
+          <tbody id="tableKaldikT"><tr class="loading-row"><td colspan="5">⏳ Memuat...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/supabase-client.js"></script>
+<script>
+// ============================================
+// STATE
+// ============================================
+let guruData = null;
+let kelasSaya = [];
+let muridPerKelas = {};
+let tahunAjaranId = null;
+let sysSettings = {}; // { guru_tambah_murid: bool, admin_tambah_kelas: bool }
+
+function isAkhirSemesterT() {
+  const m = new Date().getMonth() + 1;
+  const bulanAktif = [5,6,7,11,12,1].includes(m);
+  return bulanAktif || !!sysSettings['override_perilaku'];
+}
+
+async function loadSysSettings() {
+  const { data } = await db.from('system_settings').select('key,value');
+  sysSettings = {};
+  (data || []).forEach(r => { sysSettings[r.key] = r.value === 'true'; });
+}
+
+// ============================================
+// INIT
+// ============================================
+(async () => {
+  const { data: { session } } = await db.auth.getSession();
+  if (!session) { window.location.replace('../index.html'); return; }
+
+  const { data: profile } = await db.from('profiles')
+    .select('nama_lengkap, role').eq('id', session.user.id).single();
+
+  if (!profile || !['teacher_mandarin','teacher_calistung','teacher_sd'].includes(profile.role)) {
+    await db.auth.signOut();
+    window.location.replace('../index.html'); return;
+  }
+
+  document.getElementById('headerName').textContent = profile.nama_lengkap;
+
+  // Ambil data guru
+  const { data: guru } = await db.from('guru')
+    .select('*, program:program_id(kode, nama)').eq('profile_id', session.user.id).single();
+
+  if (guru) {
+    guruData = guru;
+    document.getElementById('headerKode').textContent = guru.kode_guru;
+    document.getElementById('namaGuru').textContent   = guru.nama_lengkap;
+    document.getElementById('kodeGuru').textContent   = guru.kode_guru;
+    document.getElementById('pNama').textContent        = guru.nama_lengkap;
+    document.getElementById('pKode').textContent        = guru.kode_guru;
+    document.getElementById('pNoInduk').textContent     = guru.nomor_induk || '-';
+    document.getElementById('pSpesialisasi').textContent = guru.spesialisasi || '-';
+    document.getElementById('pTelepon').textContent     = guru.telepon || '-';
+    // Menu Absensi cuma buat guru Mandarin — Calistung absensi diinput
+    // langsung pas generate report, bukan lewat menu terpisah
+    if (guru.program?.kode === 'CALISTUNG') {
+      const absensiMenu = document.querySelector('.sidebar-item[data-tab="absensi"]');
+      if (absensiMenu) absensiMenu.style.display = 'none';
+    }
+    document.getElementById('pJoin').textContent        = guru.tanggal_join ? new Date(guru.tanggal_join).toLocaleDateString('id-ID') : '-';
+  }
+
+  // Ambil tahun ajaran aktif
+  const { data: ta } = await db.from('tahun_ajaran').select('id').eq('is_active', true).maybeSingle();
+  tahunAjaranId = ta?.id || null;
+
+  // Set default tanggal hari ini
+  const today = new Date().toISOString().split('T')[0];
+  const thisMonth = today.slice(0, 7);
+  document.getElementById('absensiTanggal').value = today;
+  document.getElementById('pelunasanBulan').value = thisMonth;
+  document.getElementById('setoranBulan').value   = thisMonth;
+  document.getElementById('setoranTanggal').value = today;
+  // Semester rekap — set semester default berdasarkan bulan sekarang
+  const bulanSkrng = new Date().getMonth() + 1;
+  document.getElementById('rekapSemester') && (document.getElementById('rekapSemester').value = bulanSkrng <= 6 ? '1' : '2');
+  document.getElementById('rekapTahun') && (document.getElementById('rekapTahun').value = new Date().getFullYear());
+
+  // Tab switching
+  document.querySelectorAll('.sidebar-item').forEach(item => {
+    item.addEventListener('click', () => switchTab(item.dataset.tab));
+  });
+
+  document.getElementById('logoutBtn').addEventListener('click', async () => {
+    await db.auth.signOut();
+    window.location.replace('../index.html');
+  });
+
+  // Load kelas dan stats
+  if (guruData) {
+    await loadKelasSaya();
+    await loadStats();
+  }
+})();
+
+// ============================================
+// TAB
+// ============================================
+function switchTab(tab) {
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+  if (tab === 'penggajian') { loadSetoran(); }
+  if (tab === 'kaldik')     { loadKaldikTeacher(); }
+  if (tab === 'nilai')      { toggleNilaiSection(); }
+}
+
+function toggleNilaiSection() {
+  const isCalistung = guruData?.program?.kode === 'CALISTUNG';
+  const mandarinSec = document.getElementById('nilaiMandarinSection');
+  const calistungSec = document.getElementById('nilaiCalistungSection');
+  if (mandarinSec) mandarinSec.style.display = isCalistung ? 'none' : '';
+  if (calistungSec) calistungSec.style.display = isCalistung ? '' : 'none';
+}
+
+// Cek apakah semua iuran di kelas+bulan sudah lunas
+async function cekSemuaLunas(kelasId, bulan) {
+  if (!kelasId || !bulan) return { semua: false, belumLunas: 0, total: 0 };
+  const kelas = kelasSaya.find(k => k.id === kelasId);
+  const murid = (kelas?.enrollment || []).filter(e => e.is_active && e.siswa?.status);
+  if (!murid.length) return { semua: true, belumLunas: 0, total: 0 };
+  const siswaIds = murid.map(e => e.siswa.id);
+  const { data: iuranData } = await db.from('iuran')
+    .select('status').in('siswa_id', siswaIds).eq('bulan_tagihan', bulan).eq('kelas_id', kelasId);
+  const total      = murid.length;
+  const sudahLunas = (iuranData || []).filter(i => i.status === 'lunas').length;
+  const belumLunas = total - sudahLunas;
+  return { semua: belumLunas === 0 && sudahLunas === total, belumLunas, total };
+}
+
+async function validateSetoranForm() {
+  const btn    = document.getElementById('btnKirimSetoran');
+  const warnEl = document.getElementById('warningSetoran');
+  if (!btn || !warnEl) return;
+
+  const kelasId  = document.getElementById('setoranKelas').value;
+  const bulan    = document.getElementById('setoranBulan').value;
+  const tanggal  = document.getElementById('setoranTanggal').value;
+  const jumlah   = document.getElementById('setoranJumlahMurid').value;
+  const total    = document.getElementById('setoranTotal').value;
+  const bukti    = document.getElementById('setoranBukti').files[0];
+
+  const warnings = [];
+
+  // 1. Cek field wajib
+  if (!kelasId) warnings.push('📋 Pilih kelas terlebih dahulu');
+  if (!bulan)   warnings.push('📅 Pilih bulan terlebih dahulu');
+  if (!tanggal) warnings.push('📅 Tanggal setor belum diisi');
+  if (!jumlah || parseInt(jumlah) <= 0) warnings.push('👥 Jumlah murid yang bayar belum diisi');
+  if (!total  || parseFloat(total) <= 0) warnings.push('💵 Total iuran disetor belum diisi');
+  if (!bukti)   warnings.push('📎 Bukti setoran (foto/PDF) wajib diupload');
+
+  // 2. Cek duplikat — sudah pernah kirim untuk kelas+bulan ini?
+  if (kelasId && bulan) {
+    const { data: existing } = await db.from('setoran_spp')
+      .select('id').eq('guru_id', guruData.id).eq('kelas_id', kelasId).eq('bulan', bulan);
+    if (existing?.length) warnings.push('⚠️ Setoran untuk kelas dan bulan ini sudah pernah dikirim sebelumnya');
+  }
+
+  // 3. Cek pelunasan iuran — semua murid harus sudah lunas
+  if (kelasId && bulan) {
+    const { semua, belumLunas, total: totalMurid } = await cekSemuaLunas(kelasId, bulan);
+    if (!semua) warnings.push(`🔴 Masih ada <strong>${belumLunas} dari ${totalMurid} murid</strong> yang belum lunas iuran — selesaikan di tab <strong>Pelunasan Iuran</strong>`);
+  }
+
+  if (warnings.length > 0) {
+    btn.disabled = true;
+    btn.style.opacity = '0.5';
+    warnEl.style.display = 'block';
+    warnEl.innerHTML = warnings.map(w => `• ${w}`).join('<br>');
+  } else {
+    btn.disabled = false;
+    btn.style.opacity = '1';
+    warnEl.style.display = 'none';
+  }
+}
+
+// ============================================
+// STATS
+// ============================================
+async function loadStats() {
+  const kelasIds = kelasSaya.map(k => k.id);
+  let totalMurid = 0;
+  for (const kid of kelasIds) {
+    const { count } = await db.from('enrollment')
+      .select('*', { count: 'exact', head: true })
+      .eq('kelas_id', kid).eq('is_active', true);
+    totalMurid += count || 0;
+  }
+
+  const bulanIni = new Date().toISOString().slice(0, 7);
+  let belumLunas = 0;
+  for (const kid of kelasIds) {
+    const { data: enr } = await db.from('enrollment')
+      .select('siswa_id').eq('kelas_id', kid).eq('is_active', true);
+    const siswaIds = (enr || []).map(e => e.siswa_id);
+    if (siswaIds.length) {
+      const { count } = await db.from('iuran')
+        .select('*', { count: 'exact', head: true })
+        .in('siswa_id', siswaIds)
+        .eq('bulan_tagihan', bulanIni)
+        .neq('status', 'lunas');
+      belumLunas += count || 0;
+    }
+  }
+
+  const { data: gajiData } = await db.from('penggajian')
+    .select('status').eq('guru_id', guruData.id)
+    .eq('bulan', bulanIni).maybeSingle();
+
+  document.getElementById('statKelas').textContent     = kelasSaya.length;
+  document.getElementById('statMurid').textContent     = totalMurid;
+  document.getElementById('statBelumLunas').textContent = belumLunas;
+  document.getElementById('statGaji').textContent      = gajiData
+    ? (gajiData.status === 'dibayar' ? '✅ Dibayar' : '⏳ Pending')
+    : '—';
+}
+
+// ============================================
+// KELAS SAYA
+// ============================================
+async function loadKelasSaya() {
+  const { data } = await db.from('kelas')
+    .select('*, enrollment(is_active, has_determination, siswa:siswa_id(id, nomor_induk, nama_lengkap, nama_mandarin, status))')
+    .eq('guru_id', guruData.id)
+    .eq('is_active', true);
+
+  kelasSaya = data || [];
+
+  // Ambil pengaturan gaji + biaya — pakai try-catch agar tidak crash kalau tabel belum ada
+  try {
+    const { data: pg } = await db.from('pengaturan_gaji')
+      .select('persentase_bagi_hasil, gaji_per_kelas').eq('guru_id', guruData.id).maybeSingle();
+    guruData.persentase   = pg?.persentase_bagi_hasil || 0;
+    guruData.gajiPerKelas = pg?.gaji_per_kelas || 0;
+  } catch(e) {
+    guruData.persentase   = 0;
+    guruData.gajiPerKelas = 0;
+  }
+
+  try {
+    const [{ data: biayaList }, { data: biayaTK }] = await Promise.all([
+      db.from('pengaturan_biaya').select('jilid, biaya_bulanan'),
+      db.from('pengaturan_biaya_tk').select('biaya_bulanan').limit(1)
+    ]);
+    guruData.biayaMap = {};
+    (biayaList || []).forEach(b => { guruData.biayaMap[b.jilid] = b.biaya_bulanan; });
+    guruData.biayaTK = biayaTK?.[0]?.biaya_bulanan || 0;
+  } catch(e) {
+    guruData.biayaMap = {};
+    guruData.biayaTK  = 0;
+  }
+
+  await loadSysSettings();
+  await loadPendingStatusReq();
+  renderKelas();
+  populateKelasDropdowns();
+}
+
+function jilidLabel(j) { return (j === 0 || j === '0') ? 'TK' : j; }
+
+function renderKelas() {
+  const container = document.getElementById('kelasContainer');
+  if (!kelasSaya.length) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📚</div><div class="empty-state-title">Belum ada kelas</div><div class="empty-state-sub">Hubungi Admin TU untuk pendaftaran kelas</div></div>`;
+    return;
+  }
+
+  const rp = v => 'Rp ' + Number(v).toLocaleString('id-ID');
+  const hariLabel = h => h === '135' ? 'Senin · Rabu · Jumat' : 'Selasa · Kamis · Sabtu';
+  const persen = guruData.persentase || 0;
+  const kasPersen = 100 - persen;
+
+  container.innerHTML = kelasSaya.map(k => {
+    const murid = (k.enrollment || []).filter(e => e.is_active && e.siswa?.status);
+    const isTK = k.jilid === 0 || k.jilid === '0';
+    const biayaBulanan = isTK ? (guruData.biayaTK || 0) : (guruData.biayaMap?.[k.jilid] || 0);
+    const totalIuran   = murid.length * biayaBulanan;
+    const persen       = guruData.persentase || 0;
+    const kasPersen    = 100 - persen;
+    const gajiPerKelas = guruData.gajiPerKelas || 0;
+
+    // Tentukan model gaji: tetap (gaji_per_kelas > 0) atau bagi hasil (persentase > 0)
+    const modelTetap   = gajiPerKelas > 0;
+    const gajiGuru     = modelTetap ? gajiPerKelas : (totalIuran * persen / 100);
+    const kasKelas     = modelTetap ? (totalIuran - gajiPerKelas) : (totalIuran * kasPersen / 100);
+
+    const proyeksiBox = biayaBulanan > 0 || modelTetap ? `
+      <div style="margin-top:14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px 16px">
+        <div style="font-size:12px;font-weight:700;color:#166534;margin-bottom:10px">💰 Proyeksi Gaji Bulan Ini
+          <span style="font-weight:400;color:#6b7280;margin-left:6px">${modelTetap ? '(Model: Gaji Tetap per Kelas)' : `(Model: Bagi Hasil ${persen}%)`}</span>
+        </div>
+        ${!modelTetap ? `
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+          <div style="flex:1;min-width:140px;background:white;border-radius:8px;padding:10px 12px;border:1px solid #d1fae5">
+            <div style="font-size:11px;color:#6b7280;margin-bottom:2px">Iuran/murid</div>
+            <div style="font-weight:700;color:#111">${rp(biayaBulanan)}</div>
+          </div>
+          <div style="flex:1;min-width:140px;background:white;border-radius:8px;padding:10px 12px;border:1px solid #d1fae5">
+            <div style="font-size:11px;color:#6b7280;margin-bottom:2px">Total iuran (${murid.length} murid)</div>
+            <div style="font-weight:700;color:#111">${rp(totalIuran)}</div>
+          </div>
+        </div>` : ''}
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <div style="flex:1;min-width:140px;background:#dcfce7;border-radius:8px;padding:10px 12px;border:1px solid #86efac">
+            <div style="font-size:11px;color:#166534;margin-bottom:2px">🎓 Gaji Guru ${modelTetap ? '(Tetap)' : `(${persen}%)`}</div>
+            <div style="font-size:16px;font-weight:800;color:#15803d">${rp(gajiGuru)}</div>
+          </div>
+          ${!modelTetap ? `
+          <div style="flex:1;min-width:140px;background:#fef9c3;border-radius:8px;padding:10px 12px;border:1px solid #fde047">
+            <div style="font-size:11px;color:#854d0e;margin-bottom:2px">🏫 Kas Bimbel (${kasPersen}%)</div>
+            <div style="font-size:16px;font-weight:800;color:#92400e">${rp(Math.max(0, kasKelas))}</div>
+          </div>` : ''}
+        </div>
+        ${!modelTetap && persen === 0 ? '<div style="font-size:11px;color:#9ca3af;margin-top:8px">* Persentase gaji belum diatur oleh Leader</div>' : ''}
+      </div>` : '';
+
+    return `
+      <div class="form-section" style="margin-bottom:20px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <div>
+            <span style="font-family:monospace;font-size:20px;font-weight:700;color:var(--red)">${k.kode_kelas}</span>
+            <span class="badge badge-green" style="margin-left:8px">Jilid ${jilidLabel(k.jilid)}</span>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span style="font-size:13px;color:var(--text-2)">${hariLabel(k.hari_belajar)} · ${k.sesi === 'sore' ? '16:00–17:45' : '18:00–19:45'}</span>
+            ${sysSettings['guru_tambah_murid']
+              ? `<button class="btn btn-primary btn-sm" onclick="openModalTambahMuridGuru('${k.id}','${k.kode_kelas}')">➕ Tambah Murid</button>`
+              : `<button class="btn btn-secondary btn-sm" disabled title="Fitur belum diaktifkan oleh Leader" style="opacity:0.5;cursor:not-allowed">➕ Tambah Murid</button>`
+            }
+          </div>
+        </div>
+        <div style="font-size:13px;color:var(--text-2);margin-bottom:12px">
+          <strong>${murid.length}</strong> murid aktif
+          ${(k.enrollment||[]).filter(e => !e.is_active && !e.has_determination).length > 0
+            ? `<span style="color:#9ca3af;margin-left:6px">(+${(k.enrollment||[]).filter(e => !e.is_active && !e.has_determination).length} nonaktif)</span>`
+            : ''}
+        </div>
+        ${murid.length ? `
+        <table class="table">
+          <thead><tr><th>No. Induk</th><th>Nama Murid</th><th>Status</th><th>Aksi</th></tr></thead>
+          <tbody>
+            ${murid.map(e => {
+              const pendingReq = (window._pendingStatusReq || {})[e.siswa.id];
+              const statusCell = pendingReq
+                ? `<span class="badge badge-green">Aktif</span> <span style="font-size:11px;background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:10px;margin-left:4px">⏳ Menunggu Persetujuan</span>`
+                : `<span class="badge badge-green">Aktif</span>`;
+              const aksiCell = pendingReq
+                ? `<span style="color:#9ca3af;font-size:11px">Sudah diajukan</span>`
+                : `<button class="btn btn-secondary btn-sm" onclick="openModalToggleStatus('${e.siswa.id}','${(e.siswa.nama_lengkap||'').replace(/'/g,"\\'")}', true)">🔻 Nonaktifkan</button>`;
+              return `<tr>
+              <td>${e.siswa.nomor_induk}</td>
+              <td><strong>${e.siswa.nama_lengkap}</strong></td>
+              <td>${statusCell}</td>
+              <td>${aksiCell}</td>
+            </tr>`;
+            }).join('')}
+            ${(k.enrollment||[]).filter(e => !e.is_active && !e.has_determination).map(e => {
+              if (!e.siswa) return '';
+              const pindah = e.siswa.status === true;
+              const label = pindah
+                ? '<span style="font-size:11px;background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:10px">↗ Pindah Kelas</span>'
+                : '<span class="badge badge-red">Nonaktif</span>';
+              return `<tr style="opacity:0.5;background:#f9fafb">
+              <td style="color:#9ca3af">${e.siswa.nomor_induk||'—'}</td>
+              <td><span style="color:#9ca3af">${e.siswa.nama_lengkap}</span></td>
+              <td>${label}</td>
+              <td><span style="font-size:11px;color:#9ca3af">—</span></td>
+            </tr>`;
+            }).join('')}
+          </tbody>
+        </table>` : `<div class="empty-state" style="padding:20px"><div class="empty-state-sub">Belum ada murid di kelas ini</div></div>`}
+        ${proyeksiBox}
+      </div>
+    `;
+  }).join('');
+}
+
+function populateKelasDropdowns() {
+  const opts = kelasSaya.map(k => `<option value="${k.id}">${k.kode_kelas}</option>`).join('');
+  ['absensiKelas','pelunasanKelas','nilaiKelas','setoranKelas','rekapKelas','previewKelas','perilakuKelas','calNilaiKelas'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = '<option value="">-- Pilih Kelas --</option>' + opts;
+  });
+}
+
+// ============================================
+// ABSENSI
+// ============================================
+// ============================================
+// ABSENSI — TABLE FLOW
+// ============================================
+var absensiMuridList = [];
+var absensiSudahAda = false;
+
+async function loadTableAbsensi() {
+  const kelasId = document.getElementById('absensiKelas').value;
+  const tanggal = document.getElementById('absensiTanggal').value;
+  const wrap = document.getElementById('absensiTableWrap');
+  if (!kelasId || !tanggal) { wrap.style.display='none'; loadHistory(); return; }
+
+  const kelas = kelasSaya.find(k => k.id === kelasId);
+  absensiMuridList = (kelas?.enrollment || []).filter(e => e.is_active && e.siswa?.status);
+  if (!absensiMuridList.length) { wrap.style.display='none'; loadHistory(); return; }
+
+  // Load existing absensi
+  const { data: existing } = await db.from('absensi')
+    .select('siswa_id, hadir, catatan')
+    .eq('kelas_id', kelasId).eq('tanggal', tanggal);
+  const existingMap = {};
+  (existing||[]).forEach(a => { existingMap[a.siswa_id] = a; });
+  absensiSudahAda = existing && existing.length > 0;
+
+  // Tampilkan warning kalau sudah pernah diabsen
+  const warningEl = document.getElementById('absensiWarning');
+  const btnSimpan = document.getElementById('btnSimpanAbsensi');
+  const btnHadir  = document.getElementById('btnHadirSemua');
+  if (absensiSudahAda) {
+    warningEl.style.display = 'block';
+    warningEl.innerHTML = '⚠️ Absensi tanggal <strong>'+tanggal+'</strong> sudah pernah diisi. '
+      +'<button onclick="unlockAbsensi()" style="margin-left:8px;background:#f59e0b;color:white;border:none;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px">✏️ Edit / Override</button>';
+    btnSimpan.disabled = true; btnHadir.disabled = true;
+    btnSimpan.style.opacity='0.5'; btnHadir.style.opacity='0.5';
+  } else {
+    warningEl.style.display = 'none';
+    btnSimpan.disabled = false; btnHadir.disabled = false;
+    btnSimpan.style.opacity='1'; btnHadir.style.opacity='1';
+  }
+
+  const tbody = document.getElementById('tableAbsensi');
+  tbody.innerHTML = absensiMuridList.map(e => {
+    const ab = existingMap[e.siswa.id];
+    const isHadir = !ab || ab.hadir;
+    const isSakit = ab && !ab.hadir && ab.catatan === 'sakit';
+    const isIzin  = ab && !ab.hadir && ab.catatan === 'izin';
+    const isTK    = ab && !ab.hadir && ab.catatan === 'tanpa_keterangan';
+    const disabled = absensiSudahAda ? 'disabled' : '';
+    return `<tr>
+      <td><strong>${e.siswa.nama_lengkap}</strong></td>
+      <td style="color:#b91c1c">${e.siswa.nama_mandarin||'—'}</td>
+      <td style="text-align:center"><input type="checkbox" class="chk-absensi" data-id="${e.siswa.id}" data-ket="hadir" ${isHadir?'checked':''} ${disabled} onchange="onChkAbsensi(this)" style="width:18px;height:18px;accent-color:#059669;cursor:pointer"></td>
+      <td style="text-align:center"><input type="checkbox" class="chk-absensi" data-id="${e.siswa.id}" data-ket="sakit" ${isSakit?'checked':''} ${disabled} onchange="onChkAbsensi(this)" style="width:18px;height:18px;accent-color:#8b5cf6;cursor:pointer"></td>
+      <td style="text-align:center"><input type="checkbox" class="chk-absensi" data-id="${e.siswa.id}" data-ket="izin" ${isIzin?'checked':''} ${disabled} onchange="onChkAbsensi(this)" style="width:18px;height:18px;accent-color:#3b82f6;cursor:pointer"></td>
+      <td style="text-align:center"><input type="checkbox" class="chk-absensi" data-id="${e.siswa.id}" data-ket="tanpa_keterangan" ${isTK?'checked':''} ${disabled} onchange="onChkAbsensi(this)" style="width:18px;height:18px;accent-color:#ef4444;cursor:pointer"></td>
+    </tr>`;
+  }).join('');
+
+  wrap.style.display = 'block';
+  loadHistory();
+}
+
+function unlockAbsensi() {
+  absensiSudahAda = false;
+  document.getElementById('absensiWarning').innerHTML = '✏️ Mode edit aktif — perubahan akan mengganti data absensi sebelumnya.';
+  document.getElementById('absensiWarning').style.background = '#fef3c7';
+  document.getElementById('absensiWarning').style.borderColor = '#f59e0b';
+  const btnSimpan = document.getElementById('btnSimpanAbsensi');
+  const btnHadir  = document.getElementById('btnHadirSemua');
+  btnSimpan.disabled = false; btnHadir.disabled = false;
+  btnSimpan.style.opacity='1'; btnHadir.style.opacity='1';
+  document.querySelectorAll('.chk-absensi').forEach(c => c.disabled = false);
+}
+
+async function loadHistory() {
+  const kelasId = document.getElementById('absensiKelas').value;
+  const histEl = document.getElementById('absensiHistory');
+  if (!kelasId) { histEl.style.display='none'; return; }
+
+  const { data } = await db.from('absensi')
+    .select('tanggal, hadir')
+    .eq('kelas_id', kelasId)
+    .order('tanggal', { ascending: false })
+    .limit(20);
+
+  if (!data?.length) { histEl.style.display='none'; return; }
+
+  // Grup per tanggal
+  const perTanggal = {};
+  data.forEach(a => {
+    if (!perTanggal[a.tanggal]) perTanggal[a.tanggal] = { hadir: 0, tidakHadir: 0 };
+    if (a.hadir) perTanggal[a.tanggal].hadir++;
+    else perTanggal[a.tanggal].tidakHadir++;
+  });
+
+  histEl.style.display = 'block';
+  histEl.innerHTML = '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">📅 Riwayat Absensi</div>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:8px">'
+    + Object.entries(perTanggal).sort((a,b) => b[0].localeCompare(a[0])).map(([tgl, stat]) =>
+      '<div style="background:white;border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:12px">'
+      +'<div style="font-weight:600;color:var(--text)">'+tgl+'</div>'
+      +'<div style="color:#059669">✅ '+stat.hadir+' hadir'+(stat.tidakHadir?' &nbsp;·&nbsp; <span style="color:#dc2626">❌ '+stat.tidakHadir+' absen</span>':'')+'</div>'
+      +'</div>'
+    ).join('')
+    +'</div>';
+}
+
+function onChkAbsensi(el) {
+  // Per row: uncheck semua kolom lain, check hanya yang diklik
+  const siswaId = el.getAttribute('data-id');
+  const ket = el.getAttribute('data-ket');
+  document.querySelectorAll(`.chk-absensi[data-id="${siswaId}"]`).forEach(c => {
+    c.checked = c.getAttribute('data-ket') === ket;
+  });
+}
+
+function hadirSemuaTable() {
+  absensiMuridList.forEach(e => {
+    document.querySelectorAll(`.chk-absensi[data-id="${e.siswa.id}"]`).forEach(c => {
+      c.checked = c.getAttribute('data-ket') === 'hadir';
+    });
+  });
+}
+
+async function simpanAbsensi() {
+  const kelasId = document.getElementById('absensiKelas').value;
+  const tanggal = document.getElementById('absensiTanggal').value;
+  if (!kelasId || !tanggal) { alert('Pilih kelas dan tanggal!'); return; }
+
+  const rows = absensiMuridList.map(e => {
+    const checkedEl = document.querySelector(`.chk-absensi[data-id="${e.siswa.id}"]:checked`);
+    const ket = checkedEl ? checkedEl.getAttribute('data-ket') : 'hadir';
+    return {
+      siswa_id: e.siswa.id, kelas_id: kelasId, tanggal,
+      hadir: ket === 'hadir',
+      catatan: ket !== 'hadir' ? ket : null
+    };
+  });
+
+  const { error } = await db.from('absensi').upsert(rows, { onConflict: 'siswa_id,kelas_id,tanggal' });
+  if (error) { alert('❌ Gagal simpan: ' + error.message); return; }
+  const tidakHadir = rows.filter(r => !r.hadir).length;
+  alert('✅ Absensi disimpan!\n'+(rows.length-tidakHadir)+' hadir, '+tidakHadir+' tidak hadir.');
+  absensiSudahAda = true;
+  await loadTableAbsensi();
+  // Refresh rekap hanya kalau kelas rekap sudah dipilih
+  const rekapKelasEl = document.getElementById('rekapKelas');
+  if (rekapKelasEl && rekapKelasEl.value) await loadRekap();
+}
+
+// ============================================
+// REKAP ABSENSI PER SEMESTER
+// ============================================
+async function loadRekap() {
+  const rekapKelasEl = document.getElementById('rekapKelas');
+  const rekapTahunEl = document.getElementById('rekapTahun');
+  const rekapSemEl   = document.getElementById('rekapSemester');
+  if (!rekapKelasEl || !rekapTahunEl || !rekapSemEl) return;
+  const kelasId = rekapKelasEl.value;
+  const tahun   = rekapTahunEl.value;
+  const sem     = rekapSemEl.value;
+  if (!kelasId || !tahun) return;
+
+  const kelas = kelasSaya.find(k => k.id === kelasId);
+  const murid = (kelas?.enrollment || []).filter(e => e.is_active && e.siswa?.status);
+  if (!murid.length) return;
+
+  const container = document.getElementById('rekapContainer');
+  container.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-2)">⏳ Memuat rekap...</div>';
+
+  const tglMulai = sem==='1' ? tahun+'-01-01' : tahun+'-07-01';
+  const tglAkhir = sem==='1' ? tahun+'-06-30' : tahun+'-12-31';
+
+  const siswaIds = murid.map(e => e.siswa.id);
+  const { data: absensiData } = await db.from('absensi')
+    .select('siswa_id, tanggal, hadir, catatan')
+    .eq('kelas_id', kelasId)
+    .gte('tanggal', tglMulai).lte('tanggal', tglAkhir)
+    .in('siswa_id', siswaIds)
+    .order('tanggal');
+
+  if (!absensiData?.length) {
+    container.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-2)">Belum ada data absensi untuk periode ini</div>';
+    return;
+  }
+
+  const totalPertemuan = new Set(absensiData.map(a => a.tanggal)).size;
+
+  // Hitung per murid
+  const muridMap = {};
+  murid.forEach(e => {
+    muridMap[e.siswa.id] = {
+      nama: e.siswa.nama_lengkap,
+      mandarin: e.siswa.nama_mandarin||'—',
+      sakit: 0, izin: 0, tk: 0
+    };
+  });
+  absensiData.forEach(a => {
+    if (!a.hadir && muridMap[a.siswa_id]) {
+      if (a.catatan === 'sakit') muridMap[a.siswa_id].sakit++;
+      else if (a.catatan === 'izin') muridMap[a.siswa_id].izin++;
+      else muridMap[a.siswa_id].tk++;
+    }
+  });
+
+  let html = '<div style="margin-bottom:12px;padding:10px 14px;background:#f0fdf4;border-radius:8px;font-size:13px;color:#166534">'
+    +'📅 Semester '+sem+' Tahun '+tahun+' · Total pertemuan: <strong>'+totalPertemuan+' sesi</strong></div>';
+
+  html += '<div class="table-wrap"><table class="table"><thead><tr>'
+    +'<th>Nama Indonesia</th><th>Nama Mandarin</th>'
+    +'<th style="text-align:center">🤒 Sakit</th>'
+    +'<th style="text-align:center">📋 Izin</th>'
+    +'<th style="text-align:center">❌ Tanpa Ket.</th>'
+    +'<th style="text-align:center">📅 Total Pertemuan</th>'
+    +'</tr></thead><tbody>';
+
+  murid.forEach(e => {
+    const r = muridMap[e.siswa.id];
+    html += '<tr>'
+      +'<td><strong>'+r.nama+'</strong></td>'
+      +'<td style="color:#b91c1c">'+r.mandarin+'</td>'
+      +'<td style="text-align:center"><span style="color:#8b5cf6;font-weight:600">'+r.sakit+'</span></td>'
+      +'<td style="text-align:center"><span style="color:#3b82f6;font-weight:600">'+r.izin+'</span></td>'
+      +'<td style="text-align:center"><span style="color:#ef4444;font-weight:600">'+r.tk+'</span></td>'
+      +'<td style="text-align:center"><strong>'+totalPertemuan+'</strong></td>'
+      +'</tr>';
+  });
+
+  html += '</tbody></table></div>';
+  container.innerHTML = html;
+}
+
+async function hapusAbsensiMurid(siswaId, kelasId, tanggal) {
+  if (!confirm('Hapus data absensi murid ini pada '+tanggal+'?')) return;
+  const { error } = await db.from('absensi').delete()
+    .eq('siswa_id', siswaId).eq('kelas_id', kelasId).eq('tanggal', tanggal);
+  if (error) { alert('❌ Gagal hapus: ' + error.message); return; }
+  await loadRekap();
+}
+
+// ============================================
+// REKAP ABSENSI PER SEMESTER
+// ============================================
+// ============================================
+// PELUNASAN IURAN
+// ============================================
+async function loadPelunasan() {
+  const kelasId = document.getElementById('pelunasanKelas').value;
+  const bulan   = document.getElementById('pelunasanBulan').value;
+  if (!kelasId || !bulan) return;
+
+  const kelas = kelasSaya.find(k => k.id === kelasId);
+  const murid = (kelas?.enrollment || []).filter(e => e.is_active && e.siswa?.status);
+  const isTK  = kelas.jilid === 0 || kelas.jilid === '0';
+
+  // Ambil biaya sesuai jilid
+  let jumlahIuran = 0;
+  if (isTK) {
+    const { data: b } = await db.from('pengaturan_biaya_tk').select('biaya_bulanan').limit(1);
+    jumlahIuran = b?.[0]?.biaya_bulanan || 0;
+  } else {
+    const { data: b } = await db.from('pengaturan_biaya').select('biaya_bulanan').eq('jilid', kelas.jilid).maybeSingle();
+    jumlahIuran = b?.biaya_bulanan || 0;
+  }
+
+  document.getElementById('pelunasanInfoBiaya').innerHTML =
+    '💰 Iuran Jilid '+(isTK?'TK':kelas.jilid)+': <strong>Rp '+Number(jumlahIuran).toLocaleString('id-ID')+'</strong> / bulan &nbsp;·&nbsp; <span style="color:#6b7280;font-size:12px">Nominal diatur oleh Bendahara</span>';
+
+  // Ambil data iuran bulan ini
+  const siswaIds = murid.map(e => e.siswa.id);
+  const { data: iuranData } = await db.from('iuran')
+    .select('*').in('siswa_id', siswaIds).eq('bulan_tagihan', bulan).eq('kelas_id', kelasId);
+  const iuranMap = {};
+  (iuranData||[]).forEach(i => { iuranMap[i.siswa_id] = i; });
+
+  const tbody = document.getElementById('tablePelunasan');
+  const semuaLunas = murid.length > 0 && murid.every(e => iuranMap[e.siswa.id]?.status === 'lunas');
+
+  const tableEl = document.getElementById('tablePelunasanEl');
+  tableEl.style.outline = semuaLunas ? '2px solid #059669' : 'none';
+  tableEl.style.borderRadius = '8px';
+
+  tbody.innerHTML = murid.map(e => {
+    const iuran  = iuranMap[e.siswa.id];
+    const status = iuran?.status || 'belum_bayar';
+    const isLunas = status === 'lunas';
+
+    const badge = isLunas
+      ? '<span class="badge badge-green">Lunas ✓</span>'
+      : '<span class="badge badge-red">Belum Bayar</span>';
+
+    const aksi = isLunas
+      ? `<button class="btn btn-secondary btn-sm" onclick="toggleIuran('${e.siswa.id}','${kelasId}','${bulan}',${jumlahIuran},false)">↩️ Batalkan</button>`
+      : `<button class="btn btn-success btn-sm" onclick="toggleIuran('${e.siswa.id}','${kelasId}','${bulan}',${jumlahIuran},true)">✓ Tandai Lunas</button>`;
+
+    return `<tr style="${isLunas?'background:#f0fdf4;':''}">
+      <td>${e.siswa.nomor_induk}</td>
+      <td><strong>${e.siswa.nama_lengkap}</strong></td>
+      <td style="text-align:center">Rp ${Number(jumlahIuran).toLocaleString('id-ID')}</td>
+      <td style="text-align:center">${badge}</td>
+      <td style="text-align:center">${aksi}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('pelunasanContainer').style.display = 'block';
+
+  // Trigger re-validasi form setoran kalau tab penggajian aktif
+  if (document.getElementById('tab-penggajian')?.classList.contains('active')) {
+    await validateSetoranForm();
+  }
+}
+
+async function toggleIuran(siswaId, kelasId, bulan, jumlah, lunas) {
+  if (!lunas && !confirm('Batalkan status lunas murid ini?')) return;
+  const existing = await db.from('iuran').select('id').eq('siswa_id', siswaId).eq('kelas_id', kelasId).eq('bulan_tagihan', bulan).maybeSingle();
+  if (lunas) {
+    if (existing.data) {
+      await db.from('iuran').update({ status: 'lunas', jumlah }).eq('id', existing.data.id);
+    } else {
+      await db.from('iuran').insert({ siswa_id: siswaId, kelas_id: kelasId, bulan_tagihan: bulan, jumlah, status: 'lunas' });
+    }
+  } else {
+    if (existing.data) {
+      await db.from('iuran').update({ status: 'belum_bayar' }).eq('id', existing.data.id);
+    }
+  }
+  await loadPelunasan();
+}
+
+// ============================================
+// NILAI
+// ============================================
+
+// Konfigurasi setiap jenis penilaian
+const JENIS_CONFIG = {
+  tingxie: {
+    label: '听写', subLabel: '课文 / 阅读',
+    subs: [
+      {v:'kewen', l:'课文 (Kè wén)'},
+      {v:'yuedu', l:'阅读 (Yuè dú)'}
+    ],
+    afterSub: null,
+    babFirst: true, // pilih bab dulu baru sub
+    babRange: Array.from({length:12},(_,i)=>i+1)
+  },
+  ceyuan: {
+    label: '测验', subLabel: 'Kelompok Bab',
+    subs: [
+      {v:'1-2',l:'Bab 1–2'},{v:'3-4',l:'Bab 3–4'},
+      {v:'5-6',l:'Bab 5–6'},{v:'7-8',l:'Bab 7–8'},
+      {v:'9-10',l:'Bab 9–10'}
+    ],
+    afterSub: null
+  },
+  lianxi: {
+    label: '练习', subLabel: 'Bab',
+    subs: null,
+    afterSub: 'bab',
+    babRange: Array.from({length:12},(_,i)=>i+1)
+  },
+  pinyin: {
+    label: '汉语拼音', subLabel: 'Kelompok Bab',
+    subs: [
+      {v:'1-2',l:'Bab 1–2'},{v:'3-4',l:'Bab 3–4'},
+      {v:'5-6',l:'Bab 5–6'},{v:'7-8',l:'Bab 7–8'},
+      {v:'9-10',l:'Bab 9–10'}
+    ],
+    afterSub: null
+  },
+  tingshuo: {
+    label: '听说读写', subLabel: 'Kelompok Bab',
+    subs: [
+      {v:'1-2',l:'Bab 1–2'},{v:'3-4',l:'Bab 3–4'},
+      {v:'5-6',l:'Bab 5–6'},{v:'7-8',l:'Bab 7–8'},
+      {v:'9-10',l:'Bab 9–10'}
+    ],
+    afterSub: null
+  },
+  zaoju: {
+    label: '造句', subLabel: 'Kelompok Bab',
+    subs: [
+      {v:'1-2',l:'Bab 1–2'},{v:'3-4',l:'Bab 3–4'},
+      {v:'5-6',l:'Bab 5–6'},{v:'7-8',l:'Bab 7–8'},
+      {v:'9-10',l:'Bab 9–10'}
+    ],
+    afterSub: null
+  },
+  dakao: {
+    label: '大考', subLabel: 'Jenis Ujian',
+    subs: [
+      {v:'zhongwen',l:'中文 (Zhōng wén)'},
+      {v:'pinyin',l:'汉语拼音 (Pīn yīn)'},
+      {v:'zaoju',l:'造句 (Zào jù)'}
+    ],
+    afterSub: null
+  },
+  yanjiang: {
+    label: '演讲', subLabel: 'Sesi',
+    subs: [
+      {v:'sesi1',l:'Sesi 1'},
+      {v:'sesi2',l:'Sesi 2'}
+    ],
+    afterSub: null
+  }
+};
+
+function onNilaiKelasChange() {
+  document.getElementById('nilaiJenis').value = '';
+  document.getElementById('nilaiSubWrap').style.display = 'none';
+  document.getElementById('nilaiContainer').style.display = 'none';
+  const kelasId = document.getElementById('nilaiKelas').value;
+  // Sync preview kelas
+  const prevSel = document.getElementById('previewKelas');
+  if (prevSel) prevSel.value = kelasId;
+  if (kelasId) loadPreviewNilai();
+}
+
+function onNilaiJenisChange() {
+  const jenis = document.getElementById('nilaiJenis').value;
+  const subWrap = document.getElementById('nilaiSubWrap');
+  const babWrap = document.getElementById('nilaiBabWrap');
+  const subSel  = document.getElementById('nilaiSub');
+  const babSel  = document.getElementById('nilaiBab');
+  document.getElementById('nilaiContainer').style.display = 'none';
+  subWrap.style.display = 'none';
+  babWrap.style.display = 'none';
+
+  if (!jenis) return;
+  const cfg = JENIS_CONFIG[jenis];
+
+  if (cfg.babFirst) {
+    // 听写: pilih bab dulu
+    babSel.innerHTML = '<option value="">-- Pilih Bab --</option>'
+      + cfg.babRange.map(b => `<option value="${b}">Bab ${b}</option>`).join('');
+    babWrap.style.display = 'block';
+    return;
+  }
+
+  if (!cfg.subs) {
+    // 练习: langsung load form (12 bab sebagai kolom)
+    subWrap.style.display = 'none';
+    loadNilaiForm();
+    return;
+  }
+
+  // Ada sub-pilihan (测验, 拼音, 听说读写, 大考, 演讲)
+  document.getElementById('nilaiSubLabel').textContent = cfg.subLabel;
+  subSel.innerHTML = '<option value="">-- Pilih --</option>'
+    + cfg.subs.map(s => `<option value="${s.v}">${s.l}</option>`).join('');
+  subWrap.style.display = 'block';
+}
+
+function onNilaiBabChange() {
+  const jenis = document.getElementById('nilaiJenis').value;
+  const bab   = document.getElementById('nilaiBab').value;
+  const cfg   = JENIS_CONFIG[jenis];
+  const subWrap = document.getElementById('nilaiSubWrap');
+  const subSel  = document.getElementById('nilaiSub');
+  document.getElementById('nilaiContainer').style.display = 'none';
+  if (!bab) { subWrap.style.display = 'none'; return; }
+
+  // Setelah pilih bab, tampilkan sub (课文/阅读)
+  document.getElementById('nilaiSubLabel').textContent = cfg.subLabel;
+  subSel.innerHTML = '<option value="">-- Pilih --</option>'
+    + cfg.subs.map(s => `<option value="${s.v}">${s.l}</option>`).join('');
+  subWrap.style.display = 'block';
+  subSel.value = '';
+}
+
+async function loadNilaiForm() {
+  const kelasId  = document.getElementById('nilaiKelas').value;
+  const semester = document.getElementById('nilaiSemester').value;
+  const jenis    = document.getElementById('nilaiJenis').value;
+  const sub      = document.getElementById('nilaiSub')?.value || '';
+  const babPilih = document.getElementById('nilaiBab')?.value || '';
+  if (!kelasId || !jenis) return;
+
+  const cfg = JENIS_CONFIG[jenis];
+  if (cfg.subs && !sub) return;
+
+  const kelas = kelasSaya.find(k => k.id === kelasId);
+  const murid = (kelas?.enrollment || []).filter(e => e.is_active && e.siswa?.status);
+
+  // Info bar
+  const infoEl = document.getElementById('nilaiFormInfo');
+  let infoText = `📝 ${cfg.label}`;
+  if (babPilih) infoText += ` · Bab ${babPilih}`;
+  if (sub) infoText += ` · ${cfg.subs?.find(s=>s.v===sub)?.l || sub}`;
+  infoText += ` · Semester ${semester} · Kelas ${kelas?.kode_kelas}`;
+  infoEl.textContent = infoText;
+
+  // Build columns
+  let cols = [];
+  if (cfg.babFirst) {
+    // 听写: satu bab, satu sub → 1 kolom nilai
+    cols = [{key:'nilai', label:'Nilai', bab: parseInt(babPilih), sub_jenis: sub, range_bab: null}];
+  } else if (jenis === 'lianxi') {
+    // 练习: 12 kolom bab
+    cols = cfg.babRange.map(b => ({key:`bab_${b}`, label:`Bab ${b}`, bab:b, sub_jenis:null, range_bab:null}));
+  } else {
+    // Jenis dengan range_bab atau sub → 1 kolom nilai
+    cols = [{key:'nilai', label:'Nilai', bab:null, sub_jenis:sub||null, range_bab:cfg.subs?sub:null}];
+  }
+
+  // Load existing nilai
+  const siswaIds = murid.map(e => e.siswa.id);
+  let q = db.from('nilai_detail').select('*')
+    .in('siswa_id', siswaIds).eq('kelas_id', kelasId)
+    .eq('semester', semester).eq('jenis_penilaian', jenis);
+  if (sub) q = q.eq('sub_jenis', sub);
+  if (babPilih) q = q.eq('bab', parseInt(babPilih));
+  const { data: nilaiData } = await q;
+
+  const nilaiMap = {};
+  (nilaiData||[]).forEach(n => {
+    if (!nilaiMap[n.siswa_id]) nilaiMap[n.siswa_id] = {};
+    const colKey = n.bab ? `bab_${n.bab}` : 'nilai';
+    nilaiMap[n.siswa_id][colKey] = n.nilai;
+  });
+
+  // Render thead
+  document.getElementById('nilaiThead').innerHTML = '<tr>'
+    + '<th>No. Induk</th><th>Nama</th>'
+    + cols.map(c => `<th style="text-align:center;min-width:80px">${c.label}</th>`).join('')
+    + '</tr>';
+
+  // Render tbody
+  document.getElementById('tableNilai').innerHTML = murid.map(e => {
+    const nm = nilaiMap[e.siswa.id] || {};
+    return '<tr><td>'+e.siswa.nomor_induk+'</td><td><strong>'+e.siswa.nama_lengkap+'</strong></td>'
+      + cols.map(c => {
+        const val = nm[c.key] ?? '';
+        return `<td style="text-align:center"><input type="number" class="nilai-input" data-siswa="${e.siswa.id}" data-col="${c.key}" value="${val}" min="0" max="100" placeholder="—" style="width:72px;border:1px solid #e5e7eb;border-radius:6px;padding:5px 8px;text-align:center;font-size:13px"></td>`;
+      }).join('')
+      + '</tr>';
+  }).join('');
+
+  window._nilaiCols  = cols;
+  window._nilaiJenis = jenis;
+  window._nilaiSub   = sub;
+  window._nilaiBab   = babPilih;
+
+  document.getElementById('nilaiContainer').style.display = 'block';
+}
+
+async function simpanNilai() {
+  const kelasId  = document.getElementById('nilaiKelas').value;
+  const semester = document.getElementById('nilaiSemester').value;
+  const jenis    = window._nilaiJenis;
+  const cols     = window._nilaiCols || [];
+  const { data: { user } } = await db.auth.getUser();
+
+  const kelas = kelasSaya.find(k => k.id === kelasId);
+  const murid = (kelas?.enrollment || []).filter(e => e.is_active && e.siswa?.status);
+
+  const rows = [];
+  murid.forEach(e => {
+    cols.forEach(c => {
+      const inp = document.querySelector(`input[data-siswa="${e.siswa.id}"][data-col="${c.key}"]`);
+      const val = inp ? parseFloat(inp.value) : null;
+      if (!val && val !== 0) return; // skip kosong
+      rows.push({
+        siswa_id: e.siswa.id, kelas_id: kelasId,
+        semester: parseInt(semester),
+        jenis_penilaian: jenis,
+        sub_jenis: c.sub_jenis || null,
+        bab: c.bab || null,
+        range_bab: c.range_bab || null,
+        nilai: val,
+        diinput_oleh: user.id
+      });
+    });
+  });
+
+  if (!rows.length) { alert('Tidak ada nilai yang diisi!'); return; }
+
+  const { error } = await db.from('nilai_detail').upsert(rows,
+    { onConflict: 'siswa_id,kelas_id,semester,jenis_penilaian,sub_jenis,bab,range_bab' });
+  if (error) { alert('❌ Gagal simpan: '+error.message); return; }
+  alert('✅ '+rows.length+' nilai berhasil disimpan!');
+  loadPreviewNilai();
+}
+
+async function loadPreviewNilai() {
+  const kelasId  = document.getElementById('previewKelas')?.value || document.getElementById('nilaiKelas').value;
+  const semester = document.getElementById('previewSemester')?.value || document.getElementById('nilaiSemester').value;
+  if (!kelasId) return;
+
+  const kelas = kelasSaya.find(k => k.id === kelasId);
+  const murid = (kelas?.enrollment || []).filter(e => e.is_active && e.siswa?.status);
+  const siswaIds = murid.map(e => e.siswa.id);
+
+  const { data: nilaiData } = await db.from('nilai_detail')
+    .select('*').in('siswa_id', siswaIds)
+    .eq('kelas_id', kelasId).eq('semester', semester)
+    .order('jenis_penilaian').order('sub_jenis').order('bab');
+
+  const container = document.getElementById('previewNilaiContainer');
+  if (!nilaiData?.length) {
+    container.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-2)">Belum ada nilai untuk periode ini</div>';
+    return;
+  }
+
+  // Kelompokkan per jenis_penilaian
+  const perJenis = {};
+  nilaiData.forEach(n => {
+    if (!perJenis[n.jenis_penilaian]) perJenis[n.jenis_penilaian] = [];
+    perJenis[n.jenis_penilaian].push(n);
+  });
+
+  let html = '';
+
+  Object.entries(perJenis).forEach(([jenis, rows]) => {
+    const cfg = JENIS_CONFIG[jenis];
+    const jenisLabel = cfg?.label || jenis;
+
+    // Tentukan kolom unik untuk jenis ini
+    // Kumpulkan semua kombinasi kolom yang ada
+    const kolomSet = new Set();
+    rows.forEach(r => {
+      let colKey = '';
+      if (r.sub_jenis && r.bab) colKey = r.sub_jenis+'_bab'+r.bab;
+      else if (r.bab) colKey = 'bab'+r.bab;
+      else if (r.range_bab) colKey = r.range_bab;
+      else if (r.sub_jenis) colKey = r.sub_jenis;
+      else colKey = 'nilai';
+      kolomSet.add(colKey);
+    });
+
+    // Sort kolom
+    const kolom = [...kolomSet].sort((a,b) => {
+      const na = parseInt(a.match(/\d+/)?.[0]||0);
+      const nb = parseInt(b.match(/\d+/)?.[0]||0);
+      return na - nb;
+    });
+
+    // Build kolom headers yang readable
+    function getKolomLabel(colKey) {
+      if (colKey.includes('_bab')) {
+        const [sub, bab] = colKey.split('_bab');
+        const subLabel = cfg?.subs?.find(s=>s.v===sub)?.l || sub;
+        // Singkat: ambil bagian pertama saja
+        const subShort = sub === 'kewen' ? '课文' : sub === 'yuedu' ? '阅读' : sub;
+        return subShort+' B'+bab;
+      }
+      if (colKey.startsWith('bab')) return 'Bab '+colKey.replace('bab','');
+      const sub = cfg?.subs?.find(s=>s.v===colKey);
+      return sub?.l || colKey;
+    }
+
+    // Build nilai map per murid per kolom
+    const muridMap = {};
+    murid.forEach(e => { muridMap[e.siswa.id] = { nama: e.siswa.nama_lengkap, noInduk: e.siswa.nomor_induk, namaMandarin: e.siswa.nama_mandarin||'—' }; });
+    rows.forEach(r => {
+      let colKey = '';
+      if (r.sub_jenis && r.bab) colKey = r.sub_jenis+'_bab'+r.bab;
+      else if (r.bab) colKey = 'bab'+r.bab;
+      else if (r.range_bab) colKey = r.range_bab;
+      else if (r.sub_jenis) colKey = r.sub_jenis;
+      else colKey = 'nilai';
+      if (!muridMap[r.siswa_id]) return;
+      muridMap[r.siswa_id][colKey] = r.nilai;
+    });
+
+    const getNilaiColor = v => !v?'#9ca3af':v>=80?'#059669':v>=65?'#d97706':'#dc2626';
+
+    html += `<div style="margin-bottom:24px">
+      <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:10px;padding:8px 12px;background:var(--pink-light);border-radius:8px;border-left:4px solid var(--pink)">
+        ${jenisLabel} ${cfg?.label !== jenis ? '' : ''}
+      </div>
+      <div style="overflow-x:auto;border:1px solid var(--border);border-radius:8px">
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead>
+            <tr style="background:#f9fafb">
+              <th style="padding:8px 12px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;position:sticky;left:0;background:#f9fafb">Nama</th>
+              <th style="padding:8px 12px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;background:#f9fafb">名字</th>
+              ${kolom.map(c=>`<th style="padding:8px 10px;text-align:center;border-bottom:1px solid var(--border);white-space:nowrap;min-width:60px">${getKolomLabel(c)}</th>`).join('')}
+              <th style="padding:8px 10px;text-align:center;border-bottom:1px solid var(--border);white-space:nowrap;background:#fef9c3;color:#92400e;font-weight:700">Rata-rata</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${murid.map(e => {
+              const m = muridMap[e.siswa.id];
+              if (!m) return '';
+              const vals = kolom.map(c => m[c]).filter(v => v !== undefined && v !== null && v !== '');
+              const avg = vals.length ? Math.round(vals.reduce((a,b)=>a+Number(b),0)/vals.length) : null;
+              const avgColor = getNilaiColor(avg);
+              return `<tr style="border-bottom:1px solid #f3f4f6">
+                <td style="padding:7px 12px;font-weight:600;white-space:nowrap;position:sticky;left:0;background:white">${m.nama}</td>
+                <td style="padding:7px 12px;color:#b91c1c;white-space:nowrap">${m.namaMandarin}</td>
+                ${kolom.map(c => {
+                  const v = m[c];
+                  const color = getNilaiColor(v);
+                  return `<td style="padding:7px 10px;text-align:center;color:${color};font-weight:${v?'700':'400'}">${v??'—'}</td>`;
+                }).join('')}
+                <td style="padding:7px 10px;text-align:center;background:#fef9c3;font-weight:700;color:${avgColor}">${avg??'—'}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+  });
+
+  container.innerHTML = html;
+}
+
+function getPredikat(nilai) {
+  if (nilai >= 90) return 'A';
+  if (nilai >= 80) return 'B';
+  if (nilai >= 70) return 'C';
+  if (nilai >= 60) return 'D';
+  return 'E';
+}
+
+function getPredikatClass(nilai) {
+  if (!nilai) return 'badge-gray';
+  if (nilai >= 80) return 'badge-green';
+  if (nilai >= 65) return 'badge-yellow';
+  return 'badge-red';
+}
+
+// ============================================
+// PENGGAJIAN / SETORAN SPP
+// ============================================
+async function onKelasSetoranChange() {
+  const kelasId = document.getElementById('setoranKelas').value;
+  const hintEl  = document.getElementById('setoranMuridHint');
+  document.getElementById('setoranJumlahMurid').value = '';
+  document.getElementById('setoranTotal').value = '';
+  if (hintEl) hintEl.textContent = '';
+
+  if (!kelasId) {
+    const btn = document.getElementById('btnKirimSetoran');
+    if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+    const warnEl = document.getElementById('warningPelunasan');
+    if (warnEl) warnEl.style.display = 'none';
+    return;
+  }
+
+  const kelas = kelasSaya.find(k => k.id === kelasId);
+  if (!kelas) return;
+
+  // Auto-isi jumlah murid aktif
+  const muridAktif = (kelas.enrollment || []).filter(e => e.is_active && e.siswa?.status).length;
+  document.getElementById('setoranJumlahMurid').value = muridAktif;
+  if (hintEl) hintEl.textContent = `(${muridAktif} murid aktif di kelas ini)`;
+
+  // Auto hitung total
+  await hitungTotalSetoran();
+
+  // Cek apakah semua iuran sudah lunas + validasi form
+  await validateSetoranForm();
+}
+
+async function hitungTotalSetoran() {
+  const kelasId     = document.getElementById('setoranKelas').value;
+  const jumlahMurid = parseInt(document.getElementById('setoranJumlahMurid').value) || 0;
+  if (!kelasId || !jumlahMurid) return;
+  const kelas = kelasSaya.find(k => k.id === kelasId);
+  if (!kelas) return;
+
+  let biayaBulanan = 0;
+  if (kelas.jilid === 0 || kelas.jilid === '0') {
+    // Kelas TK — ambil dari tabel terpisah
+    const { data: biayaTK } = await db.from('pengaturan_biaya_tk').select('biaya_bulanan').limit(1).maybeSingle();
+    biayaBulanan = biayaTK?.biaya_bulanan || 0;
+  } else {
+    const { data: biaya } = await db.from('pengaturan_biaya').select('biaya_bulanan').eq('jilid', kelas.jilid).maybeSingle();
+    biayaBulanan = biaya?.biaya_bulanan || 0;
+  }
+
+  document.getElementById('setoranTotal').value = jumlahMurid * biayaBulanan;
+  await validateSetoranForm();
+}
+
+async function kirimSetoran() {
+  const kelasId = document.getElementById('setoranKelas').value;
+  const bulan   = document.getElementById('setoranBulan').value;
+  const tanggal = document.getElementById('setoranTanggal').value;
+  const jumlahMurid = parseInt(document.getElementById('setoranJumlahMurid').value);
+  const total   = parseFloat(document.getElementById('setoranTotal').value);
+  const catatan = document.getElementById('setoranCatatan').value;
+
+  if (!kelasId || !bulan || !tanggal || !jumlahMurid || !total) {
+    alert('Lengkapi semua field wajib!'); return;
+  }
+
+  // Guard: cek pelunasan iuran dulu
+  const { semua, belumLunas, total: totalMurid } = await cekSemuaLunas(kelasId, bulan);
+  if (!semua) {
+    alert(`❌ Laporan tidak bisa dikirim!\n\nMasih ada ${belumLunas} dari ${totalMurid} murid yang belum lunas iuran bulan ${bulan}.\n\nSelesaikan pelunasan iuran terlebih dahulu di tab Pelunasan Iuran.`);
+    return;
+  }
+
+  if (!document.getElementById('setoranBukti').files[0]) {
+    alert('❌ Bukti setoran wajib diupload!'); return;
+  }
+
+  const btn = document.getElementById('btnKirimSetoran');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Mengirim...'; }
+
+  // Upload bukti kalau ada
+  let buktiUrl = null;
+  const fileInput = document.getElementById('setoranBukti');
+  if (fileInput.files[0]) {
+    const file = fileInput.files[0];
+    const fileName = `setoran/${guruData.kode_guru}/${bulan}/${Date.now()}_${file.name}`;
+    const { data: uploadData, error: uploadError } = await db.storage.from('bukti-setoran').upload(fileName, file);
+    if (uploadError) {
+      alert('❌ Gagal upload bukti bayar:\n' + uploadError.message + '\n\nPendaftaran dibatalkan. Hubungi admin jika masalah berlanjut.');
+      if (btn) { btn.disabled = false; btn.textContent = '📤 Kirim Laporan'; }
+      return;
+    }
+    buktiUrl = uploadData.path;
+  }
+
+  const { error } = await db.from('setoran_spp').insert({
+    guru_id: guruData.id, kelas_id: kelasId, bulan,
+    tanggal_setor: tanggal, jumlah_murid: jumlahMurid,
+    total_iuran: total, bukti_url: buktiUrl,
+    catatan_guru: catatan, status: 'pending'
+  });
+
+  if (btn) { btn.disabled = false; btn.textContent = '📤 Kirim Laporan'; }
+  if (error) { alert('Error: ' + error.message); return; }
+  alert('✅ Laporan setoran berhasil dikirim ke Bendahara!');
+  document.getElementById('setoranJumlahMurid').value = '';
+  document.getElementById('setoranTotal').value = '';
+  document.getElementById('setoranCatatan').value = '';
+  if (fileInput) fileInput.value = '';
+  await loadSetoran();
+}
+
+async function loadSetoran() {
+  if (!guruData) return;
+  const { data } = await db.from('setoran_spp')
+    .select('*, kelas:kelas_id(kode_kelas)')
+    .eq('guru_id', guruData.id)
+    .order('bulan', { ascending: false });
+
+  const tbody = document.getElementById('tableSetoran');
+  if (!data?.length) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:#6b7280">Belum ada riwayat setoran</td></tr>`;
+    return;
+  }
+
+  // Ambil semua penggajian guru ini sekaligus untuk mapping bulan → nominal
+  const { data: gajiList } = await db.from('penggajian')
+    .select('bulan, total_gaji, status').eq('guru_id', guruData.id);
+  const gajiMap = {};
+  (gajiList || []).forEach(p => { gajiMap[p.bulan] = p; });
+
+  const statusBadge = s => {
+    if (s === 'pending')           return '<span class="badge badge-yellow">⏳ Menunggu Verifikasi</span>';
+    if (s === 'diverifikasi')      return '<span class="badge badge-blue">✅ Verified by Bendahara</span>';
+    if (s === 'disetujui_leader')  return '<span class="badge badge-green">✅ Verified by Leader</span>';
+    if (s === 'tercairkan')        return '<span class="badge badge-green" style="background:#065f46;color:#fff">💸 Tercairkan</span>';
+    if (s === 'ditolak')           return '<span class="badge badge-red">❌ Ditolak</span>';
+    return '—';
+  };
+
+  tbody.innerHTML = data.map(s => {
+    const gaji = gajiMap[s.bulan];
+    const nominalCell = gaji
+      ? `<span style="font-weight:700;color:${gaji.status==='dibayar'?'#15803d':'#6b7280'}">
+           Rp ${Number(gaji.total_gaji).toLocaleString('id-ID')}
+           ${gaji.status==='dibayar' ? ' <span style="font-size:11px">✅</span>' : ' <span style="font-size:11px;color:#9ca3af">(belum cair)</span>'}
+         </span>`
+      : '<span style="color:#9ca3af;font-size:12px">—</span>';
+
+    return `<tr>
+      <td>${s.bulan}</td>
+      <td style="font-family:monospace">${s.kelas?.kode_kelas || '-'}</td>
+      <td>${s.jumlah_murid} murid</td>
+      <td>Rp ${Number(s.total_iuran).toLocaleString('id-ID')}</td>
+      <td>${statusBadge(s.status)}</td>
+      <td>${nominalCell}</td>
+    </tr>`;
+  }).join('');
+}
+// ============================================
+// KALDIK (VIEW ONLY)
+// ============================================
+async function loadKaldikTeacher() {
+  const tbody    = document.getElementById('tableKaldikT');
+  const filterEl = document.getElementById('filterSemesterKaldikT');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr class="loading-row"><td colspan="5">⏳ Memuat...</td></tr>';
+  const filterVal = filterEl ? filterEl.value : '';
+  let q = db.from('kaldik').select('*').order('tanggal_mulai', { ascending: true });
+  if (guruData?.program_id) q = q.eq('program_id', guruData.program_id);
+  if (filterVal) q = q.eq('semester', filterVal);
+  const { data, error } = await q;
+  if (error) { tbody.innerHTML = `<tr><td colspan="5" style="color:var(--red)">Error: ${error.message}</td></tr>`; return; }
+  if (filterEl) {
+    const uniq = [...new Set((data||[]).map(d => d.semester))].sort();
+    const cur  = filterEl.value;
+    filterEl.innerHTML = '<option value="">Semua Semester</option>' + uniq.map(s => `<option value="${s}"${s===cur?' selected':''}>${s}</option>`).join('');
+  }
+  if (!data?.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:32px;color:#9ca3af">Belum ada event kaldik</td></tr>'; return; }
+  tbody.innerHTML = data.map(k => {
+    const tm = k.tanggal_mulai   ? new Date(k.tanggal_mulai).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}) : '—';
+    const ts = k.tanggal_selesai ? new Date(k.tanggal_selesai).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}) : '—';
+    return `<tr>
+      <td><span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:12px;font-size:12px;font-weight:600">${k.semester}</span></td>
+      <td><strong>${k.judul}</strong></td>
+      <td>${tm}</td><td>${ts}</td>
+      <td style="color:#6b7280;font-size:12px">${k.keterangan||'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ============================================
+// TAMBAH MURID OLEH GURU (jika toggle aktif)
+// ============================================
+function openModalTambahMuridGuru(kelasId, kodeKelas) {
+  if (!sysSettings['guru_tambah_murid']) {
+    alert('❌ Fitur tambah murid belum diaktifkan oleh Leader.');
+    return;
+  }
+  document.getElementById('tmgKelasId').value          = kelasId;
+  document.getElementById('tmgKelasNama').textContent   = kodeKelas;
+  document.getElementById('tmgNama').value              = '';
+  document.getElementById('tmgNamaMandarin').value      = '';
+  document.getElementById('tmgHpMurid').value           = '';
+  document.getElementById('tmgHpOrtu').value             = '';
+  document.getElementById('tmgTempatLahir').value        = '';
+  document.getElementById('tmgTanggalLahir').value       = '';
+  document.getElementById('tmgTanggalJoin').value        = new Date().toISOString().split('T')[0];
+  document.getElementById('tmgAlamat').value              = '';
+  document.getElementById('modalTambahMuridGuru').classList.remove('hidden');
+}
+
+async function simpanTambahMuridGuru() {
+  const kelasId       = document.getElementById('tmgKelasId').value;
+  const nama          = document.getElementById('tmgNama').value.trim();
+  const namaMandarin  = document.getElementById('tmgNamaMandarin').value.trim();
+  const hpMurid       = document.getElementById('tmgHpMurid').value.trim();
+  const hpOrtu        = document.getElementById('tmgHpOrtu').value.trim();
+  const tempatLahir   = document.getElementById('tmgTempatLahir').value.trim();
+  const tanggalLahir  = document.getElementById('tmgTanggalLahir').value;
+  const tanggalJoin   = document.getElementById('tmgTanggalJoin').value;
+  const alamat        = document.getElementById('tmgAlamat').value.trim();
+
+  if (!nama) { alert('Nama Indonesia wajib diisi!'); return; }
+  if (!hpOrtu) { alert('HP Orang Tua wajib diisi!'); return; }
+
+  // Cek duplikat nama aktif
+  const { data: dup } = await db.from('siswa').select('id,status').ilike('nama_lengkap', nama);
+  const aktif = (dup||[]).filter(x => x.status);
+  if (aktif.length > 0) { alert('⚠️ Murid "'+nama+'" sudah AKTIF terdaftar!'); return; }
+
+  // Auto-generate nomor induk seperti di Admin
+  const { count: cnt } = await db.from('siswa').select('*', { count: 'exact', head: true });
+  const noInduk = 'S' + String((cnt||0) + 1).padStart(4, '0');
+
+  // Insert siswa
+  const { data: siswa, error: errSiswa } = await db.from('siswa').insert({
+    nomor_induk:    noInduk,
+    nama_lengkap:   nama,
+    nama_mandarin:  namaMandarin || null,
+    telepon:        hpMurid || null,
+    telepon_ortu:   hpOrtu,
+    tempat_lahir:   tempatLahir || null,
+    tanggal_lahir:  tanggalLahir || null,
+    alamat:         alamat || null,
+    tanggal_join:   tanggalJoin || new Date().toISOString().split('T')[0],
+    status:         true
+  }).select().single();
+
+  if (errSiswa) { alert('❌ Gagal tambah siswa: ' + errSiswa.message); return; }
+
+  // Enroll ke kelas
+  const { error: errEnroll } = await db.from('enrollment').insert({
+    siswa_id:   siswa.id,
+    kelas_id:   kelasId,
+    is_active:  true
+  });
+
+  if (errEnroll) { alert('❌ Gagal enroll: ' + errEnroll.message); return; }
+
+  alert('✅ Murid berhasil ditambahkan! No. Induk: ' + noInduk);
+  document.getElementById('modalTambahMuridGuru').classList.add('hidden');
+
+  // Reload kelas data
+  const kelas = kelasSaya.find(k => k.id === kelasId);
+  if (kelas) {
+    const { data: enr } = await db.from('enrollment')
+      .select('is_active, siswa:siswa_id(id,nomor_induk,nama_lengkap,nama_mandarin,status)')
+      .eq('kelas_id', kelasId).eq('is_active', true);
+    kelas.enrollment = enr || [];
+  }
+  renderKelas();
+}
+
+// ============================================
+// TOGGLE STATUS MURID (request approval)
+// ============================================
+async function loadPendingStatusReq() {
+  const { data } = await db.from('request_status_murid')
+    .select('siswa_id, status_diminta')
+    .eq('status_request', 'pending');
+  window._pendingStatusReq = {};
+  (data || []).forEach(r => { window._pendingStatusReq[r.siswa_id] = r; });
+}
+
+function openModalToggleStatus(siswaId, namaSiswa, statusSaatIni) {
+  document.getElementById('tsSiswaId').value         = siswaId;
+  document.getElementById('tsNamaSiswa').textContent  = namaSiswa;
+  document.getElementById('tsStatusSaatIni').value    = statusSaatIni;
+  document.getElementById('tsStatusBaru').textContent = statusSaatIni ? 'Nonaktif' : 'Aktif';
+  document.getElementById('tsAlasan').value           = '';
+  document.getElementById('modalToggleStatus').classList.remove('hidden');
+}
+
+async function submitToggleStatus() {
+  const siswaId       = document.getElementById('tsSiswaId').value;
+  const statusSaatIni = document.getElementById('tsStatusSaatIni').value === 'true';
+  const alasan         = document.getElementById('tsAlasan').value.trim();
+
+  if (!alasan) { alert('Alasan wajib diisi!'); return; }
+
+  const { data: { user } } = await db.auth.getUser();
+  const { error } = await db.from('request_status_murid').insert({
+    siswa_id:        siswaId,
+    status_saat_ini: statusSaatIni,
+    status_diminta:  !statusSaatIni,
+    alasan:          alasan,
+    requested_by:    user.id,
+    status_request:  'pending'
+  });
+
+  if (error) { alert('❌ Gagal mengajukan: ' + error.message); return; }
+
+  alert('✅ Permintaan perubahan status berhasil diajukan! Menunggu persetujuan Admin.');
+  document.getElementById('modalToggleStatus').classList.add('hidden');
+  await loadPendingStatusReq();
+  renderKelas();
+}
+
+async function loadPerilakuMurid() {
+  const kelasId  = document.getElementById('perilakuKelas').value;
+  const semester = document.getElementById('perilakuSemester').value;
+  const cont     = document.getElementById('perilakuContainer');
+  const empty    = document.getElementById('perilakuEmpty');
+  const tbody    = document.getElementById('tablePerilaku');
+
+  if (!kelasId) { cont.style.display='none'; empty.style.display='block'; return; }
+
+  // Cek time-lock
+  if (!isAkhirSemesterT()) {
+    cont.style.display='none'; empty.style.display='block';
+    empty.innerHTML = `<div style="text-align:center;padding:24px;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px">
+      <div style="font-size:24px;margin-bottom:8px">🔒</div>
+      <div style="font-weight:700;color:#c2410c;font-size:14px">Fitur terkunci</div>
+      <div style="font-size:12px;color:#9a3412;margin-top:4px">Penilaian Perilaku hanya bisa diisi pada bulan Mei, Juni, Juli (Sem 1)<br>dan November, Desember, Januari (Sem 2)</div>
+    </div>`;
+    return;
+  }
+  empty.innerHTML = 'Pilih kelas untuk melihat daftar murid';
+
+  const kelas = kelasSaya.find(k => k.id === kelasId);
+  const murid = (kelas?.enrollment || []).filter(e => e.is_active && e.siswa?.status !== false);
+  if (!murid.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:#9ca3af">Tidak ada murid aktif</td></tr>';
+    cont.style.display='block'; empty.style.display='none'; return;
+  }
+
+  const siswaIds = murid.map(e => e.siswa.id);
+  const semInt   = parseInt(semester);
+
+  // Load existing perilaku data
+  const { data: existing } = await db.from('penilaian_perilaku')
+    .select('siswa_id, nilai, semester')
+    .eq('kelas_id', kelasId).eq('semester', semInt)
+    .in('siswa_id', siswaIds);
+
+  const nilaiMap = {};
+  (existing || []).forEach(p => { nilaiMap[p.siswa_id] = p.nilai; });
+
+  const keterangan = { A:'Sangat Baik', B:'Baik', C:'Cukup', D:'Perlu Bimbingan' };
+
+  tbody.innerHTML = murid.map(e => {
+    const s      = e.siswa;
+    const saved  = nilaiMap[s.id] || '';
+    const opts   = ['A','B','C','D'].map(v =>
+      `<option value="${v}" ${saved===v?'selected':''}>${v} — ${keterangan[v]}</option>`
+    ).join('');
+    return `<tr>
+      <td><strong>${s.nama_lengkap}</strong>${s.nama_mandarin?` <span style="color:#b01020;font-size:12px">${s.nama_mandarin}</span>`:''}</td>
+      <td style="font-family:monospace;color:#6b7280">${s.nomor_induk||'—'}</td>
+      <td>
+        <select id="perilaku_${s.id}" style="padding:5px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px"
+          onchange="updatePerilakuKet('${s.id}')">
+          <option value="">-- Pilih --</option>${opts}
+        </select>
+      </td>
+      <td id="perilakuKet_${s.id}" style="font-size:12px;color:#6b7280">
+        ${saved ? keterangan[saved] : '—'}
+      </td>
+    </tr>`;
+  }).join('');
+
+  cont.style.display='block'; empty.style.display='none';
+}
+
+function updatePerilakuKet(siswaId) {
+  const val = document.getElementById('perilaku_'+siswaId).value;
+  const ket = { A:'Sangat Baik', B:'Baik', C:'Cukup', D:'Perlu Bimbingan' };
+  document.getElementById('perilakuKet_'+siswaId).textContent = val ? ket[val] : '—';
+}
+
+async function simpanPerilaku() {
+  const kelasId  = document.getElementById('perilakuKelas').value;
+  const semester = document.getElementById('perilakuSemester').value;
+  if (!kelasId) return;
+
+  const kelas    = kelasSaya.find(k => k.id === kelasId);
+  const murid    = (kelas?.enrollment || []).filter(e => e.is_active && e.siswa?.status !== false);
+  const semInt   = parseInt(semester);
+  const { data: { user } } = await db.auth.getUser();
+  const now      = new Date().toISOString();
+
+  const upserts = [];
+  murid.forEach(e => {
+    const val = document.getElementById('perilaku_'+e.siswa.id)?.value;
+    if (val) upserts.push({
+      siswa_id:   e.siswa.id,
+      kelas_id:   kelasId,
+      semester:   semInt,
+      nilai:      val,
+      updated_by: user.id,
+      updated_at: now
+    });
+  });
+
+  if (!upserts.length) { alert('Belum ada nilai perilaku yang dipilih.'); return; }
+
+  const { error } = await db.from('penilaian_perilaku')
+    .upsert(upserts, { onConflict: 'siswa_id,kelas_id,semester' });
+
+  if (error) { alert('❌ Gagal menyimpan: ' + error.message); return; }
+  alert('✅ Nilai perilaku berhasil disimpan untuk ' + upserts.length + ' murid!');
+}
+
+// ============================================
+// PENILAIAN CALISTUNG (Membaca/Menulis/Dikte/Berhitung)
+// ============================================
+const GRADE_WEIGHT = { 'A':9, 'A-':8, 'B+':7, 'B':6, 'B-':5, 'C+':4, 'C':3, 'C-':2, 'D':1 };
+const GRADE_OPTIONS = ['A','A-','B+','B','B-','C+','C','C-','D'];
+
+function gradeSelectHTML(id, current) {
+  return `<select id="${id}" style="font-size:13px;padding:4px 6px">` +
+    `<option value="">-</option>` +
+    GRADE_OPTIONS.map(g => `<option value="${g}"${g===current?' selected':''}>${g}</option>`).join('') +
+    `</select>`;
+}
+
+function hitungPeringkatCalistung(rows) {
+  // rows: [{siswaId, membaca, menulis, dikte, berhitung}]
+  const withScore = rows.map(r => {
+    const total = (GRADE_WEIGHT[r.membaca]||0) + (GRADE_WEIGHT[r.menulis]||0) + (GRADE_WEIGHT[r.dikte]||0) + (GRADE_WEIGHT[r.berhitung]||0);
+    return { ...r, total };
+  });
+  const sorted = [...withScore].sort((a,b) => b.total - a.total);
+  const rankMap = {};
+  sorted.forEach((r, i) => { rankMap[r.siswaId] = (r.total > 0) ? (i+1) : null; });
+  return rankMap;
+}
+
+async function loadCalNilaiForm() {
+  const kelasId = document.getElementById('calNilaiKelas').value;
+  const semester = document.getElementById('calNilaiSemester').value;
+  const tahunAjaran = document.getElementById('calNilaiTahunAjaran').value.trim();
+  const container = document.getElementById('calNilaiContainer');
+  const emptyMsg  = document.getElementById('calNilaiEmpty');
+
+  if (!kelasId || !tahunAjaran) { container.style.display = 'none'; emptyMsg.style.display = 'block'; return; }
+
+  const kelas = kelasSaya.find(k => k.id === kelasId);
+  const murid = (kelas?.enrollment || []).filter(e => e.is_active && e.siswa?.status !== false);
+  if (!murid.length) { container.style.display = 'none'; emptyMsg.textContent = 'Belum ada murid aktif di kelas ini.'; emptyMsg.style.display = 'block'; return; }
+
+  const { data: existing } = await db.from('penilaian_calistung')
+    .select('*').eq('kelas_id', kelasId).eq('semester', parseInt(semester)).eq('tahun_ajaran', tahunAjaran);
+  const existingMap = {};
+  (existing||[]).forEach(x => { existingMap[x.siswa_id] = x; });
+
+  const rankInput = murid.map(e => {
+    const ex = existingMap[e.siswa.id] || {};
+    return { siswaId: e.siswa.id, membaca: ex.membaca, menulis: ex.menulis, dikte: ex.dikte, berhitung: ex.berhitung };
+  });
+  const rankMap = hitungPeringkatCalistung(rankInput);
+
+  document.getElementById('tableCalNilai').innerHTML = murid.map(e => {
+    const ex = existingMap[e.siswa.id] || {};
+    const rank = rankMap[e.siswa.id];
+    return `<tr>
+      <td><strong>${e.siswa.nama_lengkap}</strong></td>
+      <td>${gradeSelectHTML('cal_membaca_'+e.siswa.id, ex.membaca)}</td>
+      <td>${gradeSelectHTML('cal_menulis_'+e.siswa.id, ex.menulis)}</td>
+      <td>${gradeSelectHTML('cal_dikte_'+e.siswa.id, ex.dikte)}</td>
+      <td>${gradeSelectHTML('cal_berhitung_'+e.siswa.id, ex.berhitung)}</td>
+      <td id="cal_rank_${e.siswa.id}" style="text-align:center;font-weight:700">${rank ?? '—'}</td>
+      <td><input type="number" min="0" id="cal_sakit_${e.siswa.id}" value="${ex.sakit||0}" style="width:56px;font-size:13px;padding:4px"></td>
+      <td><input type="number" min="0" id="cal_izin_${e.siswa.id}" value="${ex.izin||0}" style="width:56px;font-size:13px;padding:4px"></td>
+      <td><input type="number" min="0" id="cal_tanpaket_${e.siswa.id}" value="${ex.tanpa_keterangan||0}" style="width:56px;font-size:13px;padding:4px"></td>
+      <td><textarea id="cal_saran_${e.siswa.id}" rows="2" style="width:180px;font-size:12px">${ex.saran||''}</textarea></td>
+    </tr>`;
+  }).join('');
+
+  container.style.display = 'block';
+  emptyMsg.style.display = 'none';
+}
+
+async function simpanCalNilai() {
+  const kelasId = document.getElementById('calNilaiKelas').value;
+  const semester = parseInt(document.getElementById('calNilaiSemester').value);
+  const tahunAjaran = document.getElementById('calNilaiTahunAjaran').value.trim();
+  if (!kelasId || !tahunAjaran) { alert('Pilih kelas dan isi tahun ajaran dulu!'); return; }
+
+  const kelas = kelasSaya.find(k => k.id === kelasId);
+  const murid = (kelas?.enrollment || []).filter(e => e.is_active && e.siswa?.status !== false);
+  const { data: { user } } = await db.auth.getUser();
+  const now = new Date().toISOString();
+
+  const upserts = murid.map(e => ({
+    siswa_id: e.siswa.id,
+    kelas_id: kelasId,
+    semester: semester,
+    tahun_ajaran: tahunAjaran,
+    membaca: document.getElementById('cal_membaca_'+e.siswa.id)?.value || null,
+    menulis: document.getElementById('cal_menulis_'+e.siswa.id)?.value || null,
+    dikte: document.getElementById('cal_dikte_'+e.siswa.id)?.value || null,
+    berhitung: document.getElementById('cal_berhitung_'+e.siswa.id)?.value || null,
+    sakit: parseInt(document.getElementById('cal_sakit_'+e.siswa.id)?.value) || 0,
+    izin: parseInt(document.getElementById('cal_izin_'+e.siswa.id)?.value) || 0,
+    tanpa_keterangan: parseInt(document.getElementById('cal_tanpaket_'+e.siswa.id)?.value) || 0,
+    saran: document.getElementById('cal_saran_'+e.siswa.id)?.value || null,
+    updated_by: user.id,
+    updated_at: now
+  }));
+
+  const { error } = await db.from('penilaian_calistung')
+    .upsert(upserts, { onConflict: 'siswa_id,kelas_id,semester,tahun_ajaran' });
+
+  if (error) { alert('❌ Gagal menyimpan: ' + error.message); return; }
+  alert('✅ Nilai berhasil disimpan untuk ' + upserts.length + ' murid!');
+  await loadCalNilaiForm(); // refresh biar peringkat ke-update
+}
+</script>
+
+<!-- Modal: Toggle Status Murid -->
+<div class="modal-overlay hidden" id="modalToggleStatus">
+  <div class="modal-box" style="max-width:440px">
+    <div class="modal-header">
+      <span class="modal-title">🔄 Ajukan Perubahan Status</span>
+      <button class="modal-close" onclick="document.getElementById('modalToggleStatus').classList.add('hidden')">✕</button>
+    </div>
+    <input type="hidden" id="tsSiswaId">
+    <input type="hidden" id="tsStatusSaatIni">
+    <div style="font-size:13px;color:#374151;margin:12px 0">
+      Murid: <strong id="tsNamaSiswa"></strong><br>
+      Status diajukan menjadi: <strong id="tsStatusBaru" style="color:var(--red)"></strong>
+    </div>
+    <div class="form-group">
+      <label>Alasan <span style="color:red">*</span></label>
+      <textarea id="tsAlasan" placeholder="Contoh: Murid pindah ke kota lain / Murid kembali aktif belajar"></textarea>
+    </div>
+    <div style="font-size:11px;color:#9ca3af;margin-top:8px">⚠️ Perubahan baru berlaku setelah disetujui oleh Admin.</div>
+    <div class="form-actions" style="margin-top:16px">
+      <button class="btn btn-primary" onclick="submitToggleStatus()">📤 Ajukan</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('modalToggleStatus').classList.add('hidden')">Batal</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Tambah Murid oleh Guru -->
+<div class="modal-overlay hidden" id="modalTambahMuridGuru">
+  <div class="modal-box" style="max-width:620px">
+    <div class="modal-header">
+      <span class="modal-title">➕ Tambah Murid — Kelas <span id="tmgKelasNama"></span></span>
+      <button class="modal-close" onclick="document.getElementById('modalTambahMuridGuru').classList.add('hidden')">✕</button>
+    </div>
+    <input type="hidden" id="tmgKelasId">
+    <div class="form-grid" style="margin-top:12px">
+      <div class="form-group">
+        <label>Nama Indonesia <span style="color:red">*</span></label>
+        <input type="text" id="tmgNama" placeholder="Nama Indonesia murid">
+      </div>
+      <div class="form-group">
+        <label>Nama Mandarin</label>
+        <input type="text" id="tmgNamaMandarin" placeholder="华文名字">
+      </div>
+      <div class="form-group">
+        <label>HP Murid</label>
+        <input type="tel" id="tmgHpMurid">
+      </div>
+      <div class="form-group">
+        <label>HP Orang Tua <span style="color:red">*</span></label>
+        <input type="tel" id="tmgHpOrtu">
+      </div>
+      <div class="form-group">
+        <label>Tempat Lahir</label>
+        <input type="text" id="tmgTempatLahir">
+      </div>
+      <div class="form-group">
+        <label>Tanggal Lahir</label>
+        <input type="date" id="tmgTanggalLahir">
+      </div>
+      <div class="form-group">
+        <label>Tanggal Join</label>
+        <input type="date" id="tmgTanggalJoin">
+      </div>
+    </div>
+    <div class="form-group" style="margin-top:12px">
+      <label>Alamat</label>
+      <textarea id="tmgAlamat"></textarea>
+    </div>
+    <div class="form-actions" style="margin-top:16px">
+      <button class="btn btn-primary" onclick="simpanTambahMuridGuru()">💾 Simpan</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('modalTambahMuridGuru').classList.add('hidden')">Batal</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
