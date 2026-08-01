@@ -1672,8 +1672,13 @@ async function simpanGuruL() {
   } else {
     const gPfx = (prog && prog.kode !== 'MANDARIN' && prog.prefix_kelas) ? prog.prefix_kelas + '-' : '';
     const gFullPfx = gPfx + 'G';
-    const {count} = await db.from('guru').select('*',{count:'exact',head:true}).ilike('nomor_induk', gFullPfx+'%');
-    data.nomor_induk = gFullPfx+String((count||0)+1).padStart(3,'0');
+    const { data: existingGuruRows } = await db.from('guru').select('nomor_induk').ilike('nomor_induk', gFullPfx+'%');
+    let maxGNum = 0;
+    (existingGuruRows||[]).forEach(r => {
+      const numPart = parseInt(String(r.nomor_induk).slice(gFullPfx.length), 10);
+      if (!isNaN(numPart) && numPart > maxGNum) maxGNum = numPart;
+    });
+    data.nomor_induk = gFullPfx+String(maxGNum+1).padStart(3,'0');
     const {error} = await db.from('guru').insert(data);
     if (error) { alert('Error: '+error.message); return; }
     let msg = '✅ Guru ditambahkan! No. Induk: '+data.nomor_induk;

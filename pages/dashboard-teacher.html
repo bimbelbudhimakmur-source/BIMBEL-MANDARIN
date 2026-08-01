@@ -529,7 +529,7 @@ async function loadSysSettings() {
 
   // Ambil data guru
   const { data: guru } = await db.from('guru')
-    .select('*, program:program_id(kode, nama)').eq('profile_id', session.user.id).single();
+    .select('*, program:program_id(kode, nama, prefix_kelas)').eq('profile_id', session.user.id).single();
 
   if (guru) {
     guruData = guru;
@@ -1880,9 +1880,17 @@ async function simpanTambahMuridGuru() {
   const aktif = (dup||[]).filter(x => x.status);
   if (aktif.length > 0) { alert('⚠️ Murid "'+nama+'" sudah AKTIF terdaftar!'); return; }
 
-  // Auto-generate nomor induk seperti di Admin
-  const { count: cnt } = await db.from('siswa').select('*', { count: 'exact', head: true });
-  const noInduk = 'S' + String((cnt||0) + 1).padStart(4, '0');
+  // Auto-generate nomor induk seperti di Admin (prefix sesuai program guru, aman dari celah data terhapus)
+  const pfx = (guruData?.program?.kode && guruData.program.kode !== 'MANDARIN' && guruData.program.prefix_kelas)
+    ? guruData.program.prefix_kelas + '-S'
+    : 'S';
+  const { data: existingRows } = await db.from('siswa').select('nomor_induk').ilike('nomor_induk', pfx+'%');
+  let maxNum = 0;
+  (existingRows||[]).forEach(r => {
+    const numPart = parseInt(String(r.nomor_induk).slice(pfx.length), 10);
+    if (!isNaN(numPart) && numPart > maxNum) maxNum = numPart;
+  });
+  const noInduk = pfx + String(maxNum + 1).padStart(4, '0');
 
   // Insert siswa
   const { data: siswa, error: errSiswa } = await db.from('siswa').insert({
