@@ -554,10 +554,20 @@ async function simpanDaftarAdmin() {
       tanggal_join:document.getElementById('da_tanggalJoin').value||new Date().toISOString().split('T')[0],
       status:true
     }).select().single();
-    if (sr.data) await db.from('enrollment').insert({siswa_id:sr.data.id,kelas_id:kelasId,tahun_ajaran_id:tahunAjaranId,is_active:true});
+    if (sr.error) { alert('Error: '+sr.error.message); return; }
+    var erEnr = null;
+    if (sr.data) {
+      var enrRes = await db.from('enrollment').insert({siswa_id:sr.data.id,kelas_id:kelasId,tahun_ajaran_id:tahunAjaranId,is_active:true});
+      erEnr = enrRes.error;
+    }
     closeModal('modalDaftarAdmin');
-    alert('✅ Murid didaftarkan! No. Induk: '+noInduk);
+    if (erEnr) {
+      alert('⚠️ Murid "'+namaIndo+'" tersimpan (No. Induk: '+noInduk+'), TAPI gagal didaftarkan ke kelas!\nError: '+erEnr.message+'\n\nMurid ini tidak akan muncul di Data Murid sampai didaftarkan ulang ke kelas via tab Pendaftaran Ulang.');
+    } else {
+      alert('✅ Murid didaftarkan! No. Induk: '+noInduk);
+    }
     await loadStats();
+    await loadMurid();
     // Refresh kelas detail if open
     if (currentKelasDetailId===kelasId) viewKelasStudents(kelasId, '');
   } catch(e) { console.error('simpanDaftarAdmin:',e); alert('Error: '+e.message); }
