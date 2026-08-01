@@ -11,8 +11,22 @@ var currentKelasDetailId = null;
 // Helper: tampilkan jilid 0 sebagai "TK"
 function jilidLabel(j) { return (j === 0 || j === '0') ? 'TK' : j; }
 function kelasLevelLabel(k) {
-  if (k.jilid !== null && k.jilid !== undefined) return 'Jilid ' + jilidLabel(k.jilid);
+  if (k.jilid !== null && k.jilid !== undefined) {
+    return (k.jilid === 0 || k.jilid === '0') ? '幼儿 (TK)' : 'Jilid ' + jilidLabel(k.jilid);
+  }
   return k.nama_level || '';
+}
+
+// Helper: generate No. Induk berikutnya berdasarkan angka TERTINGGI yang benar-benar ada
+// (bukan sekadar hitung jumlah baris — supaya aman walau ada murid yang sudah dihapus)
+async function generateNomorInduk(prefix) {
+  var rows = (await db.from('siswa').select('nomor_induk').ilike('nomor_induk', prefix+'%')).data || [];
+  var maxNum = 0;
+  rows.forEach(function(r) {
+    var numPart = parseInt(String(r.nomor_induk).slice(prefix.length), 10);
+    if (!isNaN(numPart) && numPart > maxNum) maxNum = numPart;
+  });
+  return prefix + String(maxNum+1).padStart(4,'0');
 }
 
 // ============================================
@@ -489,8 +503,7 @@ async function proseskan(id, status) {
         if (!confirm('⚠️ Murid "'+regData.nama_lengkap+'" sudah aktif terdaftar!\nApakah ini murid berbeda? OK=lanjutkan, Batal=batalkan')) return;
       }
       var pfx=currentProgramPrefix()+'S';
-      var cnt=(await db.from('siswa').select('*',{count:'exact',head:true}).ilike('nomor_induk',pfx+'%')).count||0;
-      var noInduk=pfx+String(cnt+1).padStart(4,'0');
+      var noInduk=await generateNomorInduk(pfx);
       var sr=await db.from('siswa').insert({
         nomor_induk:noInduk,nama_lengkap:regData.nama_lengkap,nama_mandarin:regData.nama_mandarin||null,
         tempat_lahir:regData.tempat_lahir,tanggal_lahir:regData.tanggal_lahir,alamat:regData.alamat,
@@ -529,8 +542,7 @@ async function simpanDaftarAdmin() {
     if (aktif.length>0) { alert('⚠️ Murid "'+namaIndo+'" sudah AKTIF terdaftar!\nCek tab Data Murid.'); return; }
     if (nonAktif.length>0) { if(!confirm('⚠️ Ditemukan murid "'+namaIndo+'" yang TIDAK AKTIF.\nApakah ini murid berbeda?\n• OK → Daftar baru\n• Batal → Aktifkan murid lama via toggle')) return; }
     var pfx=currentProgramPrefix()+'S';
-    var cnt=(await db.from('siswa').select('*',{count:'exact',head:true}).ilike('nomor_induk',pfx+'%')).count||0;
-    var noInduk=pfx+String(cnt+1).padStart(4,'0');
+    var noInduk=await generateNomorInduk(pfx);
     var sr=await db.from('siswa').insert({
       nomor_induk:noInduk,nama_lengkap:namaIndo,
       nama_mandarin:document.getElementById('da_namaMandarin').value.trim()||null,
@@ -716,14 +728,16 @@ function filterRR() {
 
 async function openPenempatan(siswaId, nama, currentJilid, tipe) {
   var targets=[];
+  var isCurrentTK = (currentJilid===0||currentJilid==='0');
+  var currentLabel = isCurrentTK ? '幼儿 (TK)' : 'Jilid '+jilidLabel(currentJilid);
   if (tipe==='sheng') {
     targets=[currentJilid+1,currentJilid+2].filter(function(j){return j>=1&&j<=12;});
     document.getElementById('penempatanTitle').textContent='升 Naik — Pilih Kelas Baru';
-    document.getElementById('penempatanSub').textContent=nama+' (Jilid '+jilidLabel(currentJilid)+') → naik ke jilid '+targets.join(' atau ');
+    document.getElementById('penempatanSub').textContent=nama+' ('+currentLabel+') → naik ke jilid '+targets.join(' atau ');
   } else {
     targets=[currentJilid];
     document.getElementById('penempatanTitle').textContent='留 Tetap — Pilih Kelas';
-    document.getElementById('penempatanSub').textContent=nama+' (Jilid '+jilidLabel(currentJilid)+') → tetap jilid '+jilidLabel(currentJilid);
+    document.getElementById('penempatanSub').textContent=nama+' ('+currentLabel+') → tetap di '+currentLabel;
   }
   if (!targets.length) { alert('Tidak ada jilid tersedia!'); return; }
   var kelas=(await db.from('kelas')
@@ -816,7 +830,7 @@ function renderKelas(list) {
       +'<td><input type="checkbox" class="row-checkbox chk-kelas" value="'+k.id+'" onchange="updateBulkKelas()"></td>'
       +'<td><span class="table-link" onclick="viewKelasStudents(\''+k.id+'\',\''+k.kode_kelas+'\')"><strong style="font-family:monospace">'+k.kode_kelas+'</strong></span></td>'
       +'<td>'+(k.guru?k.guru.nama_lengkap:'—')+'</td>'
-      +'<td>'+(k.jilid===null||k.jilid===undefined ? (k.nama_level || '—') : 'Jilid '+jilidLabel(k.jilid))+'</td>'
+      +'<td>'+(k.jilid===null||k.jilid===undefined ? (k.nama_level || '—') : ((k.jilid===0||k.jilid==='0') ? '幼儿 (TK)' : 'Jilid '+jilidLabel(k.jilid)))+'</td>'
       +'<td>'+hari+'<br><small style="color:#6b7280">'+jam+'</small></td>'
       +'<td>'+muridCell+'</td>'
       +'<td style="display:flex;gap:4px">'
@@ -1211,8 +1225,7 @@ async function simpanMurid() {
       alert('✅ Data murid diupdate!');
     } else {
       var pfx=currentProgramPrefix()+'S';
-      var cnt=(await db.from('siswa').select('*',{count:'exact',head:true}).ilike('nomor_induk',pfx+'%')).count||0;
-      data.nomor_induk=pfx+String(cnt+1).padStart(4,'0');
+      data.nomor_induk=await generateNomorInduk(pfx);
       var ins=(await db.from('siswa').insert(data).select('id').single());
       if(ins.error){alert('Error: '+ins.error.message);return;}
       siswaId=ins.data.id;
