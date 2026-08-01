@@ -225,6 +225,7 @@
               <tr>
                 <th>No. Induk</th>
                 <th>Nama Murid</th>
+                <th>Nama Mandarin</th>
                 <th style="text-align:center">Jumlah Iuran</th>
                 <th style="text-align:center">Status</th>
                 <th style="text-align:center">Aksi</th>
@@ -828,19 +829,23 @@ function renderKelas() {
         </div>
         ${murid.length ? `
         <table class="table">
-          <thead><tr><th>No. Induk</th><th>Nama Murid</th><th>Status</th><th>Aksi</th></tr></thead>
+          <thead><tr><th>No. Induk</th><th>Nama Murid</th><th>Nama Mandarin</th><th>Status</th><th>Aksi</th></tr></thead>
           <tbody>
             ${murid.map(e => {
               const pendingReq = (window._pendingStatusReq || {})[e.siswa.id];
               const statusCell = pendingReq
                 ? `<span class="badge badge-green">Aktif</span> <span style="font-size:11px;background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:10px;margin-left:4px">⏳ Menunggu Persetujuan</span>`
                 : `<span class="badge badge-green">Aktif</span>`;
+              const editBtn = sysSettings['guru_tambah_murid']
+                ? `<button class="btn btn-secondary btn-sm" onclick="openModalEditMuridGuru('${e.siswa.id}')">✏️ Edit</button> `
+                : '';
               const aksiCell = pendingReq
                 ? `<span style="color:#9ca3af;font-size:11px">Sudah diajukan</span>`
-                : `<button class="btn btn-secondary btn-sm" onclick="openModalToggleStatus('${e.siswa.id}','${(e.siswa.nama_lengkap||'').replace(/'/g,"\\'")}', true)">🔻 Nonaktifkan</button>`;
+                : `${editBtn}<button class="btn btn-secondary btn-sm" onclick="openModalToggleStatus('${e.siswa.id}','${(e.siswa.nama_lengkap||'').replace(/'/g,"\\'")}', true)">🔻 Nonaktifkan</button>`;
               return `<tr>
               <td>${e.siswa.nomor_induk}</td>
               <td><strong>${e.siswa.nama_lengkap}</strong></td>
+              <td style="color:#b91c1c">${e.siswa.nama_mandarin||'—'}</td>
               <td>${statusCell}</td>
               <td>${aksiCell}</td>
             </tr>`;
@@ -854,6 +859,7 @@ function renderKelas() {
               return `<tr style="opacity:0.5;background:#f9fafb">
               <td style="color:#9ca3af">${e.siswa.nomor_induk||'—'}</td>
               <td><span style="color:#9ca3af">${e.siswa.nama_lengkap}</span></td>
+              <td style="color:#9ca3af">${e.siswa.nama_mandarin||'—'}</td>
               <td>${label}</td>
               <td><span style="font-size:11px;color:#9ca3af">—</span></td>
             </tr>`;
@@ -1175,6 +1181,7 @@ async function loadPelunasan() {
     return `<tr style="${isLunas?'background:#f0fdf4;':''}">
       <td>${e.siswa.nomor_induk}</td>
       <td><strong>${e.siswa.nama_lengkap}</strong></td>
+      <td style="color:#b91c1c">${e.siswa.nama_mandarin||'—'}</td>
       <td style="text-align:center">Rp ${Number(jumlahIuran).toLocaleString('id-ID')}</td>
       <td style="text-align:center">${badge}</td>
       <td style="text-align:center">${aksi}</td>
@@ -1376,6 +1383,15 @@ async function loadNilaiForm() {
   } else if (jenis === 'lianxi') {
     // 练习: 12 kolom bab
     cols = cfg.babRange.map(b => ({key:`bab_${b}`, label:`Bab ${b}`, bab:b, sub_jenis:null, range_bab:null}));
+  } else if (jenis === 'tingshuo') {
+    // 听说读写: 4 kolom komponen terpisah, per kelompok bab yang dipilih
+    const komponen = [
+      {v:'ting', l:'听 (Tīng)'},
+      {v:'shuo', l:'说 (Shuō)'},
+      {v:'du',   l:'读 (Dú)'},
+      {v:'xie',  l:'写 (Xiě)'}
+    ];
+    cols = komponen.map(k => ({key:k.v, label:k.l, bab:null, sub_jenis:k.v, range_bab: sub||null}));
   } else {
     // Jenis dengan range_bab atau sub → 1 kolom nilai
     cols = [{key:'nilai', label:'Nilai', bab:null, sub_jenis:sub||null, range_bab:cfg.subs?sub:null}];
@@ -1386,27 +1402,34 @@ async function loadNilaiForm() {
   let q = db.from('nilai_detail').select('*')
     .in('siswa_id', siswaIds).eq('kelas_id', kelasId)
     .eq('semester', semester).eq('jenis_penilaian', jenis);
-  if (sub) q = q.eq('sub_jenis', sub);
+  if (jenis === 'tingshuo') {
+    if (sub) q = q.eq('range_bab', sub);
+  } else if (sub) {
+    q = q.eq('sub_jenis', sub);
+  }
   if (babPilih) q = q.eq('bab', parseInt(babPilih));
   const { data: nilaiData } = await q;
 
   const nilaiMap = {};
   (nilaiData||[]).forEach(n => {
     if (!nilaiMap[n.siswa_id]) nilaiMap[n.siswa_id] = {};
-    const colKey = n.bab ? `bab_${n.bab}` : 'nilai';
+    let colKey;
+    if (jenis === 'lianxi') colKey = n.bab ? `bab_${n.bab}` : 'nilai';
+    else if (jenis === 'tingshuo') colKey = n.sub_jenis;
+    else colKey = n.bab ? `bab_${n.bab}` : 'nilai';
     nilaiMap[n.siswa_id][colKey] = n.nilai;
   });
 
   // Render thead
   document.getElementById('nilaiThead').innerHTML = '<tr>'
-    + '<th>No. Induk</th><th>Nama</th>'
+    + '<th>No. Induk</th><th>Nama</th><th>Nama Mandarin</th>'
     + cols.map(c => `<th style="text-align:center;min-width:80px">${c.label}</th>`).join('')
     + '</tr>';
 
   // Render tbody
   document.getElementById('tableNilai').innerHTML = murid.map(e => {
     const nm = nilaiMap[e.siswa.id] || {};
-    return '<tr><td>'+e.siswa.nomor_induk+'</td><td><strong>'+e.siswa.nama_lengkap+'</strong></td>'
+    return '<tr><td>'+e.siswa.nomor_induk+'</td><td><strong>'+e.siswa.nama_lengkap+'</strong></td><td style="color:#b91c1c">'+(e.siswa.nama_mandarin||'—')+'</td>'
       + cols.map(c => {
         const val = nm[c.key] ?? '';
         return `<td style="text-align:center"><input type="number" class="nilai-input" data-siswa="${e.siswa.id}" data-col="${c.key}" value="${val}" min="0" max="100" placeholder="—" style="width:72px;border:1px solid #e5e7eb;border-radius:6px;padding:5px 8px;text-align:center;font-size:13px"></td>`;
@@ -1499,6 +1522,7 @@ async function loadPreviewNilai() {
     rows.forEach(r => {
       let colKey = '';
       if (r.sub_jenis && r.bab) colKey = r.sub_jenis+'_bab'+r.bab;
+      else if (r.sub_jenis && r.range_bab) colKey = r.range_bab+'_'+r.sub_jenis;
       else if (r.bab) colKey = 'bab'+r.bab;
       else if (r.range_bab) colKey = r.range_bab;
       else if (r.sub_jenis) colKey = r.sub_jenis;
@@ -1522,6 +1546,11 @@ async function loadPreviewNilai() {
         const subShort = sub === 'kewen' ? '课文' : sub === 'yuedu' ? '阅读' : sub;
         return subShort+' B'+bab;
       }
+      if (jenis === 'tingshuo' && colKey.includes('_')) {
+        const [rangeBab, komp] = colKey.split('_');
+        const kompLabel = {ting:'听',shuo:'说',du:'读',xie:'写'}[komp] || komp;
+        return kompLabel+' '+rangeBab;
+      }
       if (colKey.startsWith('bab')) return 'Bab '+colKey.replace('bab','');
       const sub = cfg?.subs?.find(s=>s.v===colKey);
       return sub?.l || colKey;
@@ -1533,6 +1562,7 @@ async function loadPreviewNilai() {
     rows.forEach(r => {
       let colKey = '';
       if (r.sub_jenis && r.bab) colKey = r.sub_jenis+'_bab'+r.bab;
+      else if (r.sub_jenis && r.range_bab) colKey = r.range_bab+'_'+r.sub_jenis;
       else if (r.bab) colKey = 'bab'+r.bab;
       else if (r.range_bab) colKey = r.range_bab;
       else if (r.sub_jenis) colKey = r.sub_jenis;
@@ -1874,6 +1904,68 @@ async function simpanTambahMuridGuru() {
 }
 
 // ============================================
+// EDIT MURID OLEH GURU (pakai toggle yang sama: guru_tambah_murid)
+// ============================================
+async function openModalEditMuridGuru(siswaId) {
+  if (!sysSettings['guru_tambah_murid']) {
+    alert('❌ Fitur edit data murid belum diaktifkan oleh Leader.');
+    return;
+  }
+  const { data: s, error } = await db.from('siswa').select('*').eq('id', siswaId).single();
+  if (error || !s) { alert('❌ Gagal memuat data murid: ' + (error?.message || '')); return; }
+
+  document.getElementById('emgSiswaId').value       = s.id;
+  document.getElementById('emgNama').value          = s.nama_lengkap || '';
+  document.getElementById('emgNamaMandarin').value  = s.nama_mandarin || '';
+  document.getElementById('emgHpMurid').value       = s.telepon || '';
+  document.getElementById('emgHpOrtu').value        = s.telepon_ortu || '';
+  document.getElementById('emgTempatLahir').value   = s.tempat_lahir || '';
+  document.getElementById('emgTanggalLahir').value  = s.tanggal_lahir || '';
+  document.getElementById('emgTanggalJoin').value   = s.tanggal_join || '';
+  document.getElementById('emgAlamat').value        = s.alamat || '';
+  document.getElementById('modalEditMuridGuru').classList.remove('hidden');
+}
+
+async function simpanEditMuridGuru() {
+  if (!sysSettings['guru_tambah_murid']) {
+    alert('❌ Fitur edit data murid belum diaktifkan oleh Leader.');
+    return;
+  }
+  const siswaId       = document.getElementById('emgSiswaId').value;
+  const nama          = document.getElementById('emgNama').value.trim();
+  const namaMandarin  = document.getElementById('emgNamaMandarin').value.trim();
+  const hpMurid       = document.getElementById('emgHpMurid').value.trim();
+  const hpOrtu        = document.getElementById('emgHpOrtu').value.trim();
+  const tempatLahir   = document.getElementById('emgTempatLahir').value.trim();
+  const tanggalLahir  = document.getElementById('emgTanggalLahir').value;
+  const tanggalJoin   = document.getElementById('emgTanggalJoin').value;
+  const alamat        = document.getElementById('emgAlamat').value.trim();
+
+  if (!nama) { alert('Nama Indonesia wajib diisi!'); return; }
+  if (!hpOrtu) { alert('HP Orang Tua wajib diisi!'); return; }
+
+  const { error } = await db.from('siswa').update({
+    nama_lengkap:   nama,
+    nama_mandarin:  namaMandarin || null,
+    telepon:        hpMurid || null,
+    telepon_ortu:   hpOrtu,
+    tempat_lahir:   tempatLahir || null,
+    tanggal_lahir:  tanggalLahir || null,
+    tanggal_join:   tanggalJoin || null,
+    alamat:         alamat || null
+  }).eq('id', siswaId);
+
+  if (error) { alert('❌ Gagal menyimpan perubahan: ' + error.message); return; }
+
+  alert('✅ Data murid berhasil diperbarui!');
+  document.getElementById('modalEditMuridGuru').classList.add('hidden');
+
+  // Refresh semua kelas guru (siswa bisa muncul di banyak kelas)
+  await loadKelasSaya();
+  renderKelas();
+}
+
+// ============================================
 // TOGGLE STATUS MURID (request approval)
 // ============================================
 async function loadPendingStatusReq() {
@@ -2200,6 +2292,55 @@ async function simpanCalNilai() {
     <div class="form-actions" style="margin-top:16px">
       <button class="btn btn-primary" onclick="simpanTambahMuridGuru()">💾 Simpan</button>
       <button class="btn btn-secondary" onclick="document.getElementById('modalTambahMuridGuru').classList.add('hidden')">Batal</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Edit Murid oleh Guru (aktif jika toggle guru_tambah_murid ON) -->
+<div class="modal-overlay hidden" id="modalEditMuridGuru">
+  <div class="modal-box" style="max-width:620px">
+    <div class="modal-header">
+      <span class="modal-title">✏️ Edit Data Murid</span>
+      <button class="modal-close" onclick="document.getElementById('modalEditMuridGuru').classList.add('hidden')">✕</button>
+    </div>
+    <input type="hidden" id="emgSiswaId">
+    <div class="form-grid" style="margin-top:12px">
+      <div class="form-group">
+        <label>Nama Indonesia <span style="color:red">*</span></label>
+        <input type="text" id="emgNama" placeholder="Nama Indonesia murid">
+      </div>
+      <div class="form-group">
+        <label>Nama Mandarin</label>
+        <input type="text" id="emgNamaMandarin" placeholder="华文名字">
+      </div>
+      <div class="form-group">
+        <label>HP Murid</label>
+        <input type="tel" id="emgHpMurid">
+      </div>
+      <div class="form-group">
+        <label>HP Orang Tua <span style="color:red">*</span></label>
+        <input type="tel" id="emgHpOrtu">
+      </div>
+      <div class="form-group">
+        <label>Tempat Lahir</label>
+        <input type="text" id="emgTempatLahir">
+      </div>
+      <div class="form-group">
+        <label>Tanggal Lahir</label>
+        <input type="date" id="emgTanggalLahir">
+      </div>
+      <div class="form-group">
+        <label>Tanggal Join</label>
+        <input type="date" id="emgTanggalJoin">
+      </div>
+    </div>
+    <div class="form-group" style="margin-top:12px">
+      <label>Alamat</label>
+      <textarea id="emgAlamat"></textarea>
+    </div>
+    <div class="form-actions" style="margin-top:16px">
+      <button class="btn btn-primary" onclick="simpanEditMuridGuru()">💾 Simpan Perubahan</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('modalEditMuridGuru').classList.add('hidden')">Batal</button>
     </div>
   </div>
 </div>

@@ -305,7 +305,7 @@ async function generate(){
       const entries=nilaiMurid.filter(n=>n.jenis_penilaian===jenis);
       const rows=[];
       entries.forEach(n=>{
-        rows.push({label:n.sub_jenis||'—', nilai:n.nilai});
+        rows.push({label:n.sub_jenis||'—', range_bab:n.range_bab||null, nilai:n.nilai});
       });
       return rows;
     };
@@ -424,7 +424,9 @@ async function generate(){
               ${tingshuo.length
                 ? tingshuo.map(r=>{
                     const v=r.nilai!=null?Number(r.nilai).toFixed(1):'—';
-                    return `<tr><td>Bab ${r.label||'—'}</td><td class="tc ${v!=='—'?sc(Number(r.nilai)):''}">${v}</td></tr>`;
+                    const kompLabel={ting:'听 (Tīng)',shuo:'说 (Shuō)',du:'读 (Dú)',xie:'写 (Xiě)'}[r.label]||r.label||'—';
+                    const rangeLabel = r.range_bab ? ' Bab '+r.range_bab : '';
+                    return `<tr><td>${kompLabel}${rangeLabel}</td><td class="tc ${v!=='—'?sc(Number(r.nilai)):''}">${v}</td></tr>`;
                   }).join('')
                 : '<tr><td colspan="2" style="text-align:center;color:#9ca3af">Belum ada data</td></tr>'
               }
