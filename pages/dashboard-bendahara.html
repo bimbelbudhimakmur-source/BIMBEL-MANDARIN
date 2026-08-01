@@ -172,10 +172,10 @@
       <div class="table-wrap">
         <table class="table">
           <thead>
-            <tr><th>No. Induk</th><th>Nama Murid</th><th>Kelas</th><th>Bulan</th><th>Jumlah</th><th>Status</th></tr>
+            <tr><th style="width:48px;text-align:center">No</th><th>No. Induk</th><th>Nama Murid</th><th>Kelas</th><th>Bulan</th><th>Jumlah</th><th>Status</th></tr>
           </thead>
           <tbody id="tableIuran">
-            <tr class="loading-row"><td colspan="6">⏳ Memuat data...</td></tr>
+            <tr class="loading-row"><td colspan="7">⏳ Memuat data...</td></tr>
           </tbody>
         </table>
       </div>
@@ -821,11 +821,12 @@ async function loadIuran() {
   rows.sort((a,b) => a.nama_lengkap.localeCompare(b.nama_lengkap));
 
   if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:#6b7280">Tidak ada data iuran</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:#6b7280">Tidak ada data iuran</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = rows.map(r => `<tr>
+  tbody.innerHTML = rows.map((r, idx) => `<tr>
+    <td style="text-align:center;color:#9ca3af">${idx+1}</td>
     <td>${r.nomor_induk || '-'}</td>
     <td><strong>${r.nama_lengkap || '-'}</strong></td>
     <td style="font-family:monospace">${r.kode_kelas || '-'}<br><small style="color:#9ca3af">${r.guru_nama}</small></td>
