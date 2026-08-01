@@ -341,6 +341,20 @@ async function generate(){
     const pred=v=>{const n=Number(v);return n>=90?'A':n>=80?'B':n>=70?'C':n>=60?'D':'E';};
 
     const tingshuo=getNilaiDetail('tingshuo');
+    const tingshuoAvg=(()=>{
+      const order=['ting','shuo','du','xie'];
+      const labelMap={ting:'听 (Tīng)',shuo:'说 (Shuō)',du:'读 (Dú)',xie:'写 (Xiě)'};
+      const grouped={};
+      tingshuo.forEach(r=>{
+        if(r.nilai==null||!r.label) return;
+        if(!grouped[r.label]) grouped[r.label]=[];
+        grouped[r.label].push(Number(r.nilai));
+      });
+      return order.filter(k=>grouped[k]&&grouped[k].length).map(k=>({
+        label: labelMap[k]||k,
+        nilai: grouped[k].reduce((a,b)=>a+b,0)/grouped[k].length
+      }));
+    })();
     const yanjiang=getNilaiDetail('yanjiang');
 
     const nilaiRow=(label,nilaiMentah,bobot,nilaiAkhir)=>`<tr>
@@ -421,12 +435,10 @@ async function generate(){
           <table>
             <thead><tr><th class="tl">Komponen</th><th>Nilai</th></tr></thead>
             <tbody>
-              ${tingshuo.length
-                ? tingshuo.map(r=>{
-                    const v=r.nilai!=null?Number(r.nilai).toFixed(1):'—';
-                    const kompLabel={ting:'听 (Tīng)',shuo:'说 (Shuō)',du:'读 (Dú)',xie:'写 (Xiě)'}[r.label]||r.label||'—';
-                    const rangeLabel = r.range_bab ? ' Bab '+r.range_bab : '';
-                    return `<tr><td>${kompLabel}${rangeLabel}</td><td class="tc ${v!=='—'?sc(Number(r.nilai)):''}">${v}</td></tr>`;
+              ${tingshuoAvg.length
+                ? tingshuoAvg.map(r=>{
+                    const v=Number(r.nilai).toFixed(1);
+                    return `<tr><td>${r.label}</td><td class="tc ${sc(Number(r.nilai))}">${v}</td></tr>`;
                   }).join('')
                 : '<tr><td colspan="2" style="text-align:center;color:#9ca3af">Belum ada data</td></tr>'
               }

@@ -1516,60 +1516,80 @@ async function loadPreviewNilai() {
     const cfg = JENIS_CONFIG[jenis];
     const jenisLabel = cfg?.label || jenis;
 
-    // Tentukan kolom unik untuk jenis ini
-    // Kumpulkan semua kombinasi kolom yang ada
-    const kolomSet = new Set();
-    rows.forEach(r => {
-      let colKey = '';
-      if (r.sub_jenis && r.bab) colKey = r.sub_jenis+'_bab'+r.bab;
-      else if (r.sub_jenis && r.range_bab) colKey = r.range_bab+'_'+r.sub_jenis;
-      else if (r.bab) colKey = 'bab'+r.bab;
-      else if (r.range_bab) colKey = r.range_bab;
-      else if (r.sub_jenis) colKey = r.sub_jenis;
-      else colKey = 'nilai';
-      kolomSet.add(colKey);
-    });
-
-    // Sort kolom
-    const kolom = [...kolomSet].sort((a,b) => {
-      const na = parseInt(a.match(/\d+/)?.[0]||0);
-      const nb = parseInt(b.match(/\d+/)?.[0]||0);
-      return na - nb;
-    });
-
-    // Build kolom headers yang readable
-    function getKolomLabel(colKey) {
-      if (colKey.includes('_bab')) {
-        const [sub, bab] = colKey.split('_bab');
-        const subLabel = cfg?.subs?.find(s=>s.v===sub)?.l || sub;
-        // Singkat: ambil bagian pertama saja
-        const subShort = sub === 'kewen' ? '课文' : sub === 'yuedu' ? '阅读' : sub;
-        return subShort+' B'+bab;
-      }
-      if (jenis === 'tingshuo' && colKey.includes('_')) {
-        const [rangeBab, komp] = colKey.split('_');
-        const kompLabel = {ting:'听',shuo:'说',du:'读',xie:'写'}[komp] || komp;
-        return kompLabel+' '+rangeBab;
-      }
-      if (colKey.startsWith('bab')) return 'Bab '+colKey.replace('bab','');
-      const sub = cfg?.subs?.find(s=>s.v===colKey);
-      return sub?.l || colKey;
-    }
-
     // Build nilai map per murid per kolom
     const muridMap = {};
     murid.forEach(e => { muridMap[e.siswa.id] = { nama: e.siswa.nama_lengkap, noInduk: e.siswa.nomor_induk, namaMandarin: e.siswa.nama_mandarin||'—' }; });
-    rows.forEach(r => {
-      let colKey = '';
-      if (r.sub_jenis && r.bab) colKey = r.sub_jenis+'_bab'+r.bab;
-      else if (r.sub_jenis && r.range_bab) colKey = r.range_bab+'_'+r.sub_jenis;
-      else if (r.bab) colKey = 'bab'+r.bab;
-      else if (r.range_bab) colKey = r.range_bab;
-      else if (r.sub_jenis) colKey = r.sub_jenis;
-      else colKey = 'nilai';
-      if (!muridMap[r.siswa_id]) return;
-      muridMap[r.siswa_id][colKey] = r.nilai;
-    });
+
+    let kolom, getKolomLabel;
+
+    if (jenis === 'tingshuo') {
+      // Khusus 听说读写: tampilkan rata-rata per komponen (听/说/读/写), gabungan dari semua kelompok bab yang sudah diisi
+      const komponenOrder = ['ting','shuo','du','xie'];
+      const komponenLabelMap = {ting:'听 (Tīng)',shuo:'说 (Shuō)',du:'读 (Dú)',xie:'写 (Xiě)'};
+      kolom = komponenOrder;
+      getKolomLabel = (c) => komponenLabelMap[c] || c;
+
+      const grouped = {}; // siswa_id -> komponen -> [nilai...]
+      rows.forEach(r => {
+        if (r.nilai == null || !r.sub_jenis) return;
+        if (!grouped[r.siswa_id]) grouped[r.siswa_id] = {};
+        if (!grouped[r.siswa_id][r.sub_jenis]) grouped[r.siswa_id][r.sub_jenis] = [];
+        grouped[r.siswa_id][r.sub_jenis].push(Number(r.nilai));
+      });
+      Object.entries(grouped).forEach(([siswaId, komp]) => {
+        if (!muridMap[siswaId]) return;
+        komponenOrder.forEach(k => {
+          if (komp[k] && komp[k].length) {
+            muridMap[siswaId][k] = komp[k].reduce((a,b)=>a+b,0) / komp[k].length;
+          }
+        });
+      });
+    } else {
+      // Tentukan kolom unik untuk jenis ini
+      // Kumpulkan semua kombinasi kolom yang ada
+      const kolomSet = new Set();
+      rows.forEach(r => {
+        let colKey = '';
+        if (r.sub_jenis && r.bab) colKey = r.sub_jenis+'_bab'+r.bab;
+        else if (r.bab) colKey = 'bab'+r.bab;
+        else if (r.range_bab) colKey = r.range_bab;
+        else if (r.sub_jenis) colKey = r.sub_jenis;
+        else colKey = 'nilai';
+        kolomSet.add(colKey);
+      });
+
+      // Sort kolom
+      kolom = [...kolomSet].sort((a,b) => {
+        const na = parseInt(a.match(/\d+/)?.[0]||0);
+        const nb = parseInt(b.match(/\d+/)?.[0]||0);
+        return na - nb;
+      });
+
+      // Build kolom headers yang readable
+      getKolomLabel = function(colKey) {
+        if (colKey.includes('_bab')) {
+          const [sub, bab] = colKey.split('_bab');
+          const subLabel = cfg?.subs?.find(s=>s.v===sub)?.l || sub;
+          // Singkat: ambil bagian pertama saja
+          const subShort = sub === 'kewen' ? '课文' : sub === 'yuedu' ? '阅读' : sub;
+          return subShort+' B'+bab;
+        }
+        if (colKey.startsWith('bab')) return 'Bab '+colKey.replace('bab','');
+        const sub = cfg?.subs?.find(s=>s.v===colKey);
+        return sub?.l || colKey;
+      };
+
+      rows.forEach(r => {
+        let colKey = '';
+        if (r.sub_jenis && r.bab) colKey = r.sub_jenis+'_bab'+r.bab;
+        else if (r.bab) colKey = 'bab'+r.bab;
+        else if (r.range_bab) colKey = r.range_bab;
+        else if (r.sub_jenis) colKey = r.sub_jenis;
+        else colKey = 'nilai';
+        if (!muridMap[r.siswa_id]) return;
+        muridMap[r.siswa_id][colKey] = r.nilai;
+      });
+    }
 
     const getNilaiColor = v => !v?'#9ca3af':v>=80?'#059669':v>=65?'#d97706':'#dc2626';
 
