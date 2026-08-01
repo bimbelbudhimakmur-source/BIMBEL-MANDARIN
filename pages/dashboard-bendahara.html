@@ -752,38 +752,88 @@ async function loadIuran() {
   const status  = document.getElementById('filterStatusIuran').value;
   const guruId  = document.getElementById('filterGuruIuran').value;
   const kelasId = document.getElementById('filterKelasIuran').value;
-
-  let query = db.from('iuran')
-    .select('*, siswa:siswa_id(nomor_induk, nama_lengkap), kelas:kelas_id(id, kode_kelas, guru:guru_id(id, nama_lengkap, kode_guru))')
-    .order('created_at', { ascending: false });
-  if (bulan)   query = query.eq('bulan_tagihan', bulan);
-  if (status)  query = query.eq('status', status);
-  if (kelasId) query = query.eq('kelas_id', kelasId);
-
-  const { data } = await query;
   const tbody = document.getElementById('tableIuran');
 
-  populateGuruDropdownIuran(data || []);
-  populateKelasDropdownIuran(data || []);
+  if (!bulan) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:#6b7280">Pilih bulan terlebih dahulu</td></tr>`;
+    return;
+  }
 
-  const filtered = guruId
-    ? (data || []).filter(i => i.kelas?.guru?.id === guruId)
-    : (data || []);
+  // Ambil semua kelas aktif (scoped ke program aktif) beserta murid aktifnya —
+  // supaya SEMUA murid ikut tampil, bukan cuma yang sudah punya baris di tabel iuran
+  let kq = db.from('kelas')
+    .select('id, kode_kelas, jilid, guru:guru_id(id, nama_lengkap, kode_guru), enrollment(is_active, siswa:siswa_id(id, nomor_induk, nama_lengkap, status))')
+    .eq('is_active', true).order('kode_kelas');
+  if (activeProgramId) kq = kq.eq('program_id', activeProgramId);
+  const { data: kelasListAll } = await kq;
 
-  if (!filtered.length) {
+  populateGuruDropdownIuran(kelasListAll || []);
+  populateKelasDropdownIuran(kelasListAll || []);
+
+  let kelasFiltered = kelasListAll || [];
+  if (kelasId) kelasFiltered = kelasFiltered.filter(k => k.id === kelasId);
+  if (guruId)  kelasFiltered = kelasFiltered.filter(k => k.guru?.id === guruId);
+
+  // Biaya per jilid, buat nominal default kalau murid belum pernah punya baris iuran
+  const [{ data: biayaList }, { data: biayaTKRows }] = await Promise.all([
+    db.from('pengaturan_biaya').select('jilid,biaya_bulanan'),
+    db.from('pengaturan_biaya_tk').select('biaya_bulanan').limit(1)
+  ]);
+  const biayaMap = {};
+  (biayaList||[]).forEach(b => { biayaMap[b.jilid] = b.biaya_bulanan; });
+  const biayaTKVal = biayaTKRows?.[0]?.biaya_bulanan || 0;
+
+  // Ambil semua siswa_id aktif dari kelas yang lolos filter
+  const allSiswaIds = [];
+  kelasFiltered.forEach(k => (k.enrollment||[]).forEach(e => {
+    if (e.is_active && e.siswa?.status) allSiswaIds.push(e.siswa.id);
+  }));
+
+  // Ambil baris iuran yang SUDAH ada untuk bulan ini (kalau ada)
+  let iuranData = [];
+  if (allSiswaIds.length) {
+    const { data } = await db.from('iuran').select('*').in('siswa_id', allSiswaIds).eq('bulan_tagihan', bulan);
+    iuranData = data || [];
+  }
+  const iuranMap = {};
+  iuranData.forEach(i => { iuranMap[i.siswa_id+'_'+i.kelas_id] = i; });
+
+  // Gabungkan: semua murid aktif + status iuran (default 'belum_bayar' kalau belum ada baris)
+  let rows = [];
+  kelasFiltered.forEach(k => {
+    const isTK = k.jilid === 0 || k.jilid === '0';
+    const jumlahDefault = isTK ? biayaTKVal : (biayaMap[k.jilid] || 0);
+    (k.enrollment||[]).forEach(e => {
+      if (!e.is_active || !e.siswa?.status) return;
+      const existing = iuranMap[e.siswa.id+'_'+k.id];
+      rows.push({
+        nomor_induk:  e.siswa.nomor_induk,
+        nama_lengkap: e.siswa.nama_lengkap,
+        kode_kelas:   k.kode_kelas,
+        guru_nama:    k.guru?.nama_lengkap || '',
+        jumlah:       existing ? existing.jumlah : jumlahDefault,
+        status:       existing?.status || 'belum_bayar'
+      });
+    });
+  });
+
+  if (status) rows = rows.filter(r => r.status === status);
+  rows.sort((a,b) => a.nama_lengkap.localeCompare(b.nama_lengkap));
+
+  if (!rows.length) {
     tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:#6b7280">Tidak ada data iuran</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = filtered.map(i => `<tr>
-    <td>${i.siswa?.nomor_induk || '-'}</td>
-    <td><strong>${i.siswa?.nama_lengkap || '-'}</strong></td>
-    <td style="font-family:monospace">${i.kelas?.kode_kelas || '-'}<br><small style="color:#9ca3af">${i.kelas?.guru?.nama_lengkap || ''}</small></td>
-    <td>${i.bulan_tagihan}</td>
-    <td>Rp ${Number(i.jumlah).toLocaleString('id-ID')}</td>
+  tbody.innerHTML = rows.map(r => `<tr>
+    <td>${r.nomor_induk || '-'}</td>
+    <td><strong>${r.nama_lengkap || '-'}</strong></td>
+    <td style="font-family:monospace">${r.kode_kelas || '-'}<br><small style="color:#9ca3af">${r.guru_nama}</small></td>
+    <td>${bulan}</td>
+    <td>Rp ${Number(r.jumlah).toLocaleString('id-ID')}</td>
     <td>
-      ${i.status === 'belum_bayar' ? '<span class="badge badge-red">Belum Bayar</span>'  : ''}
-      ${i.status === 'lunas'       ? '<span class="badge badge-green">Lunas ✓</span>'     : ''}
+      ${r.status === 'belum_bayar' ? '<span class="badge badge-red">Belum Bayar</span>'  : ''}
+      ${r.status === 'lunas'       ? '<span class="badge badge-green">Lunas ✓</span>'     : ''}
     </td>
   </tr>`).join('');
 }
@@ -809,42 +859,22 @@ function populateGuruDropdownSetoran(data) {
     Object.values(guruMap).map(g => `<option value="${g.id}"${g.id===cur?' selected':''}>${g.nama_lengkap} [${g.kode_guru}]</option>`).join('');
 }
 
-function populateGuruDropdownIuran(data) {
+function populateGuruDropdownIuran(kelasList) {
   const el = document.getElementById('filterGuruIuran');
   if (!el) return;
   const cur = el.value;
   const guruMap = {};
-  data.forEach(i => { if (i.kelas?.guru?.id) guruMap[i.kelas.guru.id] = i.kelas.guru; });
-  if (!Object.keys(guruMap).length && el.options.length <= 1) {
-    let gq = db.from('guru').select('id, nama_lengkap, kode_guru').order('nama_lengkap');
-    if (activeProgramId) gq = gq.eq('program_id', activeProgramId);
-    gq.then(({ data: gList }) => {
-      el.innerHTML = '<option value="">Semua Guru</option>' +
-        (gList||[]).map(g => `<option value="${g.id}">${g.nama_lengkap} [${g.kode_guru}]</option>`).join('');
-    });
-    return;
-  }
+  (kelasList||[]).forEach(k => { if (k.guru?.id) guruMap[k.guru.id] = k.guru; });
   el.innerHTML = '<option value="">Semua Guru</option>' +
     Object.values(guruMap).map(g => `<option value="${g.id}"${g.id===cur?' selected':''}>${g.nama_lengkap} [${g.kode_guru}]</option>`).join('');
 }
 
-function populateKelasDropdownIuran(data) {
+function populateKelasDropdownIuran(kelasList) {
   const el = document.getElementById('filterKelasIuran');
   if (!el) return;
   const cur = el.value;
-  const kelasMap = {};
-  data.forEach(i => { if (i.kelas?.id) kelasMap[i.kelas.id] = i.kelas; });
-  if (!Object.keys(kelasMap).length && el.options.length <= 1) {
-    let kq = db.from('kelas').select('id, kode_kelas').eq('is_active', true).order('kode_kelas');
-    if (activeProgramId) kq = kq.eq('program_id', activeProgramId);
-    kq.then(({ data: kList }) => {
-      el.innerHTML = '<option value="">Semua Kelas</option>' +
-        (kList||[]).map(k => `<option value="${k.id}">${k.kode_kelas}</option>`).join('');
-    });
-    return;
-  }
   el.innerHTML = '<option value="">Semua Kelas</option>' +
-    Object.values(kelasMap).map(k => `<option value="${k.id}"${k.id===cur?' selected':''}>${k.kode_kelas}</option>`).join('');
+    (kelasList||[]).map(k => `<option value="${k.id}"${k.id===cur?' selected':''}>${k.kode_kelas}</option>`).join('');
 }
 
 async function finalisasiIuran(id) {
