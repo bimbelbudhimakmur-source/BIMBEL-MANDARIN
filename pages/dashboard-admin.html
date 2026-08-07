@@ -54,6 +54,7 @@
     <div class="sidebar-item" data-tab="guru"><span class="sidebar-icon">👩‍🏫</span><span>Data Guru</span></div>
     <div class="sidebar-item" data-tab="kaldik"><span class="sidebar-icon">📅</span><span>Kaldik Semester</span></div>
     <div class="sidebar-item" data-tab="pengaturan-wa"><span class="sidebar-icon">💬</span><span>Link Grup WhatsApp</span></div>
+    <div class="sidebar-item" data-tab="notulen-todo"><span class="sidebar-icon">📌</span><span>Notulen & To Do List</span></div>
   </aside>
 
   <main class="dash-content">
@@ -267,10 +268,64 @@
       </div>
     </div>
 
+    <!-- ===== NOTULEN RAPAT & TO DO LIST ===== -->
+    <div id="tab-notulen-todo" class="tab-content">
+      <div class="page-title">Notulen Rapat & To Do List</div>
+      <div class="page-sub">Catatan rapat dan daftar tugas tim — sesuai program yang aktif</div>
+
+      <div style="display:flex;gap:4px;margin-bottom:20px;border-bottom:2px solid #e5e7eb">
+        <button class="btn-subtab-nt active" data-subtab="notulen" onclick="switchSubtabNT('notulen')"
+          style="padding:10px 18px;border:none;background:none;cursor:pointer;font-weight:700;font-size:13px;border-bottom:3px solid #b01020;color:#b01020">📝 Notulen Rapat</button>
+        <button class="btn-subtab-nt" data-subtab="todo" onclick="switchSubtabNT('todo')"
+          style="padding:10px 18px;border:none;background:none;cursor:pointer;font-weight:700;font-size:13px;border-bottom:3px solid transparent;color:#6b7280">✅ To Do List</button>
+      </div>
+
+      <div id="subtab-notulen">
+        <div class="toolbar" id="ntNotulenToolbar"></div>
+        <div id="listNotulen"></div>
+      </div>
+
+      <div id="subtab-todo" style="display:none">
+        <div class="toolbar" id="ntTodoToolbar"></div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Status</th><th>Judul</th><th>Deskripsi</th><th>Deadline</th><th>Dibuat oleh</th><th>Aksi</th></tr></thead>
+            <tbody id="tableTodo"><tr class="loading-row"><td colspan="6">⏳ Memuat...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
   </main>
 </div>
 
 <!-- ===== MODALS ===== -->
+
+<!-- Modal: Notulen Rapat -->
+<div class="modal-overlay hidden" id="modalNotulen">
+  <div class="modal-box" style="max-width:640px">
+    <div class="modal-header"><span class="modal-title" id="modalNotulenTitle">Tambah Notulen</span><button class="modal-close" onclick="closeModal('modalNotulen')">✕</button></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Judul <span style="color:red">*</span></label><input type="text" id="nt_judul" placeholder="Contoh: Rapat Evaluasi Semester 1"></div>
+      <div class="form-group"><label>Tanggal <span style="color:red">*</span></label><input type="date" id="nt_tanggal"></div>
+    </div>
+    <div class="form-group" style="margin-top:12px"><label>Isi Notulen <span style="color:red">*</span></label><textarea id="nt_isi" style="height:180px" placeholder="Tulis poin-poin rapat di sini..."></textarea></div>
+    <input type="hidden" id="nt_id">
+    <div class="form-actions"><button class="btn btn-primary" onclick="simpanNotulen()">💾 Simpan</button><button class="btn btn-secondary" onclick="closeModal('modalNotulen')">Batal</button></div>
+  </div>
+</div>
+
+<!-- Modal: To Do -->
+<div class="modal-overlay hidden" id="modalTodo">
+  <div class="modal-box" style="max-width:520px">
+    <div class="modal-header"><span class="modal-title" id="modalTodoTitle">Tambah Tugas</span><button class="modal-close" onclick="closeModal('modalTodo')">✕</button></div>
+    <div class="form-group"><label>Judul Tugas <span style="color:red">*</span></label><input type="text" id="td_judul" placeholder="Contoh: Follow up wali murid nunggak"></div>
+    <div class="form-group" style="margin-top:12px"><label>Deskripsi</label><textarea id="td_deskripsi" placeholder="Detail tugas (opsional)"></textarea></div>
+    <div class="form-group" style="margin-top:12px"><label>Deadline</label><input type="date" id="td_deadline"></div>
+    <input type="hidden" id="td_id">
+    <div class="form-actions"><button class="btn btn-primary" onclick="simpanTodo()">💾 Simpan</button><button class="btn btn-secondary" onclick="closeModal('modalTodo')">Batal</button></div>
+  </div>
+</div>
 
 <!-- Modal: Detail Pendaftaran -->
 <div class="modal-overlay hidden" id="modalDetailDaftar">

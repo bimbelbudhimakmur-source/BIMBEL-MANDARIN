@@ -41,11 +41,17 @@
     <div class="sidebar-item" data-tab="nilai">
       <span class="sidebar-icon">📝</span><span>Penilaian</span>
     </div>
+    <div class="sidebar-item" data-tab="bank-soal">
+      <span class="sidebar-icon">📄</span><span>Bank Soal</span>
+    </div>
     <div class="sidebar-item" data-tab="penggajian">
       <span class="sidebar-icon">💰</span><span>Penggajian</span>
     </div>
     <div class="sidebar-item" data-tab="kaldik">
       <span class="sidebar-icon">📅</span><span>Kaldik Semester</span>
+    </div>
+    <div class="sidebar-item" data-tab="notulen-todo">
+      <span class="sidebar-icon">📌</span><span>Notulen & To Do List</span>
     </div>
   </aside>
 
@@ -483,6 +489,82 @@
       </div>
     </div>
 
+    <!-- TAB: NOTULEN RAPAT & TO DO LIST (VIEW ONLY) -->
+    <!-- TAB: BANK SOAL (GENERATE + CETAK) -->
+    <div id="tab-bank-soal" class="tab-content">
+      <div class="page-title">Bank Soal — Generate Ulangan/Ujian</div>
+      <div class="page-sub">Pilih kriteria soal, generate otomatis dari bank soal, edit kalau perlu, lalu cetak PDF</div>
+
+      <div class="form-section">
+        <div class="form-grid">
+          <div class="form-group"><label>Kelas</label>
+            <select id="bsgKelas"><option value="">-- Pilih Kelas --</option></select>
+          </div>
+          <div class="form-group"><label>Judul Ujian</label>
+            <input type="text" id="bsgJudul" placeholder="Contoh: Ulangan Harian Bab 1-2">
+          </div>
+          <div class="form-group"><label>Jenis Ujian</label>
+            <select id="bsgJenisUjian">
+              <option value="ulangan_harian">Ulangan Harian</option>
+              <option value="ujian_akhir">Ujian Akhir</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Jilid</label>
+            <select id="bsgJilid" onchange="renderBabCheckboxesGuru()">
+              <option value="">-- Pilih --</option>
+              <option value="0">幼儿 (TK)</option>
+              <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option>
+              <option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option>
+              <option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group" style="margin-top:12px">
+          <label>Pilih Bab (boleh lebih dari satu)</label>
+          <div id="bsgBabCheckboxes" style="display:flex;flex-wrap:wrap;gap:12px;margin-top:8px;font-size:13px;color:#9ca3af">Pilih Jilid dulu</div>
+        </div>
+        <div class="form-grid" style="margin-top:12px">
+          <div class="form-group"><label>Jumlah Soal Pilihan Ganda</label><input type="number" id="bsgJumlahPG" value="0" min="0"></div>
+          <div class="form-group"><label>Jumlah Soal Isian</label><input type="number" id="bsgJumlahIsian" value="0" min="0"></div>
+          <div class="form-group"><label>Jumlah Soal Lainnya</label><input type="number" id="bsgJumlahLainnya" value="0" min="0"></div>
+        </div>
+        <button class="btn btn-primary" style="margin-top:12px" onclick="generateSoalUjian()">🎲 Generate Soal</button>
+      </div>
+
+      <div id="bsgResultWrap" style="display:none;margin-top:24px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div style="font-weight:700;font-size:15px;color:var(--text)">📋 Soal Terpilih (<span id="bsgCount">0</span>)</div>
+          <button class="btn btn-primary" onclick="cetakSoalPDF()">🖨️ Cetak / Download PDF</button>
+        </div>
+        <div id="bsgListSoal"></div>
+      </div>
+    </div>
+
+    <div id="tab-notulen-todo" class="tab-content">
+      <div class="page-title">Notulen Rapat & To Do List</div>
+      <div class="page-sub">Catatan rapat dan daftar tugas tim — hanya bisa dilihat, hubungi Admin/Leader untuk perubahan</div>
+
+      <div style="display:flex;gap:4px;margin-bottom:20px;border-bottom:2px solid #e5e7eb">
+        <button class="btn-subtab-nt active" data-subtab="notulen" onclick="switchSubtabNT('notulen')"
+          style="padding:10px 18px;border:none;background:none;cursor:pointer;font-weight:700;font-size:13px;border-bottom:3px solid #b01020;color:#b01020">📝 Notulen Rapat</button>
+        <button class="btn-subtab-nt" data-subtab="todo" onclick="switchSubtabNT('todo')"
+          style="padding:10px 18px;border:none;background:none;cursor:pointer;font-weight:700;font-size:13px;border-bottom:3px solid transparent;color:#6b7280">✅ To Do List</button>
+      </div>
+
+      <div id="subtab-notulen">
+        <div id="listNotulen"></div>
+      </div>
+
+      <div id="subtab-todo" style="display:none">
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Status</th><th>Judul</th><th>Deskripsi</th><th>Deadline</th><th>Dibuat oleh</th></tr></thead>
+            <tbody id="tableTodo"><tr class="loading-row"><td colspan="5">⏳ Memuat...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -547,6 +629,11 @@ async function loadSysSettings() {
       const absensiMenu = document.querySelector('.sidebar-item[data-tab="absensi"]');
       if (absensiMenu) absensiMenu.style.display = 'none';
     }
+    // Bank Soal cuma buat guru Mandarin
+    if (guru.program?.kode !== 'MANDARIN') {
+      const bankSoalMenu = document.querySelector('.sidebar-item[data-tab="bank-soal"]');
+      if (bankSoalMenu) bankSoalMenu.style.display = 'none';
+    }
     document.getElementById('pJoin').textContent        = guru.tanggal_join ? new Date(guru.tanggal_join).toLocaleDateString('id-ID') : '-';
   }
 
@@ -594,6 +681,8 @@ function switchTab(tab) {
   if (tab === 'penggajian') { loadSetoran(); }
   if (tab === 'kaldik')     { loadKaldikTeacher(); }
   if (tab === 'nilai')      { toggleNilaiSection(); }
+  if (tab === 'notulen-todo') { loadNotulenTodo(); }
+  if (tab === 'bank-soal')    { initBankSoalGuru(); }
 }
 
 function toggleNilaiSection() {
@@ -1811,6 +1900,215 @@ async function loadSetoran() {
 // ============================================
 // KALDIK (VIEW ONLY)
 // ============================================
+// ============================================
+// BANK SOAL — GENERATE + CETAK PDF
+// ============================================
+let bsgSelectedSoal = [];
+let bsgBankCache = [];
+
+function initBankSoalGuru() {
+  const sel = document.getElementById('bsgKelas');
+  if (sel.options.length <= 1) {
+    sel.innerHTML = '<option value="">-- Pilih Kelas --</option>' +
+      kelasSaya.map(k => `<option value="${k.id}">${k.kode_kelas}</option>`).join('');
+  }
+}
+
+function renderBabCheckboxesGuru() {
+  const jilid = document.getElementById('bsgJilid').value;
+  const wrap = document.getElementById('bsgBabCheckboxes');
+  if (jilid === '') { wrap.innerHTML = '<span style="color:#9ca3af">Pilih Jilid dulu</span>'; return; }
+  wrap.innerHTML = Array.from({length:12}, (_,i) => i+1).map(b =>
+    `<label style="display:flex;align-items:center;gap:5px;cursor:pointer">
+      <input type="checkbox" class="bsgBabChk" value="${b}"> Bab ${b}
+    </label>`).join('');
+}
+
+async function generateSoalUjian() {
+  const jilid = document.getElementById('bsgJilid').value;
+  if (jilid === '') { alert('Pilih Jilid dulu!'); return; }
+  const babTerpilih = Array.from(document.querySelectorAll('.bsgBabChk:checked')).map(c => parseInt(c.value));
+  if (!babTerpilih.length) { alert('Pilih minimal 1 Bab!'); return; }
+
+  const jumlahPG      = parseInt(document.getElementById('bsgJumlahPG').value) || 0;
+  const jumlahIsian    = parseInt(document.getElementById('bsgJumlahIsian').value) || 0;
+  const jumlahLainnya  = parseInt(document.getElementById('bsgJumlahLainnya').value) || 0;
+  const totalDiminta = jumlahPG + jumlahIsian + jumlahLainnya;
+  if (totalDiminta === 0) { alert('Isi jumlah soal yang diinginkan (minimal 1)!'); return; }
+
+  const { data: bank } = await db.from('bank_soal').select('*').eq('jilid', jilid).in('bab', babTerpilih);
+  bsgBankCache = bank || [];
+
+  const pickRandom = (jenis, jumlah) => {
+    const pool = bsgBankCache.filter(s => s.jenis_soal === jenis);
+    const shuffled = [...pool].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, jumlah);
+  };
+
+  const picked = [
+    ...pickRandom('pilihan_ganda', jumlahPG),
+    ...pickRandom('isian', jumlahIsian),
+    ...pickRandom('lainnya', jumlahLainnya)
+  ];
+
+  if (picked.length < totalDiminta) {
+    alert(`⚠️ Soal di bank belum cukup!\nDiminta ${totalDiminta} soal, tapi cuma ketemu ${picked.length} soal yang sesuai Jilid & Bab ini.\n\nHubungi Leader untuk menambah soal, atau kurangi jumlah yang diminta.`);
+  }
+  if (!picked.length) { document.getElementById('bsgResultWrap').style.display = 'none'; return; }
+
+  bsgSelectedSoal = picked;
+  renderSoalTerpilih();
+}
+
+function renderSoalTerpilih() {
+  document.getElementById('bsgResultWrap').style.display = 'block';
+  document.getElementById('bsgCount').textContent = bsgSelectedSoal.length;
+  const jenisLabel = { pilihan_ganda: 'Pilihan Ganda', isian: 'Isian', lainnya: 'Lainnya' };
+  document.getElementById('bsgListSoal').innerHTML = bsgSelectedSoal.map((s, idx) => `
+    <div style="background:white;border:1px solid #e5e7eb;border-radius:8px;padding:12px 16px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+      <div style="flex:1">
+        <div style="font-size:11px;color:#9ca3af;margin-bottom:2px">${idx+1}. ${jenisLabel[s.jenis_soal]} · Bab ${s.bab}</div>
+        <div style="font-size:13px;white-space:pre-wrap">${s.pertanyaan}</div>
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="gantiSoal(${idx})">🔄 Ganti</button>
+    </div>
+  `).join('');
+}
+
+function gantiSoal(idx) {
+  const current = bsgSelectedSoal[idx];
+  const usedIds = bsgSelectedSoal.map(s => s.id);
+  const pool = bsgBankCache.filter(s => s.jenis_soal === current.jenis_soal && !usedIds.includes(s.id));
+  if (!pool.length) { alert('Tidak ada soal pengganti lain yang tersedia untuk jenis/bab ini.'); return; }
+  bsgSelectedSoal[idx] = pool[Math.floor(Math.random() * pool.length)];
+  renderSoalTerpilih();
+}
+
+function cetakSoalPDF() {
+  if (!bsgSelectedSoal.length) return;
+  const kelasSel  = document.getElementById('bsgKelas');
+  const namaKelas = kelasSel.options[kelasSel.selectedIndex]?.textContent || '-';
+  const judul     = document.getElementById('bsgJudul').value || 'Ulangan';
+  const jenisUjian = document.getElementById('bsgJenisUjian').value === 'ujian_akhir' ? 'Ujian Akhir' : 'Ulangan Harian';
+  const tanggal   = new Date().toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' });
+
+  const soalHTML = bsgSelectedSoal.map((s, idx) => {
+    let body = `<div style="margin-bottom:18px"><div style="font-weight:600;margin-bottom:6px">${idx+1}. ${s.pertanyaan}</div>`;
+    if (s.jenis_soal === 'pilihan_ganda') {
+      body += `<div style="padding-left:20px;line-height:1.9">
+        ${s.pilihan_a ? `A. ${s.pilihan_a}<br>` : ''}
+        ${s.pilihan_b ? `B. ${s.pilihan_b}<br>` : ''}
+        ${s.pilihan_c ? `C. ${s.pilihan_c}<br>` : ''}
+        ${s.pilihan_d ? `D. ${s.pilihan_d}` : ''}
+      </div>`;
+    } else {
+      body += `<div style="border-bottom:1px solid #333;height:32px;margin-top:6px"></div>`;
+    }
+    body += `</div>`;
+    return body;
+  }).join('');
+
+  const kunciHTML = bsgSelectedSoal.map((s, idx) => {
+    const jawaban = s.jenis_soal === 'pilihan_ganda'
+      ? `${s.jawaban_benar || '-'}. ${s['pilihan_' + (s.jawaban_benar || 'a').toLowerCase()] || ''}`
+      : (s.jawaban_benar || '(jawaban bebas / sesuai kebijakan guru)');
+    return `<div style="margin-bottom:8px"><strong>${idx+1}.</strong> ${jawaban}</div>`;
+  }).join('');
+
+  const win = window.open('', '_blank');
+  win.document.write(`
+    <html><head><title>${judul}</title>
+    <style>
+      body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color:#111; }
+      .header { text-align:center; margin-bottom:24px; border-bottom:2px solid #b01020; padding-bottom:14px; }
+      .header h2 { margin:0 0 4px; color:#b01020; }
+      .meta { display:flex; justify-content:space-between; font-size:13px; margin-bottom:20px; }
+      .page-break { page-break-before: always; }
+      @media print { .no-print { display:none; } }
+    </style></head>
+    <body>
+      <div class="no-print" style="text-align:center;margin-bottom:20px">
+        <button onclick="window.print()" style="padding:10px 24px;background:#b01020;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:700">🖨️ Print / Save as PDF</button>
+      </div>
+
+      <div class="header">
+        <h2>興毅南興山口洋補習所 — BUDHI MAKMUR MANDARIN</h2>
+        <div>${jenisUjian} — ${judul}</div>
+      </div>
+      <div class="meta">
+        <span>Nama: ______________________</span>
+        <span>Kelas: ${namaKelas}</span>
+        <span>Tanggal: ${tanggal}</span>
+      </div>
+      ${soalHTML}
+
+      <div class="page-break"></div>
+      <div class="header">
+        <h2>🔑 KUNCI JAWABAN</h2>
+        <div>${jenisUjian} — ${judul}</div>
+      </div>
+      ${kunciHTML}
+    </body></html>
+  `);
+  win.document.close();
+}
+
+// ============================================
+// NOTULEN RAPAT & TO DO LIST (VIEW ONLY)
+// ============================================
+var NT_CAN_EDIT = false; // Guru cuma boleh lihat
+
+function switchSubtabNT(sub) {
+  document.querySelectorAll('.btn-subtab-nt').forEach(b => {
+    const active = b.dataset.subtab === sub;
+    b.style.borderBottomColor = active ? '#b01020' : 'transparent';
+    b.style.color = active ? '#b01020' : '#6b7280';
+  });
+  document.getElementById('subtab-notulen').style.display = sub === 'notulen' ? 'block' : 'none';
+  document.getElementById('subtab-todo').style.display = sub === 'todo' ? 'block' : 'none';
+}
+
+async function loadNotulenTodo() {
+  await loadNotulenList();
+  await loadTodoList();
+}
+
+async function loadNotulenList() {
+  const progId = guruData?.program_id || null;
+  let q = db.from('notulen_rapat').select('*, pembuat:created_by(nama_lengkap)').order('tanggal', { ascending: false });
+  if (progId) q = q.eq('program_id', progId);
+  const { data } = await q;
+  const wrap = document.getElementById('listNotulen');
+  if (!data?.length) { wrap.innerHTML = '<div style="text-align:center;padding:40px;color:#6b7280">Belum ada notulen</div>'; return; }
+  wrap.innerHTML = data.map(n => `
+    <div style="background:white;border:1px solid #e5e7eb;border-radius:10px;padding:16px 20px;margin-bottom:12px">
+      <div style="font-weight:700;font-size:15px;color:var(--text)">${n.judul}</div>
+      <div style="font-size:12px;color:#6b7280;margin-top:2px">${new Date(n.tanggal).toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'})} · oleh ${n.pembuat?.nama_lengkap||'-'}</div>
+      <div style="margin-top:10px;font-size:13px;color:var(--text-2);white-space:pre-wrap">${n.isi}</div>
+    </div>
+  `).join('');
+}
+
+async function loadTodoList() {
+  const progId = guruData?.program_id || null;
+  let q = db.from('todo_list').select('*, pembuat:created_by(nama_lengkap)')
+    .order('status', { ascending: true }).order('deadline', { ascending: true, nullsFirst: false });
+  if (progId) q = q.eq('program_id', progId);
+  const { data } = await q;
+  const tbody = document.getElementById('tableTodo');
+  if (!data?.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:40px;color:#6b7280">Belum ada tugas</td></tr>'; return; }
+  tbody.innerHTML = data.map(t => {
+    const done = t.status === 'selesai';
+    return `<tr style="${done?'opacity:0.55':''}">
+      <td>${done ? '<span class="badge badge-green">Selesai ✓</span>' : '<span class="badge badge-red">Belum</span>'}</td>
+      <td><strong style="${done?'text-decoration:line-through':''}">${t.judul}</strong></td>
+      <td style="font-size:12px;color:#6b7280">${t.deskripsi||'—'}</td>
+      <td>${t.deadline ? new Date(t.deadline).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}) : '—'}</td>
+      <td style="font-size:12px;color:#6b7280">${t.pembuat?.nama_lengkap||'-'}</td>
+    </tr>`;
+  }).join('');
+}
+
 async function loadKaldikTeacher() {
   const tbody    = document.getElementById('tableKaldikT');
   const filterEl = document.getElementById('filterSemesterKaldikT');

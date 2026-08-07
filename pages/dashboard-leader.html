@@ -39,6 +39,9 @@
       <span class="sidebar-icon">📊</span><span>Dashboard</span>
     </div>
     <div class="sidebar-section">Administrasi</div>
+    <div class="sidebar-item" data-tab="bank-soal">
+      <span class="sidebar-icon">📝</span><span>Bank Soal Mandarin</span>
+    </div>
     <div class="sidebar-item" data-tab="data-kelas">
       <span class="sidebar-icon">🏫</span><span>Data Kelas</span>
     </div>
@@ -83,6 +86,10 @@
     </div>
     <div class="sidebar-item" data-tab="pengaturan-sistem">
       <span class="sidebar-icon">🔧</span><span>Pengaturan Sistem</span>
+    </div>
+    <div class="sidebar-section">Kolaborasi</div>
+    <div class="sidebar-item" data-tab="notulen-todo">
+      <span class="sidebar-icon">📌</span><span>Notulen & To Do List</span>
     </div>
   </aside>
 
@@ -626,7 +633,153 @@
       </div>
     </div>
 
+    <!-- ===== NOTULEN RAPAT & TO DO LIST ===== -->
+    <!-- ===== BANK SOAL MANDARIN ===== -->
+    <div id="tab-bank-soal" class="tab-content">
+      <div class="page-title">Bank Soal Mandarin</div>
+      <div class="page-sub">Kelola koleksi soal untuk Ulangan Harian & Ujian Akhir — guru akan generate PDF dari sini</div>
+      <div class="toolbar">
+        <select class="filter-select" id="bsFilterJilid" onchange="loadBankSoal()">
+          <option value="">Semua Jilid</option>
+          <option value="0">幼儿 (TK)</option>
+          <option value="1">Jilid 1</option><option value="2">Jilid 2</option><option value="3">Jilid 3</option>
+          <option value="4">Jilid 4</option><option value="5">Jilid 5</option><option value="6">Jilid 6</option>
+          <option value="7">Jilid 7</option><option value="8">Jilid 8</option><option value="9">Jilid 9</option>
+          <option value="10">Jilid 10</option><option value="11">Jilid 11</option><option value="12">Jilid 12</option>
+        </select>
+        <select class="filter-select" id="bsFilterBab" onchange="loadBankSoal()">
+          <option value="">Semua Bab</option>
+          <option value="1">Bab 1</option><option value="2">Bab 2</option><option value="3">Bab 3</option>
+          <option value="4">Bab 4</option><option value="5">Bab 5</option><option value="6">Bab 6</option>
+          <option value="7">Bab 7</option><option value="8">Bab 8</option><option value="9">Bab 9</option>
+          <option value="10">Bab 10</option><option value="11">Bab 11</option><option value="12">Bab 12</option>
+        </select>
+        <select class="filter-select" id="bsFilterJenisSoal" onchange="loadBankSoal()">
+          <option value="">Semua Jenis</option>
+          <option value="pilihan_ganda">Pilihan Ganda</option>
+          <option value="isian">Isian</option>
+          <option value="lainnya">Lainnya</option>
+        </select>
+        <button class="btn btn-primary" onclick="openModalSoal()">➕ Tambah Soal</button>
+      </div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Jilid</th><th>Bab</th><th>Jenis</th><th>Pertanyaan</th><th>Jawaban</th><th>Aksi</th></tr></thead>
+          <tbody id="tableBankSoal"><tr class="loading-row"><td colspan="6">⏳ Memuat...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="tab-notulen-todo" class="tab-content">
+      <div class="page-title">Notulen Rapat & To Do List</div>
+      <div class="page-sub">Catatan rapat dan daftar tugas tim — sesuai program yang aktif</div>
+
+      <div style="display:flex;gap:4px;margin-bottom:20px;border-bottom:2px solid #e5e7eb">
+        <button class="btn-subtab-nt active" data-subtab="notulen" onclick="switchSubtabNT('notulen')"
+          style="padding:10px 18px;border:none;background:none;cursor:pointer;font-weight:700;font-size:13px;border-bottom:3px solid #b01020;color:#b01020">📝 Notulen Rapat</button>
+        <button class="btn-subtab-nt" data-subtab="todo" onclick="switchSubtabNT('todo')"
+          style="padding:10px 18px;border:none;background:none;cursor:pointer;font-weight:700;font-size:13px;border-bottom:3px solid transparent;color:#6b7280">✅ To Do List</button>
+      </div>
+
+      <div id="subtab-notulen">
+        <div class="toolbar" id="ntNotulenToolbar"></div>
+        <div id="listNotulen"></div>
+      </div>
+
+      <div id="subtab-todo" style="display:none">
+        <div class="toolbar" id="ntTodoToolbar"></div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Status</th><th>Judul</th><th>Deskripsi</th><th>Deadline</th><th>Dibuat oleh</th><th>Aksi</th></tr></thead>
+            <tbody id="tableTodo"><tr class="loading-row"><td colspan="6">⏳ Memuat...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
   </main>
+</div>
+
+<!-- Modal: Tambah/Edit Soal -->
+<div class="modal-overlay hidden" id="modalSoal">
+  <div class="modal-box" style="max-width:640px">
+    <div class="modal-header"><span class="modal-title" id="modalSoalTitle">Tambah Soal</span><button class="modal-close" onclick="closeModal('modalSoal')">✕</button></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Jilid <span style="color:red">*</span></label>
+        <select id="bs_jilid">
+          <option value="">-- Pilih --</option>
+          <option value="0">幼儿 (TK)</option>
+          <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option>
+          <option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option>
+          <option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Bab <span style="color:red">*</span></label>
+        <select id="bs_bab">
+          <option value="">-- Pilih --</option>
+          <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option>
+          <option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option>
+          <option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Jenis Soal <span style="color:red">*</span></label>
+        <select id="bs_jenis_soal" onchange="toggleJenisSoalFields()">
+          <option value="pilihan_ganda">Pilihan Ganda</option>
+          <option value="isian">Isian</option>
+          <option value="lainnya">Lainnya</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group" style="margin-top:12px"><label>Pertanyaan <span style="color:red">*</span></label>
+      <textarea id="bs_pertanyaan" style="height:90px" placeholder="Tulis soal di sini, boleh pakai Hanzi 汉字"></textarea>
+    </div>
+
+    <div id="bs_pg_wrap" style="margin-top:12px">
+      <div class="form-grid">
+        <div class="form-group"><label>Pilihan A</label><input type="text" id="bs_pilihan_a"></div>
+        <div class="form-group"><label>Pilihan B</label><input type="text" id="bs_pilihan_b"></div>
+        <div class="form-group"><label>Pilihan C</label><input type="text" id="bs_pilihan_c"></div>
+        <div class="form-group"><label>Pilihan D</label><input type="text" id="bs_pilihan_d"></div>
+      </div>
+      <div class="form-group" style="margin-top:8px"><label>Jawaban Benar</label>
+        <select id="bs_jawaban_pg">
+          <option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option>
+        </select>
+      </div>
+    </div>
+    <div id="bs_isian_wrap" style="margin-top:12px;display:none">
+      <div class="form-group"><label>Jawaban Benar (untuk lembar kunci jawaban)</label><input type="text" id="bs_jawaban_isian" placeholder="Contoh: 你好"></div>
+    </div>
+
+    <input type="hidden" id="bs_id">
+    <div class="form-actions"><button class="btn btn-primary" onclick="simpanSoal()">💾 Simpan</button><button class="btn btn-secondary" onclick="closeModal('modalSoal')">Batal</button></div>
+  </div>
+</div>
+
+<!-- Modal: Notulen Rapat -->
+<div class="modal-overlay hidden" id="modalNotulen">
+  <div class="modal-box" style="max-width:640px">
+    <div class="modal-header"><span class="modal-title" id="modalNotulenTitle">Tambah Notulen</span><button class="modal-close" onclick="closeModal('modalNotulen')">✕</button></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Judul <span style="color:red">*</span></label><input type="text" id="nt_judul" placeholder="Contoh: Rapat Evaluasi Semester 1"></div>
+      <div class="form-group"><label>Tanggal <span style="color:red">*</span></label><input type="date" id="nt_tanggal"></div>
+    </div>
+    <div class="form-group" style="margin-top:12px"><label>Isi Notulen <span style="color:red">*</span></label><textarea id="nt_isi" style="height:180px" placeholder="Tulis poin-poin rapat di sini..."></textarea></div>
+    <input type="hidden" id="nt_id">
+    <div class="form-actions"><button class="btn btn-primary" onclick="simpanNotulen()">💾 Simpan</button><button class="btn btn-secondary" onclick="closeModal('modalNotulen')">Batal</button></div>
+  </div>
+</div>
+
+<!-- Modal: To Do -->
+<div class="modal-overlay hidden" id="modalTodo">
+  <div class="modal-box" style="max-width:520px">
+    <div class="modal-header"><span class="modal-title" id="modalTodoTitle">Tambah Tugas</span><button class="modal-close" onclick="closeModal('modalTodo')">✕</button></div>
+    <div class="form-group"><label>Judul Tugas <span style="color:red">*</span></label><input type="text" id="td_judul" placeholder="Contoh: Follow up wali murid nunggak"></div>
+    <div class="form-group" style="margin-top:12px"><label>Deskripsi</label><textarea id="td_deskripsi" placeholder="Detail tugas (opsional)"></textarea></div>
+    <div class="form-group" style="margin-top:12px"><label>Deadline</label><input type="date" id="td_deadline"></div>
+    <input type="hidden" id="td_id">
+    <div class="form-actions"><button class="btn btn-primary" onclick="simpanTodo()">💾 Simpan</button><button class="btn btn-secondary" onclick="closeModal('modalTodo')">Batal</button></div>
+  </div>
 </div>
 
 <!-- MODAL DETAIL LAPORAN -->
@@ -752,6 +905,8 @@ function switchTab(tab) {
   if (tab === 'pengaturan-sistem') loadPengaturanSistem();
   if (tab === 'kelola-user')      loadUsers();
   if (tab === 'kelola-program')   loadProgram();
+  if (tab === 'notulen-todo')     loadNotulenTodo();
+  if (tab === 'bank-soal')        loadBankSoal();
 }
 
 // ============================================
@@ -2141,6 +2296,262 @@ async function simpanPengaturanGaji() {
 }
 
 function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+// ============================================
+// BANK SOAL MANDARIN
+// ============================================
+async function getMandarinProgramId() {
+  const list = await getProgramListCache();
+  const prog = list.find(p => p.kode === 'MANDARIN');
+  return prog ? prog.id : null;
+}
+
+function toggleJenisSoalFields() {
+  const jenis = document.getElementById('bs_jenis_soal').value;
+  document.getElementById('bs_pg_wrap').style.display = jenis === 'pilihan_ganda' ? 'block' : 'none';
+  document.getElementById('bs_isian_wrap').style.display = jenis !== 'pilihan_ganda' ? 'block' : 'none';
+}
+
+async function loadBankSoal() {
+  const mandarinId = await getMandarinProgramId();
+  const jilid = document.getElementById('bsFilterJilid').value;
+  const bab   = document.getElementById('bsFilterBab').value;
+  const jenis = document.getElementById('bsFilterJenisSoal').value;
+
+  let q = db.from('bank_soal').select('*').eq('program_id', mandarinId).order('jilid').order('bab');
+  if (jilid !== '') q = q.eq('jilid', jilid);
+  if (bab)          q = q.eq('bab', bab);
+  if (jenis)         q = q.eq('jenis_soal', jenis);
+  const { data } = await q;
+
+  const tbody = document.getElementById('tableBankSoal');
+  if (!data?.length) { tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:#6b7280">Belum ada soal</td></tr>`; return; }
+
+  const jenisLabel = { pilihan_ganda: 'Pilihan Ganda', isian: 'Isian', lainnya: 'Lainnya' };
+  tbody.innerHTML = data.map(s => {
+    const jilidTxt = (s.jilid === 0) ? '幼儿 (TK)' : 'Jilid ' + s.jilid;
+    const jawabanTxt = s.jenis_soal === 'pilihan_ganda'
+      ? `${s.jawaban_benar}. ${s['pilihan_'+s.jawaban_benar.toLowerCase()] || ''}`
+      : (s.jawaban_benar || '—');
+    return `<tr>
+      <td>${jilidTxt}</td>
+      <td>Bab ${s.bab}</td>
+      <td>${jenisLabel[s.jenis_soal]||s.jenis_soal}</td>
+      <td style="max-width:280px;white-space:pre-wrap">${s.pertanyaan}</td>
+      <td style="font-size:12px;color:#059669">${jawabanTxt}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-secondary btn-sm" onclick='openModalSoal(${JSON.stringify(s).replace(/'/g,"&#39;")})'>✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="hapusSoal('${s.id}')">🗑️</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function openModalSoal(s) {
+  document.getElementById('modalSoalTitle').textContent = s ? 'Edit Soal' : 'Tambah Soal';
+  document.getElementById('bs_id').value = s?.id || '';
+  document.getElementById('bs_jilid').value = s ? String(s.jilid) : '';
+  document.getElementById('bs_bab').value = s?.bab || '';
+  document.getElementById('bs_jenis_soal').value = s?.jenis_soal || 'pilihan_ganda';
+  document.getElementById('bs_pertanyaan').value = s?.pertanyaan || '';
+  document.getElementById('bs_pilihan_a').value = s?.pilihan_a || '';
+  document.getElementById('bs_pilihan_b').value = s?.pilihan_b || '';
+  document.getElementById('bs_pilihan_c').value = s?.pilihan_c || '';
+  document.getElementById('bs_pilihan_d').value = s?.pilihan_d || '';
+  document.getElementById('bs_jawaban_pg').value = (s && s.jenis_soal === 'pilihan_ganda') ? (s.jawaban_benar||'A') : 'A';
+  document.getElementById('bs_jawaban_isian').value = (s && s.jenis_soal !== 'pilihan_ganda') ? (s.jawaban_benar||'') : '';
+  toggleJenisSoalFields();
+  document.getElementById('modalSoal').classList.remove('hidden');
+}
+
+async function simpanSoal() {
+  const id = document.getElementById('bs_id').value;
+  const jilid = document.getElementById('bs_jilid').value;
+  const bab = document.getElementById('bs_bab').value;
+  const jenisSoal = document.getElementById('bs_jenis_soal').value;
+  const pertanyaan = document.getElementById('bs_pertanyaan').value.trim();
+  if (jilid === '' || !bab || !pertanyaan) { alert('Jilid, Bab, dan Pertanyaan wajib diisi!'); return; }
+
+  const payload = {
+    jilid: parseInt(jilid), bab: parseInt(bab), jenis_soal: jenisSoal, pertanyaan,
+    updated_at: new Date().toISOString()
+  };
+  if (jenisSoal === 'pilihan_ganda') {
+    payload.pilihan_a = document.getElementById('bs_pilihan_a').value.trim() || null;
+    payload.pilihan_b = document.getElementById('bs_pilihan_b').value.trim() || null;
+    payload.pilihan_c = document.getElementById('bs_pilihan_c').value.trim() || null;
+    payload.pilihan_d = document.getElementById('bs_pilihan_d').value.trim() || null;
+    payload.jawaban_benar = document.getElementById('bs_jawaban_pg').value;
+  } else {
+    payload.pilihan_a = null; payload.pilihan_b = null; payload.pilihan_c = null; payload.pilihan_d = null;
+    payload.jawaban_benar = document.getElementById('bs_jawaban_isian').value.trim() || null;
+  }
+
+  const { data: { user } } = await db.auth.getUser();
+  if (id) {
+    const { error } = await db.from('bank_soal').update(payload).eq('id', id);
+    if (error) { alert('Error: '+error.message); return; }
+  } else {
+    payload.program_id = await getMandarinProgramId();
+    payload.created_by = user.id;
+    const { error } = await db.from('bank_soal').insert(payload);
+    if (error) { alert('Error: '+error.message); return; }
+  }
+  closeModal('modalSoal');
+  await loadBankSoal();
+}
+
+async function hapusSoal(id) {
+  if (!confirm('Hapus soal ini?')) return;
+  const { error } = await db.from('bank_soal').delete().eq('id', id);
+  if (error) { alert('Error: '+error.message); return; }
+  await loadBankSoal();
+}
+
+// ============================================
+// NOTULEN RAPAT & TO DO LIST
+// ============================================
+var NT_CAN_EDIT = true; // Leader boleh edit
+
+function switchSubtabNT(sub) {
+  document.querySelectorAll('.btn-subtab-nt').forEach(b => {
+    const active = b.dataset.subtab === sub;
+    b.style.borderBottomColor = active ? '#b01020' : 'transparent';
+    b.style.color = active ? '#b01020' : '#6b7280';
+  });
+  document.getElementById('subtab-notulen').style.display = sub === 'notulen' ? 'block' : 'none';
+  document.getElementById('subtab-todo').style.display = sub === 'todo' ? 'block' : 'none';
+}
+
+async function loadNotulenTodo() {
+  document.getElementById('ntNotulenToolbar').innerHTML = NT_CAN_EDIT
+    ? '<button class="btn btn-primary" onclick="openModalNotulen()">➕ Tambah Notulen</button>' : '';
+  document.getElementById('ntTodoToolbar').innerHTML = NT_CAN_EDIT
+    ? '<button class="btn btn-primary" onclick="openModalTodo()">➕ Tambah Tugas</button>' : '';
+  await loadNotulenList();
+  await loadTodoList();
+}
+
+async function loadNotulenList() {
+  let q = db.from('notulen_rapat').select('*, pembuat:created_by(nama_lengkap)').order('tanggal', { ascending: false });
+  if (activeProgramId) q = q.eq('program_id', activeProgramId);
+  const { data } = await q;
+  const wrap = document.getElementById('listNotulen');
+  if (!data?.length) { wrap.innerHTML = '<div style="text-align:center;padding:40px;color:#6b7280">Belum ada notulen</div>'; return; }
+  wrap.innerHTML = data.map(n => `
+    <div style="background:white;border:1px solid #e5e7eb;border-radius:10px;padding:16px 20px;margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+        <div>
+          <div style="font-weight:700;font-size:15px;color:var(--text)">${n.judul}</div>
+          <div style="font-size:12px;color:#6b7280;margin-top:2px">${new Date(n.tanggal).toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'})} · oleh ${n.pembuat?.nama_lengkap||'-'}</div>
+        </div>
+        ${NT_CAN_EDIT ? `<div style="display:flex;gap:6px;flex-shrink:0">
+          <button class="btn btn-secondary btn-sm" onclick='openModalNotulen(${JSON.stringify(n).replace(/'/g,"&#39;")})'>✏️ Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="hapusNotulen('${n.id}')">🗑️</button>
+        </div>` : ''}
+      </div>
+      <div style="margin-top:10px;font-size:13px;color:var(--text-2);white-space:pre-wrap">${n.isi}</div>
+    </div>
+  `).join('');
+}
+
+function openModalNotulen(n) {
+  document.getElementById('modalNotulenTitle').textContent = n ? 'Edit Notulen' : 'Tambah Notulen';
+  document.getElementById('nt_id').value = n?.id || '';
+  document.getElementById('nt_judul').value = n?.judul || '';
+  document.getElementById('nt_tanggal').value = n?.tanggal || new Date().toISOString().slice(0,10);
+  document.getElementById('nt_isi').value = n?.isi || '';
+  document.getElementById('modalNotulen').classList.remove('hidden');
+}
+
+async function simpanNotulen() {
+  const id = document.getElementById('nt_id').value;
+  const judul = document.getElementById('nt_judul').value.trim();
+  const tanggal = document.getElementById('nt_tanggal').value;
+  const isi = document.getElementById('nt_isi').value.trim();
+  if (!judul || !tanggal || !isi) { alert('Judul, tanggal, dan isi wajib diisi!'); return; }
+  const { data: { user } } = await db.auth.getUser();
+  if (id) {
+    const { error } = await db.from('notulen_rapat').update({ judul, tanggal, isi, updated_at: new Date().toISOString() }).eq('id', id);
+    if (error) { alert('Error: '+error.message); return; }
+  } else {
+    const { error } = await db.from('notulen_rapat').insert({ judul, tanggal, isi, program_id: activeProgramId, created_by: user.id });
+    if (error) { alert('Error: '+error.message); return; }
+  }
+  closeModal('modalNotulen');
+  await loadNotulenList();
+}
+
+async function hapusNotulen(id) {
+  if (!confirm('Hapus notulen ini?')) return;
+  const { error } = await db.from('notulen_rapat').delete().eq('id', id);
+  if (error) { alert('Error: '+error.message); return; }
+  await loadNotulenList();
+}
+
+async function loadTodoList() {
+  let q = db.from('todo_list').select('*, pembuat:created_by(nama_lengkap)')
+    .order('status', { ascending: true }).order('deadline', { ascending: true, nullsFirst: false });
+  if (activeProgramId) q = q.eq('program_id', activeProgramId);
+  const { data } = await q;
+  const tbody = document.getElementById('tableTodo');
+  if (!data?.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:#6b7280">Belum ada tugas</td></tr>'; return; }
+  tbody.innerHTML = data.map(t => {
+    const done = t.status === 'selesai';
+    const aksi = NT_CAN_EDIT ? `
+      <button class="btn btn-secondary btn-sm" onclick="toggleTodoStatus('${t.id}','${done?'belum':'selesai'}')">${done?'↩️ Batal':'✓ Selesai'}</button>
+      <button class="btn btn-secondary btn-sm" onclick='openModalTodo(${JSON.stringify(t).replace(/'/g,"&#39;")})'>✏️</button>
+      <button class="btn btn-danger btn-sm" onclick="hapusTodo('${t.id}')">🗑️</button>` : '—';
+    return `<tr style="${done?'opacity:0.55':''}">
+      <td>${done ? '<span class="badge badge-green">Selesai ✓</span>' : '<span class="badge badge-red">Belum</span>'}</td>
+      <td><strong style="${done?'text-decoration:line-through':''}">${t.judul}</strong></td>
+      <td style="font-size:12px;color:#6b7280">${t.deskripsi||'—'}</td>
+      <td>${t.deadline ? new Date(t.deadline).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}) : '—'}</td>
+      <td style="font-size:12px;color:#6b7280">${t.pembuat?.nama_lengkap||'-'}</td>
+      <td style="white-space:nowrap">${aksi}</td>
+    </tr>`;
+  }).join('');
+}
+
+function openModalTodo(t) {
+  document.getElementById('modalTodoTitle').textContent = t ? 'Edit Tugas' : 'Tambah Tugas';
+  document.getElementById('td_id').value = t?.id || '';
+  document.getElementById('td_judul').value = t?.judul || '';
+  document.getElementById('td_deskripsi').value = t?.deskripsi || '';
+  document.getElementById('td_deadline').value = t?.deadline || '';
+  document.getElementById('modalTodo').classList.remove('hidden');
+}
+
+async function simpanTodo() {
+  const id = document.getElementById('td_id').value;
+  const judul = document.getElementById('td_judul').value.trim();
+  const deskripsi = document.getElementById('td_deskripsi').value.trim();
+  const deadline = document.getElementById('td_deadline').value || null;
+  if (!judul) { alert('Judul tugas wajib diisi!'); return; }
+  const { data: { user } } = await db.auth.getUser();
+  if (id) {
+    const { error } = await db.from('todo_list').update({ judul, deskripsi, deadline, updated_at: new Date().toISOString() }).eq('id', id);
+    if (error) { alert('Error: '+error.message); return; }
+  } else {
+    const { error } = await db.from('todo_list').insert({ judul, deskripsi, deadline, program_id: activeProgramId, status: 'belum', created_by: user.id });
+    if (error) { alert('Error: '+error.message); return; }
+  }
+  closeModal('modalTodo');
+  await loadTodoList();
+}
+
+async function toggleTodoStatus(id, newStatus) {
+  const { error } = await db.from('todo_list').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', id);
+  if (error) { alert('Error: '+error.message); return; }
+  await loadTodoList();
+}
+
+async function hapusTodo(id) {
+  if (!confirm('Hapus tugas ini?')) return;
+  const { error } = await db.from('todo_list').delete().eq('id', id);
+  if (error) { alert('Error: '+error.message); return; }
+  await loadTodoList();
+}
 // ============================================
 // PENGATURAN SISTEM
 // ============================================
