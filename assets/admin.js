@@ -211,6 +211,7 @@ function switchTab(tab) {
   if (tab==='guru')       loadGuruAdmin();
   if (tab==='kaldik')     loadKaldik();
   if (tab==='pengaturan-wa') loadWaGroupLink();
+  if (tab==='notulen-todo') loadNotulenTodo();
 }
 
 // ============================================
@@ -1363,6 +1364,149 @@ async function populateKelasSelect(elId) {
 }
 
 function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+// ============================================
+// NOTULEN RAPAT & TO DO LIST
+// ============================================
+var NT_CAN_EDIT = true; // Admin boleh edit
+
+function switchSubtabNT(sub) {
+  document.querySelectorAll('.btn-subtab-nt').forEach(function(b) {
+    var active = b.dataset.subtab === sub;
+    b.style.borderBottomColor = active ? '#b01020' : 'transparent';
+    b.style.color = active ? '#b01020' : '#6b7280';
+  });
+  document.getElementById('subtab-notulen').style.display = sub === 'notulen' ? 'block' : 'none';
+  document.getElementById('subtab-todo').style.display = sub === 'todo' ? 'block' : 'none';
+}
+
+async function loadNotulenTodo() {
+  document.getElementById('ntNotulenToolbar').innerHTML = NT_CAN_EDIT
+    ? '<button class="btn btn-primary" onclick="openModalNotulen()">➕ Tambah Notulen</button>' : '';
+  document.getElementById('ntTodoToolbar').innerHTML = NT_CAN_EDIT
+    ? '<button class="btn btn-primary" onclick="openModalTodo()">➕ Tambah Tugas</button>' : '';
+  await loadNotulenList();
+  await loadTodoList();
+}
+
+async function loadNotulenList() {
+  var q = db.from('notulen_rapat').select('*, pembuat:created_by(nama_lengkap)').order('tanggal', { ascending: false });
+  if (activeProgramId) q = q.eq('program_id', activeProgramId);
+  var { data } = await q;
+  var wrap = document.getElementById('listNotulen');
+  if (!data || !data.length) { wrap.innerHTML = '<div style="text-align:center;padding:40px;color:#6b7280">Belum ada notulen</div>'; return; }
+  wrap.innerHTML = data.map(function(n) {
+    return '<div style="background:white;border:1px solid #e5e7eb;border-radius:10px;padding:16px 20px;margin-bottom:12px">'
+      + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">'
+      + '<div><div style="font-weight:700;font-size:15px;color:var(--text)">'+n.judul+'</div>'
+      + '<div style="font-size:12px;color:#6b7280;margin-top:2px">'+new Date(n.tanggal).toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'})+' · oleh '+(n.pembuat?n.pembuat.nama_lengkap:'-')+'</div></div>'
+      + (NT_CAN_EDIT ? '<div style="display:flex;gap:6px;flex-shrink:0">'
+        + '<button class="btn btn-secondary btn-sm" onclick=\'openModalNotulen('+JSON.stringify(n).replace(/'/g,"&#39;")+')\'>✏️ Edit</button>'
+        + '<button class="btn btn-danger btn-sm" onclick="hapusNotulen(\''+n.id+'\')">🗑️</button></div>' : '')
+      + '</div>'
+      + '<div style="margin-top:10px;font-size:13px;color:var(--text-2);white-space:pre-wrap">'+n.isi+'</div>'
+      + '</div>';
+  }).join('');
+}
+
+function openModalNotulen(n) {
+  document.getElementById('modalNotulenTitle').textContent = n ? 'Edit Notulen' : 'Tambah Notulen';
+  document.getElementById('nt_id').value = n ? n.id : '';
+  document.getElementById('nt_judul').value = n ? n.judul : '';
+  document.getElementById('nt_tanggal').value = n ? n.tanggal : new Date().toISOString().slice(0,10);
+  document.getElementById('nt_isi').value = n ? n.isi : '';
+  document.getElementById('modalNotulen').classList.remove('hidden');
+}
+
+async function simpanNotulen() {
+  var id = document.getElementById('nt_id').value;
+  var judul = document.getElementById('nt_judul').value.trim();
+  var tanggal = document.getElementById('nt_tanggal').value;
+  var isi = document.getElementById('nt_isi').value.trim();
+  if (!judul || !tanggal || !isi) { alert('Judul, tanggal, dan isi wajib diisi!'); return; }
+  var { data: { user } } = await db.auth.getUser();
+  if (id) {
+    var { error } = await db.from('notulen_rapat').update({ judul: judul, tanggal: tanggal, isi: isi, updated_at: new Date().toISOString() }).eq('id', id);
+    if (error) { alert('Error: '+error.message); return; }
+  } else {
+    var ins = await db.from('notulen_rapat').insert({ judul: judul, tanggal: tanggal, isi: isi, program_id: activeProgramId, created_by: user.id });
+    if (ins.error) { alert('Error: '+ins.error.message); return; }
+  }
+  closeModal('modalNotulen');
+  await loadNotulenList();
+}
+
+async function hapusNotulen(id) {
+  if (!confirm('Hapus notulen ini?')) return;
+  var { error } = await db.from('notulen_rapat').delete().eq('id', id);
+  if (error) { alert('Error: '+error.message); return; }
+  await loadNotulenList();
+}
+
+async function loadTodoList() {
+  var q = db.from('todo_list').select('*, pembuat:created_by(nama_lengkap)')
+    .order('status', { ascending: true }).order('deadline', { ascending: true, nullsFirst: false });
+  if (activeProgramId) q = q.eq('program_id', activeProgramId);
+  var { data } = await q;
+  var tbody = document.getElementById('tableTodo');
+  if (!data || !data.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:#6b7280">Belum ada tugas</td></tr>'; return; }
+  tbody.innerHTML = data.map(function(t) {
+    var done = t.status === 'selesai';
+    var aksi = NT_CAN_EDIT
+      ? '<button class="btn btn-secondary btn-sm" onclick="toggleTodoStatus(\''+t.id+'\',\''+(done?'belum':'selesai')+'\')">'+(done?'↩️ Batal':'✓ Selesai')+'</button>'
+        + ' <button class="btn btn-secondary btn-sm" onclick=\'openModalTodo('+JSON.stringify(t).replace(/'/g,"&#39;")+')\'>✏️</button>'
+        + ' <button class="btn btn-danger btn-sm" onclick="hapusTodo(\''+t.id+'\')">🗑️</button>'
+      : '—';
+    return '<tr style="'+(done?'opacity:0.55':'')+'">'
+      + '<td>'+(done ? '<span class="badge badge-green">Selesai ✓</span>' : '<span class="badge badge-red">Belum</span>')+'</td>'
+      + '<td><strong style="'+(done?'text-decoration:line-through':'')+'">'+t.judul+'</strong></td>'
+      + '<td style="font-size:12px;color:#6b7280">'+(t.deskripsi||'—')+'</td>'
+      + '<td>'+(t.deadline ? new Date(t.deadline).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}) : '—')+'</td>'
+      + '<td style="font-size:12px;color:#6b7280">'+(t.pembuat?t.pembuat.nama_lengkap:'-')+'</td>'
+      + '<td style="white-space:nowrap">'+aksi+'</td>'
+      + '</tr>';
+  }).join('');
+}
+
+function openModalTodo(t) {
+  document.getElementById('modalTodoTitle').textContent = t ? 'Edit Tugas' : 'Tambah Tugas';
+  document.getElementById('td_id').value = t ? t.id : '';
+  document.getElementById('td_judul').value = t ? t.judul : '';
+  document.getElementById('td_deskripsi').value = t ? (t.deskripsi||'') : '';
+  document.getElementById('td_deadline').value = t ? (t.deadline||'') : '';
+  document.getElementById('modalTodo').classList.remove('hidden');
+}
+
+async function simpanTodo() {
+  var id = document.getElementById('td_id').value;
+  var judul = document.getElementById('td_judul').value.trim();
+  var deskripsi = document.getElementById('td_deskripsi').value.trim();
+  var deadline = document.getElementById('td_deadline').value || null;
+  if (!judul) { alert('Judul tugas wajib diisi!'); return; }
+  var { data: { user } } = await db.auth.getUser();
+  if (id) {
+    var { error } = await db.from('todo_list').update({ judul: judul, deskripsi: deskripsi, deadline: deadline, updated_at: new Date().toISOString() }).eq('id', id);
+    if (error) { alert('Error: '+error.message); return; }
+  } else {
+    var ins = await db.from('todo_list').insert({ judul: judul, deskripsi: deskripsi, deadline: deadline, program_id: activeProgramId, status: 'belum', created_by: user.id });
+    if (ins.error) { alert('Error: '+ins.error.message); return; }
+  }
+  closeModal('modalTodo');
+  await loadTodoList();
+}
+
+async function toggleTodoStatus(id, newStatus) {
+  var { error } = await db.from('todo_list').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', id);
+  if (error) { alert('Error: '+error.message); return; }
+  await loadTodoList();
+}
+
+async function hapusTodo(id) {
+  if (!confirm('Hapus tugas ini?')) return;
+  var { error } = await db.from('todo_list').delete().eq('id', id);
+  if (error) { alert('Error: '+error.message); return; }
+  await loadTodoList();
+}
 document.addEventListener('click', function(e) { if(e.target.classList.contains('modal-overlay')) e.target.classList.add('hidden'); });
 
 // ============================================
