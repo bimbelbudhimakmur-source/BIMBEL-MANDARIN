@@ -292,6 +292,10 @@
             <label id="nilaiSubLabel">Sub Jenis</label>
             <select id="nilaiSub" onchange="loadNilaiForm()"></select>
           </div>
+          <div class="form-group" id="nilaiTanggalWrap" style="display:none">
+            <label>Tanggal Tugas</label>
+            <input type="date" id="nilaiTanggal" onchange="loadNilaiForm()">
+          </div>
         </div>
       </div>
 
@@ -523,10 +527,9 @@
           <label>Pilih Bab (boleh lebih dari satu)</label>
           <div id="bsgBabCheckboxes" style="display:flex;flex-wrap:wrap;gap:12px;margin-top:8px;font-size:13px;color:#9ca3af">Pilih Jilid dulu</div>
         </div>
-        <div class="form-grid" style="margin-top:12px">
-          <div class="form-group"><label>Jumlah Soal Pilihan Ganda</label><input type="number" id="bsgJumlahPG" value="0" min="0"></div>
-          <div class="form-group"><label>Jumlah Soal Isian</label><input type="number" id="bsgJumlahIsian" value="0" min="0"></div>
-          <div class="form-group"><label>Jumlah Soal Lainnya</label><input type="number" id="bsgJumlahLainnya" value="0" min="0"></div>
+        <div class="form-group" style="margin-top:12px">
+          <label>Jumlah Soal per Jenis (isi 0 kalau tidak dipakai)</label>
+          <div id="bsgJumlahWrap" class="form-grid" style="margin-top:8px"></div>
         </div>
         <button class="btn btn-primary" style="margin-top:12px" onclick="generateSoalUjian()">🎲 Generate Soal</button>
       </div>
@@ -1376,14 +1379,78 @@ const JENIS_CONFIG = {
       {v:'sesi2',l:'Sesi 2'}
     ],
     afterSub: null
+  },
+  // ===== KHUSUS TK (幼儿) =====
+  tk_ting: {
+    label: '听', subLabel: 'Kelompok Bab', dbJenis: 'tingshuo', tkSingle: 'ting',
+    subs: [
+      {v:'1-2',l:'Bab 1–2'},{v:'3-4',l:'Bab 3–4'},
+      {v:'5-6',l:'Bab 5–6'},{v:'7-8',l:'Bab 7–8'},
+      {v:'9-10',l:'Bab 9–10'}
+    ],
+    afterSub: null
+  },
+  tk_shuo: {
+    label: '说', subLabel: 'Kelompok Bab', dbJenis: 'tingshuo', tkSingle: 'shuo',
+    subs: [
+      {v:'1-2',l:'Bab 1–2'},{v:'3-4',l:'Bab 3–4'},
+      {v:'5-6',l:'Bab 5–6'},{v:'7-8',l:'Bab 7–8'},
+      {v:'9-10',l:'Bab 9–10'}
+    ],
+    afterSub: null
+  },
+  tk_du: {
+    label: '读', subLabel: 'Kelompok Bab', dbJenis: 'tingshuo', tkSingle: 'du',
+    subs: [
+      {v:'1-2',l:'Bab 1–2'},{v:'3-4',l:'Bab 3–4'},
+      {v:'5-6',l:'Bab 5–6'},{v:'7-8',l:'Bab 7–8'},
+      {v:'9-10',l:'Bab 9–10'}
+    ],
+    afterSub: null
+  },
+  tk_xie: {
+    label: '写', subLabel: 'Kelompok Bab', dbJenis: 'tingshuo', tkXie: true,
+    subs: [
+      {v:'1-2',l:'Bab 1–2'},{v:'3-4',l:'Bab 3–4'},
+      {v:'5-6',l:'Bab 5–6'},{v:'7-8',l:'Bab 7–8'},
+      {v:'9-10',l:'Bab 9–10'}
+    ],
+    afterSub: null
+  },
+  tk_lianxi: {
+    label: '练习', subLabel: 'Tanggal Tugas', dbJenis: 'lianxi_tk', dateBased: true,
+    subs: null, afterSub: null
   }
 };
 
 function onNilaiKelasChange() {
   document.getElementById('nilaiJenis').value = '';
   document.getElementById('nilaiSubWrap').style.display = 'none';
+  document.getElementById('nilaiBabWrap').style.display = 'none';
+  document.getElementById('nilaiTanggalWrap').style.display = 'none';
   document.getElementById('nilaiContainer').style.display = 'none';
   const kelasId = document.getElementById('nilaiKelas').value;
+
+  const kelas = kelasSaya.find(k => k.id === kelasId);
+  const isTK = kelas && (kelas.jilid === 0 || kelas.jilid === '0');
+  const jenisSel = document.getElementById('nilaiJenis');
+  jenisSel.innerHTML = '<option value="">-- Pilih Jenis --</option>' + (isTK
+    ? `<option value="tk_ting">听 (Tīng)</option>
+       <option value="tk_shuo">说 (Shuō)</option>
+       <option value="tk_du">读 (Dú)</option>
+       <option value="tk_xie">写 (Xiě)</option>
+       <option value="tk_lianxi">练习 (Liàn xí)</option>
+       <option value="ceyuan">测验 (Cè yàn)</option>
+       <option value="dakao">大考 (Dà kǎo)</option>`
+    : `<option value="tingxie">听写 (Tīng xiě)</option>
+       <option value="ceyuan">测验 (Cè yàn)</option>
+       <option value="lianxi">练习 (Liàn xí)</option>
+       <option value="pinyin">汉语拼音 (Pīn yīn)</option>
+       <option value="tingshuo">听说读写</option>
+       <option value="zaoju">造句 (Zào jù)</option>
+       <option value="dakao">大考 (Dà kǎo)</option>
+       <option value="yanjiang">演讲 (Yǎn jiǎng)</option>`);
+
   // Sync preview kelas
   const prevSel = document.getElementById('previewKelas');
   if (prevSel) prevSel.value = kelasId;
@@ -1394,14 +1461,23 @@ function onNilaiJenisChange() {
   const jenis = document.getElementById('nilaiJenis').value;
   const subWrap = document.getElementById('nilaiSubWrap');
   const babWrap = document.getElementById('nilaiBabWrap');
+  const tglWrap = document.getElementById('nilaiTanggalWrap');
   const subSel  = document.getElementById('nilaiSub');
   const babSel  = document.getElementById('nilaiBab');
   document.getElementById('nilaiContainer').style.display = 'none';
   subWrap.style.display = 'none';
   babWrap.style.display = 'none';
+  tglWrap.style.display = 'none';
 
   if (!jenis) return;
   const cfg = JENIS_CONFIG[jenis];
+
+  if (cfg.dateBased) {
+    // 练习 TK: pilih tanggal tugas
+    tglWrap.style.display = 'block';
+    if (document.getElementById('nilaiTanggal').value) loadNilaiForm();
+    return;
+  }
 
   if (cfg.babFirst) {
     // 听写: pilih bab dulu
@@ -1418,7 +1494,7 @@ function onNilaiJenisChange() {
     return;
   }
 
-  // Ada sub-pilihan (测验, 拼音, 听说读写, 大考, 演讲)
+  // Ada sub-pilihan (测验, 拼音, 听说读写, 大考, 演讲, tk_ting/shuo/du/xie)
   document.getElementById('nilaiSubLabel').textContent = cfg.subLabel;
   subSel.innerHTML = '<option value="">-- Pilih --</option>'
     + cfg.subs.map(s => `<option value="${s.v}">${s.l}</option>`).join('');
@@ -1448,10 +1524,13 @@ async function loadNilaiForm() {
   const jenis    = document.getElementById('nilaiJenis').value;
   const sub      = document.getElementById('nilaiSub')?.value || '';
   const babPilih = document.getElementById('nilaiBab')?.value || '';
+  const tanggalPilih = document.getElementById('nilaiTanggal')?.value || '';
   if (!kelasId || !jenis) return;
 
   const cfg = JENIS_CONFIG[jenis];
+  const dbJenis = cfg.dbJenis || jenis;
   if (cfg.subs && !sub) return;
+  if (cfg.dateBased && !tanggalPilih) return;
 
   const kelas = kelasSaya.find(k => k.id === kelasId);
   const murid = (kelas?.enrollment || []).filter(e => e.is_active && e.siswa?.status);
@@ -1461,6 +1540,7 @@ async function loadNilaiForm() {
   let infoText = `📝 ${cfg.label}`;
   if (babPilih) infoText += ` · Bab ${babPilih}`;
   if (sub) infoText += ` · ${cfg.subs?.find(s=>s.v===sub)?.l || sub}`;
+  if (tanggalPilih) infoText += ` · ${new Date(tanggalPilih).toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'})}`;
   infoText += ` · Semester ${semester} · Kelas ${kelas?.kode_kelas}`;
   infoEl.textContent = infoText;
 
@@ -1470,10 +1550,10 @@ async function loadNilaiForm() {
     // 听写: satu bab, satu sub → 1 kolom nilai
     cols = [{key:'nilai', label:'Nilai', bab: parseInt(babPilih), sub_jenis: sub, range_bab: null}];
   } else if (jenis === 'lianxi') {
-    // 练习: 12 kolom bab
+    // 练习 (reguler): 12 kolom bab
     cols = cfg.babRange.map(b => ({key:`bab_${b}`, label:`Bab ${b}`, bab:b, sub_jenis:null, range_bab:null}));
   } else if (jenis === 'tingshuo') {
-    // 听说读写: 4 kolom komponen terpisah, per kelompok bab yang dipilih
+    // 听说读写 (reguler, jilid 1-12): 4 kolom komponen terpisah, per kelompok bab yang dipilih
     const komponen = [
       {v:'ting', l:'听 (Tīng)'},
       {v:'shuo', l:'说 (Shuō)'},
@@ -1481,6 +1561,23 @@ async function loadNilaiForm() {
       {v:'xie',  l:'写 (Xiě)'}
     ];
     cols = komponen.map(k => ({key:k.v, label:k.l, bab:null, sub_jenis:k.v, range_bab: sub||null}));
+  } else if (cfg.tkSingle) {
+    // TK: 听 / 说 / 读 — 1 kolom nilai, sub_jenis tetap (ting/shuo/du)
+    cols = [{key:'nilai', label:cfg.label, bab:null, sub_jenis:cfg.tkSingle, range_bab: sub||null}];
+  } else if (cfg.tkXie) {
+    // TK: 写 — 3 kolom komponen (写汉字 / 笔顺 / 数笔画), per kelompok bab
+    const komponen = [
+      {v:'xiehanzi', l:'写汉字'},
+      {v:'bishun',   l:'笔顺'},
+      {v:'shubihua', l:'数笔画'}
+    ];
+    cols = komponen.map(k => ({key:k.v, label:k.l, bab:null, sub_jenis:k.v, range_bab: sub||null}));
+  } else if (cfg.dateBased) {
+    // TK: 练习 — 2 kolom (拼音 / 翻译), per tanggal tugas
+    cols = [
+      {key:'pinyin', label:'拼音', bab:null, sub_jenis:'pinyin', range_bab:null, tanggal_tugas: tanggalPilih},
+      {key:'fanyi',  label:'翻译', bab:null, sub_jenis:'fanyi',  range_bab:null, tanggal_tugas: tanggalPilih}
+    ];
   } else {
     // Jenis dengan range_bab atau sub → 1 kolom nilai
     cols = [{key:'nilai', label:'Nilai', bab:null, sub_jenis:sub||null, range_bab:cfg.subs?sub:null}];
@@ -1490,8 +1587,10 @@ async function loadNilaiForm() {
   const siswaIds = murid.map(e => e.siswa.id);
   let q = db.from('nilai_detail').select('*')
     .in('siswa_id', siswaIds).eq('kelas_id', kelasId)
-    .eq('semester', semester).eq('jenis_penilaian', jenis);
-  if (jenis === 'tingshuo') {
+    .eq('semester', semester).eq('jenis_penilaian', dbJenis);
+  if (cfg.dateBased) {
+    q = q.eq('tanggal_tugas', tanggalPilih);
+  } else if (dbJenis === 'tingshuo') {
     if (sub) q = q.eq('range_bab', sub);
   } else if (sub) {
     q = q.eq('sub_jenis', sub);
@@ -1504,7 +1603,8 @@ async function loadNilaiForm() {
     if (!nilaiMap[n.siswa_id]) nilaiMap[n.siswa_id] = {};
     let colKey;
     if (jenis === 'lianxi') colKey = n.bab ? `bab_${n.bab}` : 'nilai';
-    else if (jenis === 'tingshuo') colKey = n.sub_jenis;
+    else if (dbJenis === 'tingshuo') colKey = n.sub_jenis;
+    else if (cfg.dateBased) colKey = n.sub_jenis;
     else colKey = n.bab ? `bab_${n.bab}` : 'nilai';
     nilaiMap[n.siswa_id][colKey] = n.nilai;
   });
@@ -1530,6 +1630,7 @@ async function loadNilaiForm() {
   window._nilaiJenis = jenis;
   window._nilaiSub   = sub;
   window._nilaiBab   = babPilih;
+  window._nilaiTanggal = tanggalPilih;
 
   document.getElementById('nilaiContainer').style.display = 'block';
 }
@@ -1538,6 +1639,8 @@ async function simpanNilai() {
   const kelasId  = document.getElementById('nilaiKelas').value;
   const semester = document.getElementById('nilaiSemester').value;
   const jenis    = window._nilaiJenis;
+  const cfg      = JENIS_CONFIG[jenis];
+  const dbJenis  = cfg?.dbJenis || jenis;
   const cols     = window._nilaiCols || [];
   const { data: { user } } = await db.auth.getUser();
 
@@ -1550,23 +1653,25 @@ async function simpanNilai() {
       const inp = document.querySelector(`input[data-siswa="${e.siswa.id}"][data-col="${c.key}"]`);
       const val = inp ? parseFloat(inp.value) : null;
       if (!val && val !== 0) return; // skip kosong
-      rows.push({
+      const row = {
         siswa_id: e.siswa.id, kelas_id: kelasId,
         semester: parseInt(semester),
-        jenis_penilaian: jenis,
+        jenis_penilaian: dbJenis,
         sub_jenis: c.sub_jenis || null,
         bab: c.bab || null,
         range_bab: c.range_bab || null,
         nilai: val,
         diinput_oleh: user.id
-      });
+      };
+      if (c.tanggal_tugas) row.tanggal_tugas = c.tanggal_tugas;
+      rows.push(row);
     });
   });
 
   if (!rows.length) { alert('Tidak ada nilai yang diisi!'); return; }
 
   const { error } = await db.from('nilai_detail').upsert(rows,
-    { onConflict: 'siswa_id,kelas_id,semester,jenis_penilaian,sub_jenis,bab,range_bab' });
+    { onConflict: 'siswa_id,kelas_id,semester,jenis_penilaian,sub_jenis,bab,range_bab,tanggal_tugas' });
   if (error) { alert('❌ Gagal simpan: '+error.message); return; }
   alert('✅ '+rows.length+' nilai berhasil disimpan!');
   loadPreviewNilai();
@@ -1602,7 +1707,7 @@ async function loadPreviewNilai() {
   let html = '';
 
   Object.entries(perJenis).forEach(([jenis, rows]) => {
-    const cfg = JENIS_CONFIG[jenis];
+    const cfg = JENIS_CONFIG[jenis] || Object.values(JENIS_CONFIG).find(c => c.dbJenis === jenis);
     const jenisLabel = cfg?.label || jenis;
 
     // Build nilai map per murid per kolom
@@ -1612,7 +1717,9 @@ async function loadPreviewNilai() {
     let kolom, getKolomLabel;
 
     if (jenis === 'tingshuo') {
-      // Khusus 听说读写: tampilkan rata-rata per komponen (听/说/读/写), gabungan dari semua kelompok bab yang sudah diisi
+      // Khusus 听说读写 (reguler & TK): tampilkan rata-rata per komponen (听/说/读/写),
+      // gabungan dari semua kelompok bab. Untuk TK, 写汉字/笔顺/数笔画 digabung jadi satu nilai "写".
+      const bucketMap = { ting:'ting', shuo:'shuo', du:'du', xie:'xie', xiehanzi:'xie', bishun:'xie', shubihua:'xie' };
       const komponenOrder = ['ting','shuo','du','xie'];
       const komponenLabelMap = {ting:'听 (Tīng)',shuo:'说 (Shuō)',du:'读 (Dú)',xie:'写 (Xiě)'};
       kolom = komponenOrder;
@@ -1621,9 +1728,10 @@ async function loadPreviewNilai() {
       const grouped = {}; // siswa_id -> komponen -> [nilai...]
       rows.forEach(r => {
         if (r.nilai == null || !r.sub_jenis) return;
+        const bucket = bucketMap[r.sub_jenis] || r.sub_jenis;
         if (!grouped[r.siswa_id]) grouped[r.siswa_id] = {};
-        if (!grouped[r.siswa_id][r.sub_jenis]) grouped[r.siswa_id][r.sub_jenis] = [];
-        grouped[r.siswa_id][r.sub_jenis].push(Number(r.nilai));
+        if (!grouped[r.siswa_id][bucket]) grouped[r.siswa_id][bucket] = [];
+        grouped[r.siswa_id][bucket].push(Number(r.nilai));
       });
       Object.entries(grouped).forEach(([siswaId, komp]) => {
         if (!muridMap[siswaId]) return;
@@ -1639,7 +1747,8 @@ async function loadPreviewNilai() {
       const kolomSet = new Set();
       rows.forEach(r => {
         let colKey = '';
-        if (r.sub_jenis && r.bab) colKey = r.sub_jenis+'_bab'+r.bab;
+        if (r.tanggal_tugas && r.tanggal_tugas !== '1900-01-01') colKey = r.sub_jenis+'_'+r.tanggal_tugas;
+        else if (r.sub_jenis && r.bab) colKey = r.sub_jenis+'_bab'+r.bab;
         else if (r.bab) colKey = 'bab'+r.bab;
         else if (r.range_bab) colKey = r.range_bab;
         else if (r.sub_jenis) colKey = r.sub_jenis;
@@ -1648,14 +1757,16 @@ async function loadPreviewNilai() {
       });
 
       // Sort kolom
-      kolom = [...kolomSet].sort((a,b) => {
-        const na = parseInt(a.match(/\d+/)?.[0]||0);
-        const nb = parseInt(b.match(/\d+/)?.[0]||0);
-        return na - nb;
-      });
+      kolom = [...kolomSet].sort((a,b) => a.localeCompare(b));
 
       // Build kolom headers yang readable
       getKolomLabel = function(colKey) {
+        if (/^(pinyin|fanyi)_\d{4}-\d{2}-\d{2}$/.test(colKey)) {
+          const [sub, tgl] = colKey.split('_');
+          const subLabel = sub === 'pinyin' ? '拼音' : '翻译';
+          const d = new Date(tgl);
+          return subLabel+' '+d.toLocaleDateString('id-ID',{day:'numeric',month:'short'});
+        }
         if (colKey.includes('_bab')) {
           const [sub, bab] = colKey.split('_bab');
           const subLabel = cfg?.subs?.find(s=>s.v===sub)?.l || sub;
@@ -1670,7 +1781,8 @@ async function loadPreviewNilai() {
 
       rows.forEach(r => {
         let colKey = '';
-        if (r.sub_jenis && r.bab) colKey = r.sub_jenis+'_bab'+r.bab;
+        if (r.tanggal_tugas && r.tanggal_tugas !== '1900-01-01') colKey = r.sub_jenis+'_'+r.tanggal_tugas;
+        else if (r.sub_jenis && r.bab) colKey = r.sub_jenis+'_bab'+r.bab;
         else if (r.bab) colKey = 'bab'+r.bab;
         else if (r.range_bab) colKey = r.range_bab;
         else if (r.sub_jenis) colKey = r.sub_jenis;
@@ -1906,11 +2018,29 @@ async function loadSetoran() {
 let bsgSelectedSoal = [];
 let bsgBankCache = [];
 
+const JENIS_SOAL_LIST = [
+  { v: 'pilihan_ganda',   l: '选择题 Pilihan Ganda' },
+  { v: 'isian',           l: '填空 Isian' },
+  { v: 'shubihua',        l: '数笔画 Hitung Guratan' },
+  { v: 'bishun',          l: '笔顺 Urutan Guratan' },
+  { v: 'bushou_jiegou',   l: '部首结构 Radikal & Struktur' },
+  { v: 'lianyilian',      l: '练一练 Latihan Pola' },
+  { v: 'pinyin',          l: '拼音 Pinyin' },
+  { v: 'lainnya',         l: '其他 Lainnya' }
+];
+
 function initBankSoalGuru() {
   const sel = document.getElementById('bsgKelas');
   if (sel.options.length <= 1) {
     sel.innerHTML = '<option value="">-- Pilih Kelas --</option>' +
       kelasSaya.map(k => `<option value="${k.id}">${k.kode_kelas}</option>`).join('');
+  }
+  const jumlahWrap = document.getElementById('bsgJumlahWrap');
+  if (!jumlahWrap.dataset.built) {
+    jumlahWrap.innerHTML = JENIS_SOAL_LIST.map(j =>
+      `<div class="form-group"><label>${j.l}</label><input type="number" class="bsgJumlahInput" data-jenis="${j.v}" value="0" min="0"></div>`
+    ).join('');
+    jumlahWrap.dataset.built = '1';
   }
 }
 
@@ -1930,10 +2060,13 @@ async function generateSoalUjian() {
   const babTerpilih = Array.from(document.querySelectorAll('.bsgBabChk:checked')).map(c => parseInt(c.value));
   if (!babTerpilih.length) { alert('Pilih minimal 1 Bab!'); return; }
 
-  const jumlahPG      = parseInt(document.getElementById('bsgJumlahPG').value) || 0;
-  const jumlahIsian    = parseInt(document.getElementById('bsgJumlahIsian').value) || 0;
-  const jumlahLainnya  = parseInt(document.getElementById('bsgJumlahLainnya').value) || 0;
-  const totalDiminta = jumlahPG + jumlahIsian + jumlahLainnya;
+  const jumlahPerJenis = {};
+  let totalDiminta = 0;
+  document.querySelectorAll('.bsgJumlahInput').forEach(inp => {
+    const n = parseInt(inp.value) || 0;
+    jumlahPerJenis[inp.dataset.jenis] = n;
+    totalDiminta += n;
+  });
   if (totalDiminta === 0) { alert('Isi jumlah soal yang diinginkan (minimal 1)!'); return; }
 
   const { data: bank } = await db.from('bank_soal').select('*').eq('jilid', jilid).in('bab', babTerpilih);
@@ -1945,11 +2078,8 @@ async function generateSoalUjian() {
     return shuffled.slice(0, jumlah);
   };
 
-  const picked = [
-    ...pickRandom('pilihan_ganda', jumlahPG),
-    ...pickRandom('isian', jumlahIsian),
-    ...pickRandom('lainnya', jumlahLainnya)
-  ];
+  let picked = [];
+  JENIS_SOAL_LIST.forEach(j => { picked = picked.concat(pickRandom(j.v, jumlahPerJenis[j.v] || 0)); });
 
   if (picked.length < totalDiminta) {
     alert(`⚠️ Soal di bank belum cukup!\nDiminta ${totalDiminta} soal, tapi cuma ketemu ${picked.length} soal yang sesuai Jilid & Bab ini.\n\nHubungi Leader untuk menambah soal, atau kurangi jumlah yang diminta.`);
@@ -1963,16 +2093,18 @@ async function generateSoalUjian() {
 function renderSoalTerpilih() {
   document.getElementById('bsgResultWrap').style.display = 'block';
   document.getElementById('bsgCount').textContent = bsgSelectedSoal.length;
-  const jenisLabel = { pilihan_ganda: 'Pilihan Ganda', isian: 'Isian', lainnya: 'Lainnya' };
+  const jenisLabel = {};
+  JENIS_SOAL_LIST.forEach(j => { jenisLabel[j.v] = j.l; });
   document.getElementById('bsgListSoal').innerHTML = bsgSelectedSoal.map((s, idx) => `
     <div style="background:white;border:1px solid #e5e7eb;border-radius:8px;padding:12px 16px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
       <div style="flex:1">
-        <div style="font-size:11px;color:#9ca3af;margin-bottom:2px">${idx+1}. ${jenisLabel[s.jenis_soal]} · Bab ${s.bab}</div>
+        <div style="font-size:11px;color:#9ca3af;margin-bottom:2px">${idx+1}. ${jenisLabel[s.jenis_soal]||s.jenis_soal} · Bab ${s.bab}</div>
         <div style="font-size:13px;white-space:pre-wrap">${s.pertanyaan}</div>
       </div>
       <button class="btn btn-secondary btn-sm" onclick="gantiSoal(${idx})">🔄 Ganti</button>
     </div>
   `).join('');
+  window._bsgJenisLabelMap = jenisLabel;
 }
 
 function gantiSoal(idx) {

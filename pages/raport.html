@@ -342,13 +342,15 @@ async function generate(){
 
     const tingshuo=getNilaiDetail('tingshuo');
     const tingshuoAvg=(()=>{
+      const bucketMap={ting:'ting',shuo:'shuo',du:'du',xie:'xie',xiehanzi:'xie',bishun:'xie',shubihua:'xie'};
       const order=['ting','shuo','du','xie'];
       const labelMap={ting:'听 (Tīng)',shuo:'说 (Shuō)',du:'读 (Dú)',xie:'写 (Xiě)'};
       const grouped={};
       tingshuo.forEach(r=>{
         if(r.nilai==null||!r.label) return;
-        if(!grouped[r.label]) grouped[r.label]=[];
-        grouped[r.label].push(Number(r.nilai));
+        const bucket=bucketMap[r.label]||r.label;
+        if(!grouped[bucket]) grouped[bucket]=[];
+        grouped[bucket].push(Number(r.nilai));
       });
       return order.filter(k=>grouped[k]&&grouped[k].length).map(k=>({
         label: labelMap[k]||k,
