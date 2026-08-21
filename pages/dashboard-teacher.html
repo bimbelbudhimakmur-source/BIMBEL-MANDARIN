@@ -1290,18 +1290,32 @@ async function loadPelunasan() {
 
 async function toggleIuran(siswaId, kelasId, bulan, jumlah, lunas) {
   if (!lunas && !confirm('Batalkan status lunas murid ini?')) return;
-  const existing = await db.from('iuran').select('id').eq('siswa_id', siswaId).eq('kelas_id', kelasId).eq('bulan_tagihan', bulan).maybeSingle();
+
+  // Ambil SEMUA baris yang cocok (bukan .maybeSingle() — supaya tidak error diam-diam kalau ada data duplikat)
+  const { data: existingRows, error: selErr } = await db.from('iuran').select('id, created_at')
+    .eq('siswa_id', siswaId).eq('kelas_id', kelasId).eq('bulan_tagihan', bulan)
+    .order('created_at', { ascending: false });
+  if (selErr) { alert('❌ Gagal cek data iuran: '+selErr.message); return; }
+
+  const existing = (existingRows && existingRows.length) ? existingRows[0] : null;
+
+  // Kalau ternyata ada baris duplikat (siswa+kelas+bulan sama > 1), bersihkan sisanya otomatis
+  if (existingRows && existingRows.length > 1) {
+    const idsToDelete = existingRows.slice(1).map(r => r.id);
+    await db.from('iuran').delete().in('id', idsToDelete);
+  }
+
   if (lunas) {
-    if (existing.data) {
-      const { error } = await db.from('iuran').update({ status: 'lunas', jumlah }).eq('id', existing.data.id);
+    if (existing) {
+      const { error } = await db.from('iuran').update({ status: 'lunas', jumlah }).eq('id', existing.id);
       if (error) { alert('❌ Gagal update status: '+error.message); return; }
     } else {
       const { error } = await db.from('iuran').insert({ siswa_id: siswaId, kelas_id: kelasId, bulan_tagihan: bulan, jumlah, status: 'lunas' });
       if (error) { alert('❌ Gagal simpan status: '+error.message); return; }
     }
   } else {
-    if (existing.data) {
-      const { error } = await db.from('iuran').update({ status: 'belum_bayar' }).eq('id', existing.data.id);
+    if (existing) {
+      const { error } = await db.from('iuran').update({ status: 'belum_bayar' }).eq('id', existing.id);
       if (error) { alert('❌ Gagal membatalkan status: '+error.message); return; }
     }
   }
