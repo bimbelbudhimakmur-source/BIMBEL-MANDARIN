@@ -1293,13 +1293,16 @@ async function toggleIuran(siswaId, kelasId, bulan, jumlah, lunas) {
   const existing = await db.from('iuran').select('id').eq('siswa_id', siswaId).eq('kelas_id', kelasId).eq('bulan_tagihan', bulan).maybeSingle();
   if (lunas) {
     if (existing.data) {
-      await db.from('iuran').update({ status: 'lunas', jumlah }).eq('id', existing.data.id);
+      const { error } = await db.from('iuran').update({ status: 'lunas', jumlah }).eq('id', existing.data.id);
+      if (error) { alert('❌ Gagal update status: '+error.message); return; }
     } else {
-      await db.from('iuran').insert({ siswa_id: siswaId, kelas_id: kelasId, bulan_tagihan: bulan, jumlah, status: 'lunas' });
+      const { error } = await db.from('iuran').insert({ siswa_id: siswaId, kelas_id: kelasId, bulan_tagihan: bulan, jumlah, status: 'lunas' });
+      if (error) { alert('❌ Gagal simpan status: '+error.message); return; }
     }
   } else {
     if (existing.data) {
-      await db.from('iuran').update({ status: 'belum_bayar' }).eq('id', existing.data.id);
+      const { error } = await db.from('iuran').update({ status: 'belum_bayar' }).eq('id', existing.data.id);
+      if (error) { alert('❌ Gagal membatalkan status: '+error.message); return; }
     }
   }
   await loadPelunasan();
