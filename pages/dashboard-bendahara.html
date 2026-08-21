@@ -1222,23 +1222,21 @@ function populateBiayaDropdowns() {
   if (window._biayaTK) configured.add('TK');
   (window._allBiaya || []).forEach(b => configured.add(String(b.jilid)));
 
-  // Jilid yang BELUM diatur = available untuk dipilih pertama kali
-  const available = allOpts.filter(j => !configured.has(j));
   const dari = document.getElementById('biayaDari');
   const sampai = document.getElementById('biayaSampai');
 
-  // Kalau semua sudah diatur, tetap boleh edit ulang (tampilkan semua)
-  const optsToShow = available.length > 0 ? available : allOpts;
-
+  // Selalu tampilkan SEMUA jilid — baik yang belum diatur (bisa diisi baru)
+  // maupun yang sudah diatur (bisa di-edit ulang kapan saja)
   dari.innerHTML = '<option value="">-- Pilih --</option>' +
-    optsToShow.map(j => `<option value="${j}">${j==='TK'?'TK':'Jilid '+j}</option>`).join('');
+    allOpts.map(j => `<option value="${j}">${j==='TK'?'TK':'Jilid '+j}${configured.has(j)?' (sudah diatur)':''}</option>`).join('');
   sampai.innerHTML = '<option value="">-- Pilih --</option>';
 
   // Info untuk bendahara
   const infoEl = document.getElementById('biayaRangeInfo');
+  const available = allOpts.filter(j => !configured.has(j));
   if (configured.size > 0 && available.length > 0) {
     const configuredList = allOpts.filter(j => configured.has(j)).map(j => j==='TK'?'TK':'Jilid '+j).join(', ');
-    infoEl.innerHTML = `<span style="color:#059669">✅ Sudah diatur: ${configuredList}</span> &nbsp;|&nbsp; <span style="color:#6b7280">Pilih jilid yang belum diatur di bawah</span>`;
+    infoEl.innerHTML = `<span style="color:#059669">✅ Sudah diatur: ${configuredList}</span> &nbsp;|&nbsp; <span style="color:#6b7280">Pilih jilid manapun untuk mengatur baru atau mengedit ulang</span>`;
   } else if (available.length === 0) {
     infoEl.innerHTML = `<span style="color:#059669">✅ Semua jilid sudah diatur. Pilih untuk edit ulang.</span>`;
   } else {
@@ -1252,14 +1250,12 @@ function updateBiayaSampai() {
   const configured = new Set();
   if (window._biayaTK) configured.add('TK');
   (window._allBiaya || []).forEach(b => configured.add(String(b.jilid)));
-  const available = allOpts.filter(j => !configured.has(j));
-  const optsToShow = available.length > 0 ? available : allOpts;
 
-  const idx = optsToShow.indexOf(dari);
+  const idx = allOpts.indexOf(dari);
   const sampai = document.getElementById('biayaSampai');
   if (idx < 0) return;
   sampai.innerHTML = '<option value="">-- Pilih --</option>' +
-    optsToShow.slice(idx).map(j => `<option value="${j}">${j==='TK'?'TK':'Jilid '+j}</option>`).join('');
+    allOpts.slice(idx).map(j => `<option value="${j}">${j==='TK'?'TK':'Jilid '+j}${configured.has(j)?' (sudah diatur)':''}</option>`).join('');
   sampai.value = dari;
 }
 
@@ -1314,15 +1310,10 @@ async function loadBiayaRange() {
   if (!dari || !sampai) { alert('Pilih range jilid terlebih dahulu!'); return; }
 
   const allOpts = jilidOptions();
-  const configured = new Set();
-  if (window._biayaTK) configured.add('TK');
-  (window._allBiaya || []).forEach(b => configured.add(String(b.jilid)));
-  const available = allOpts.filter(j => !configured.has(j));
-  const optsToShow = available.length > 0 ? available : allOpts;
 
-  const idxD = optsToShow.indexOf(dari), idxS = optsToShow.indexOf(sampai);
+  const idxD = allOpts.indexOf(dari), idxS = allOpts.indexOf(sampai);
   if (idxD > idxS) { alert('Dari harus lebih kecil atau sama dengan Sampai!'); return; }
-  const range = optsToShow.slice(idxD, idxS + 1);
+  const range = allOpts.slice(idxD, idxS + 1);
 
   const rp = v => Number(v||0);
   const get = (jilid) => {
@@ -1478,20 +1469,18 @@ function populateDuDropdowns() {
   if (window._duTK) configured.add('TK');
   (window._allDU || []).forEach(b => configured.add(String(b.jilid)));
 
-  const available = allOpts.filter(j => !configured.has(j));
-  const optsToShow = available.length > 0 ? available : allOpts;
-
   const dari   = document.getElementById('duDari');
   const sampai = document.getElementById('duSampai');
   if (!dari) return;
   dari.innerHTML   = '<option value="">-- Pilih --</option>' +
-    optsToShow.map(j => `<option value="${j}">${j==='TK'?'TK':'Jilid '+j}</option>`).join('');
+    allOpts.map(j => `<option value="${j}">${j==='TK'?'TK':'Jilid '+j}${configured.has(j)?' (sudah diatur)':''}</option>`).join('');
   sampai.innerHTML = '<option value="">-- Pilih --</option>';
 
   const infoEl = document.getElementById('duRangeInfo');
+  const available = allOpts.filter(j => !configured.has(j));
   if (configured.size > 0 && available.length > 0) {
     const list = allOpts.filter(j => configured.has(j)).map(j => j==='TK'?'TK':'Jilid '+j).join(', ');
-    infoEl.innerHTML = `<span style="color:#059669">✅ Sudah diatur: ${list}</span> &nbsp;|&nbsp; <span style="color:#6b7280">Pilih jilid yang belum diatur</span>`;
+    infoEl.innerHTML = `<span style="color:#059669">✅ Sudah diatur: ${list}</span> &nbsp;|&nbsp; <span style="color:#6b7280">Pilih jilid manapun untuk mengatur baru atau mengedit ulang</span>`;
   } else if (available.length === 0) {
     infoEl.innerHTML = `<span style="color:#059669">✅ Semua jilid sudah diatur. Pilih untuk edit ulang.</span>`;
   } else {
@@ -1505,13 +1494,11 @@ function updateDuSampai() {
   const configured = new Set();
   if (window._duTK) configured.add('TK');
   (window._allDU || []).forEach(b => configured.add(String(b.jilid)));
-  const available  = allOpts.filter(j => !configured.has(j));
-  const optsToShow = available.length > 0 ? available : allOpts;
-  const idx        = optsToShow.indexOf(dari);
+  const idx        = allOpts.indexOf(dari);
   const sampai     = document.getElementById('duSampai');
   if (idx < 0) return;
   sampai.innerHTML = '<option value="">-- Pilih --</option>' +
-    optsToShow.slice(idx).map(j => `<option value="${j}">${j==='TK'?'TK':'Jilid '+j}</option>`).join('');
+    allOpts.slice(idx).map(j => `<option value="${j}">${j==='TK'?'TK':'Jilid '+j}${configured.has(j)?' (sudah diatur)':''}</option>`).join('');
   sampai.value = dari;
 }
 
@@ -1524,12 +1511,10 @@ function loadDuRange() {
   const configured = new Set();
   if (window._duTK) configured.add('TK');
   (window._allDU || []).forEach(b => configured.add(String(b.jilid)));
-  const available  = allOpts.filter(j => !configured.has(j));
-  const optsToShow = available.length > 0 ? available : allOpts;
 
-  const idxD = optsToShow.indexOf(dari), idxS = optsToShow.indexOf(sampai);
+  const idxD = allOpts.indexOf(dari), idxS = allOpts.indexOf(sampai);
   if (idxD > idxS) { alert('Dari harus lebih kecil atau sama dengan Sampai!'); return; }
-  const range = optsToShow.slice(idxD, idxS + 1);
+  const range = allOpts.slice(idxD, idxS + 1);
 
   const get = (jilid) => {
     if (jilid === 'TK') return window._duTK || {};
