@@ -87,6 +87,13 @@
     <div class="sidebar-item" data-tab="pengaturan-sistem">
       <span class="sidebar-icon">🔧</span><span>Pengaturan Sistem</span>
     </div>
+    <div class="sidebar-section">Akademik & Analitik</div>
+    <div class="sidebar-item" data-tab="ringkasan-nilai">
+      <span class="sidebar-icon">📚</span><span>Ringkasan Nilai Murid</span>
+    </div>
+    <div class="sidebar-item" data-tab="statistik-bimbel">
+      <span class="sidebar-icon">📊</span><span>Statistik Bimbel</span>
+    </div>
     <div class="sidebar-section">Kolaborasi</div>
     <div class="sidebar-item" data-tab="notulen-todo">
       <span class="sidebar-icon">📌</span><span>Notulen & To Do List</span>
@@ -656,9 +663,14 @@
         </select>
         <select class="filter-select" id="bsFilterJenisSoal" onchange="loadBankSoal()">
           <option value="">Semua Jenis</option>
-          <option value="pilihan_ganda">Pilihan Ganda</option>
-          <option value="isian">Isian</option>
-          <option value="lainnya">Lainnya</option>
+          <option value="pilihan_ganda">选择题 Pilihan Ganda</option>
+          <option value="isian">填空 Isian</option>
+          <option value="shubihua">数笔画 Hitung Guratan</option>
+          <option value="bishun">笔顺 Urutan Guratan</option>
+          <option value="bushou_jiegou">部首结构 Radikal & Struktur</option>
+          <option value="lianyilian">练一练 Latihan Pola</option>
+          <option value="pinyin">拼音 Pinyin</option>
+          <option value="lainnya">其他 Lainnya</option>
         </select>
         <button class="btn btn-primary" onclick="openModalSoal()">➕ Tambah Soal</button>
       </div>
@@ -667,6 +679,129 @@
           <thead><tr><th>Jilid</th><th>Bab</th><th>Jenis</th><th>Pertanyaan</th><th>Jawaban</th><th>Aksi</th></tr></thead>
           <tbody id="tableBankSoal"><tr class="loading-row"><td colspan="6">⏳ Memuat...</td></tr></tbody>
         </table>
+      </div>
+    </div>
+
+    <!-- ===== RINGKASAN NILAI MURID ===== -->
+    <div id="tab-ringkasan-nilai" class="tab-content">
+      <div class="page-title">Ringkasan Nilai Murid</div>
+      <div class="page-sub">Progres pengajaran & nilai murid semester berjalan</div>
+
+      <div class="toolbar">
+        <select class="filter-select" id="rnSemester">
+          <option value="1">Semester 1</option>
+          <option value="2">Semester 2</option>
+        </select>
+        <button class="btn btn-primary" onclick="loadRingkasanNilai()">🔍 Tampilkan</button>
+      </div>
+
+      <div style="display:flex;gap:4px;margin-bottom:20px;border-bottom:2px solid #e5e7eb">
+        <button class="btn-subtab-rn active" data-subtab="kelas" onclick="switchSubtabRN('kelas')"
+          style="padding:10px 18px;border:none;background:none;cursor:pointer;font-weight:700;font-size:13px;border-bottom:3px solid #b01020;color:#b01020">🏫 Per Kelas</button>
+        <button class="btn-subtab-rn" data-subtab="guru" onclick="switchSubtabRN('guru')"
+          style="padding:10px 18px;border:none;background:none;cursor:pointer;font-weight:700;font-size:13px;border-bottom:3px solid transparent;color:#6b7280">👩‍🏫 Per Guru</button>
+        <button class="btn-subtab-rn" data-subtab="murid" onclick="switchSubtabRN('murid')"
+          style="padding:10px 18px;border:none;background:none;cursor:pointer;font-weight:700;font-size:13px;border-bottom:3px solid transparent;color:#6b7280">👨‍🎓 Per Murid</button>
+      </div>
+
+      <div id="rnSubtab-kelas">
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Kelas</th><th>Guru</th><th>Jumlah Murid</th><th>Jumlah Entri Nilai</th><th>Rata-rata Nilai</th></tr></thead>
+            <tbody id="tableRnKelas"><tr class="loading-row"><td colspan="5">Pilih semester &amp; tahun, lalu klik Tampilkan</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="rnSubtab-guru" style="display:none">
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Guru</th><th>Jumlah Kelas Diampu</th><th>Jumlah Entri Nilai</th><th>Rata-rata Nilai</th><th>Terakhir Input Nilai</th></tr></thead>
+            <tbody id="tableRnGuru"><tr class="loading-row"><td colspan="5">Pilih semester &amp; tahun, lalu klik Tampilkan</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="rnSubtab-murid" style="display:none">
+        <div class="toolbar">
+          <select class="filter-select" id="rnFilterKelas" onchange="renderRnMurid()">
+            <option value="">Semua Kelas</option>
+          </select>
+          <input class="search-input" id="rnSearchMurid" placeholder="🔍 Cari nama murid..." oninput="renderRnMurid()">
+        </div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>No. Induk</th><th>Nama</th><th>Nama Mandarin</th><th>Kelas</th><th>Jumlah Entri Nilai</th><th>Rata-rata Nilai</th></tr></thead>
+            <tbody id="tableRnMurid"><tr class="loading-row"><td colspan="6">Pilih semester &amp; tahun, lalu klik Tampilkan</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== STATISTIK BIMBEL ===== -->
+    <div id="tab-statistik-bimbel" class="tab-content">
+      <div class="page-title">Statistik Bimbel</div>
+      <div class="page-sub">Statistik murid & keuangan — pilih periode untuk melihat data</div>
+
+      <div class="toolbar">
+        <select class="filter-select" id="sbSemester">
+          <option value="1">Semester 1</option>
+          <option value="2">Semester 2</option>
+        </select>
+        <input type="text" class="filter-select" id="sbTahun" placeholder="Tahun (misal 2026)" style="max-width:140px">
+        <button class="btn btn-primary" onclick="loadStatistikBimbel()">🔍 Tampilkan</button>
+      </div>
+
+      <!-- STATISTIK MURID -->
+      <div class="form-section" style="margin-bottom:20px">
+        <div class="form-title">👨‍🎓 Statistik Murid</div>
+        <div id="sbMuridStatCards" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:14px 0">
+          <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:16px;text-align:center">
+            <div style="font-size:28px;font-weight:800;color:#16a34a" id="sbBaruVal">—</div>
+            <div style="font-size:12px;color:#6b7280">Pendaftaran Baru</div>
+          </div>
+          <div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:16px;text-align:center">
+            <div style="font-size:28px;font-weight:800;color:#2563eb" id="sbBertahanVal">—</div>
+            <div style="font-size:12px;color:#6b7280">Murid Bertahan</div>
+          </div>
+          <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:16px;text-align:center">
+            <div style="font-size:28px;font-weight:800;color:#dc2626" id="sbBerhentiVal">—</div>
+            <div style="font-size:12px;color:#6b7280">Murid Berhenti</div>
+          </div>
+        </div>
+        <div id="sbMuridExplain" style="font-size:13px;color:#374151;background:#fafafa;border:1px solid #e5e7eb;border-radius:8px;padding:12px 16px;margin-bottom:14px"></div>
+        <div style="max-width:420px;margin:0 auto">
+          <canvas id="chartMurid" height="220"></canvas>
+        </div>
+      </div>
+
+      <!-- STATISTIK KEUANGAN -->
+      <div class="form-section">
+        <div class="form-title">💰 Statistik Keuangan</div>
+        <div id="sbKeuStatCards" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:14px 0">
+          <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:16px;text-align:center">
+            <div style="font-size:20px;font-weight:800;color:#16a34a" id="sbMasukVal">—</div>
+            <div style="font-size:12px;color:#6b7280">Total Pemasukan</div>
+          </div>
+          <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:16px;text-align:center">
+            <div style="font-size:20px;font-weight:800;color:#dc2626" id="sbKeluarVal">—</div>
+            <div style="font-size:12px;color:#6b7280">Total Pengeluaran</div>
+          </div>
+          <div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:16px;text-align:center">
+            <div style="font-size:20px;font-weight:800;color:#2563eb" id="sbSaldoVal">—</div>
+            <div style="font-size:12px;color:#6b7280">Saldo</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+          <div>
+            <div style="font-size:13px;font-weight:700;margin-bottom:8px;text-align:center">Breakdown per Sumber (Pemasukan)</div>
+            <canvas id="chartKeuBreakdown" height="220"></canvas>
+          </div>
+          <div>
+            <div style="font-size:13px;font-weight:700;margin-bottom:8px;text-align:center">Tren Bulanan (Tahun Dipilih)</div>
+            <canvas id="chartKeuTren" height="220"></canvas>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -724,9 +859,14 @@
       </div>
       <div class="form-group"><label>Jenis Soal <span style="color:red">*</span></label>
         <select id="bs_jenis_soal" onchange="toggleJenisSoalFields()">
-          <option value="pilihan_ganda">Pilihan Ganda</option>
-          <option value="isian">Isian</option>
-          <option value="lainnya">Lainnya</option>
+          <option value="pilihan_ganda">选择题 Pilihan Ganda</option>
+          <option value="isian">填空 Isian</option>
+          <option value="shubihua">数笔画 Hitung Jumlah Guratan</option>
+          <option value="bishun">笔顺 Urutan Guratan</option>
+          <option value="bushou_jiegou">部首结构 Radikal & Struktur</option>
+          <option value="lianyilian">练一练 Latihan Pola Kalimat</option>
+          <option value="pinyin">拼音 声母/韵母/声调</option>
+          <option value="lainnya">其他 Lainnya</option>
         </select>
       </div>
     </div>
@@ -748,7 +888,8 @@
       </div>
     </div>
     <div id="bs_isian_wrap" style="margin-top:12px;display:none">
-      <div class="form-group"><label>Jawaban Benar (untuk lembar kunci jawaban)</label><input type="text" id="bs_jawaban_isian" placeholder="Contoh: 你好"></div>
+      <div class="form-group"><label>Jawaban Benar / Kunci Jawaban</label><input type="text" id="bs_jawaban_isian" placeholder="Contoh: 你好"></div>
+      <div id="bs_isian_hint" style="font-size:12px;color:#6b7280;margin-top:4px"></div>
     </div>
 
     <input type="hidden" id="bs_id">
@@ -836,6 +977,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <script src="../assets/supabase-client.js"></script>
 <script>
 let currentUserId = null;
@@ -907,6 +1049,8 @@ function switchTab(tab) {
   if (tab === 'kelola-program')   loadProgram();
   if (tab === 'notulen-todo')     loadNotulenTodo();
   if (tab === 'bank-soal')        loadBankSoal();
+  if (tab === 'ringkasan-nilai')  initRingkasanNilai();
+  if (tab === 'statistik-bimbel') initStatistikBimbel();
 }
 
 // ============================================
@@ -2295,6 +2439,252 @@ async function simpanPengaturanGaji() {
   await loadSettingGaji();
 }
 
+// ============================================
+// RINGKASAN NILAI MURID
+// ============================================
+function switchSubtabRN(sub) {
+  document.querySelectorAll('.btn-subtab-rn').forEach(b => {
+    const active = b.dataset.subtab === sub;
+    b.style.borderBottomColor = active ? '#b01020' : 'transparent';
+    b.style.color = active ? '#b01020' : '#6b7280';
+  });
+  ['kelas','guru','murid'].forEach(s => {
+    document.getElementById('rnSubtab-'+s).style.display = (s===sub) ? 'block' : 'none';
+  });
+}
+
+function initRingkasanNilai() {
+  loadRingkasanNilai();
+}
+
+async function loadRingkasanNilai() {
+  const semester = document.getElementById('rnSemester').value;
+
+  document.getElementById('tableRnKelas').innerHTML = '<tr class="loading-row"><td colspan="5">⏳ Memuat...</td></tr>';
+  document.getElementById('tableRnGuru').innerHTML  = '<tr class="loading-row"><td colspan="5">⏳ Memuat...</td></tr>';
+  document.getElementById('tableRnMurid').innerHTML = '<tr class="loading-row"><td colspan="6">⏳ Memuat...</td></tr>';
+
+  // Ambil semua kelas aktif (scoped program aktif) beserta guru & murid
+  let kq = db.from('kelas')
+    .select('id, kode_kelas, jilid, guru:guru_id(id, nama_lengkap, kode_guru), enrollment(is_active, siswa:siswa_id(id, nomor_induk, nama_lengkap, nama_mandarin, status))')
+    .eq('is_active', true).order('kode_kelas');
+  if (activeProgramId) kq = kq.eq('program_id', activeProgramId);
+  const { data: kelasList } = await kq;
+
+  const kelasIds = (kelasList||[]).map(k => k.id);
+  let nilaiAll = [];
+  if (kelasIds.length) {
+    const { data } = await db.from('nilai_detail').select('siswa_id,kelas_id,nilai,created_at')
+      .in('kelas_id', kelasIds).eq('semester', parseInt(semester));
+    nilaiAll = data || [];
+  }
+
+  // Kelompokkan nilai per kelas & per siswa
+  const nilaiByKelas = {};
+  const nilaiBySiswa = {};
+  nilaiAll.forEach(n => {
+    if (n.nilai == null) return;
+    if (!nilaiByKelas[n.kelas_id]) nilaiByKelas[n.kelas_id] = [];
+    nilaiByKelas[n.kelas_id].push(n);
+    if (!nilaiBySiswa[n.siswa_id]) nilaiBySiswa[n.siswa_id] = [];
+    nilaiBySiswa[n.siswa_id].push(n);
+  });
+  const avg = arr => arr.length ? arr.reduce((a,b)=>a+Number(b.nilai),0)/arr.length : null;
+
+  // ===== PER KELAS =====
+  window._rnKelasList = kelasList || [];
+  document.getElementById('tableRnKelas').innerHTML = (kelasList||[]).map(k => {
+    const murid = (k.enrollment||[]).filter(e => e.is_active && e.siswa?.status);
+    const rows  = nilaiByKelas[k.id] || [];
+    const rerata = avg(rows);
+    const jlbl = (k.jilid===0||k.jilid==='0') ? '幼儿 (TK)' : 'Jilid '+k.jilid;
+    return `<tr>
+      <td style="font-family:monospace;font-weight:700">${k.kode_kelas}<br><small style="color:#9ca3af;font-family:inherit">${jlbl}</small></td>
+      <td>${k.guru?.nama_lengkap||'—'}</td>
+      <td style="text-align:center">${murid.length}</td>
+      <td style="text-align:center">${rows.length}</td>
+      <td style="text-align:center;font-weight:700;color:${rerata==null?'#9ca3af':rerata>=80?'#059669':rerata>=60?'#d97706':'#dc2626'}">${rerata!=null?rerata.toFixed(1):'—'}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="5" style="text-align:center;padding:30px;color:#9ca3af">Belum ada kelas</td></tr>';
+
+  // ===== PER GURU =====
+  const byGuru = {};
+  (kelasList||[]).forEach(k => {
+    const gid = k.guru?.id || '—';
+    if (!byGuru[gid]) byGuru[gid] = { nama: k.guru?.nama_lengkap||'Belum ada guru', kelas: [], rows: [] };
+    byGuru[gid].kelas.push(k.kode_kelas);
+    byGuru[gid].rows = byGuru[gid].rows.concat(nilaiByKelas[k.id] || []);
+  });
+  document.getElementById('tableRnGuru').innerHTML = Object.values(byGuru).map(g => {
+    const rerata = avg(g.rows);
+    const terakhir = g.rows.length ? new Date(Math.max(...g.rows.map(r=>new Date(r.created_at)))).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}) : '—';
+    return `<tr>
+      <td><strong>${g.nama}</strong><br><small style="color:#9ca3af">${g.kelas.join(', ')}</small></td>
+      <td style="text-align:center">${g.kelas.length}</td>
+      <td style="text-align:center">${g.rows.length}</td>
+      <td style="text-align:center;font-weight:700;color:${rerata==null?'#9ca3af':rerata>=80?'#059669':rerata>=60?'#d97706':'#dc2626'}">${rerata!=null?rerata.toFixed(1):'—'}</td>
+      <td style="text-align:center;font-size:12px;color:#6b7280">${terakhir}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="5" style="text-align:center;padding:30px;color:#9ca3af">Belum ada data</td></tr>';
+
+  // ===== PER MURID (siapkan data, render terpisah agar bisa difilter/cari) =====
+  const muridRows = [];
+  (kelasList||[]).forEach(k => {
+    (k.enrollment||[]).forEach(e => {
+      if (!e.is_active || !e.siswa?.status) return;
+      const rows = nilaiBySiswa[e.siswa.id] || [];
+      muridRows.push({
+        nomor_induk: e.siswa.nomor_induk, nama: e.siswa.nama_lengkap, namaMandarin: e.siswa.nama_mandarin||'—',
+        kelasKode: k.kode_kelas, kelasId: k.id, jumlahEntri: rows.length, rerata: avg(rows)
+      });
+    });
+  });
+  window._rnMuridRows = muridRows;
+
+  const filterKelasEl = document.getElementById('rnFilterKelas');
+  filterKelasEl.innerHTML = '<option value="">Semua Kelas</option>' + (kelasList||[]).map(k => `<option value="${k.id}">${k.kode_kelas}</option>`).join('');
+
+  renderRnMurid();
+}
+
+function renderRnMurid() {
+  const rows = window._rnMuridRows || [];
+  const kelasFilter = document.getElementById('rnFilterKelas').value;
+  const q = (document.getElementById('rnSearchMurid').value||'').toLowerCase();
+  const filtered = rows.filter(r =>
+    (!kelasFilter || r.kelasId === kelasFilter) &&
+    (!q || r.nama.toLowerCase().includes(q))
+  );
+  document.getElementById('tableRnMurid').innerHTML = filtered.map(r => `<tr>
+    <td>${r.nomor_induk}</td>
+    <td><strong>${r.nama}</strong></td>
+    <td style="color:#b91c1c">${r.namaMandarin}</td>
+    <td style="font-family:monospace">${r.kelasKode}</td>
+    <td style="text-align:center">${r.jumlahEntri}</td>
+    <td style="text-align:center;font-weight:700;color:${r.rerata==null?'#9ca3af':r.rerata>=80?'#059669':r.rerata>=60?'#d97706':'#dc2626'}">${r.rerata!=null?r.rerata.toFixed(1):'—'}</td>
+  </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;padding:30px;color:#9ca3af">Tidak ada murid</td></tr>';
+}
+
+// ============================================
+// STATISTIK BIMBEL
+// ============================================
+let _chartMurid = null, _chartKeuBreakdown = null, _chartKeuTren = null;
+
+function initStatistikBimbel() {
+  if (!document.getElementById('sbTahun').value) {
+    document.getElementById('sbTahun').value = new Date().getFullYear();
+  }
+  loadStatistikBimbel();
+}
+
+async function loadStatistikBimbel() {
+  const sem = document.getElementById('sbSemester').value;
+  const tahun = document.getElementById('sbTahun').value.trim() || new Date().getFullYear();
+  const tglMulai = sem==='1' ? tahun+'-01-01' : tahun+'-07-01';
+  const tglAkhir = sem==='1' ? tahun+'-06-30' : tahun+'-12-31';
+  const rp = v => 'Rp ' + Number(v||0).toLocaleString('id-ID');
+
+  // ===== STATISTIK MURID =====
+  const { data: muridBaruRaw } = await db.from('siswa')
+    .select('id, status, created_at, enrollment(is_active, kelas:kelas_id(program_id))')
+    .gte('created_at', tglMulai+'T00:00:00').lte('created_at', tglAkhir+'T23:59:59');
+  const muridBaru = activeProgramId
+    ? (muridBaruRaw||[]).filter(s => (s.enrollment||[]).some(e => e.kelas?.program_id === activeProgramId))
+    : (muridBaruRaw||[]);
+  const jumlahBaru = muridBaru.length;
+
+  // Total murid aktif SAAT INI di program ini
+  let qAktif = db.from('siswa').select('id, enrollment(is_active, kelas:kelas_id(program_id))').eq('status', true);
+  const { data: aktifRaw } = await qAktif;
+  const aktifSekarang = activeProgramId
+    ? (aktifRaw||[]).filter(s => (s.enrollment||[]).some(e => e.is_active && e.kelas?.program_id === activeProgramId)).length
+    : (aktifRaw||[]).length;
+
+  // Total murid nonaktif (berhenti) — data histori tanggal berhenti belum tersedia di sistem,
+  // jadi ini menampilkan TOTAL murid berhenti sepanjang waktu (bukan spesifik periode ini)
+  const { data: nonaktifRaw } = await db.from('siswa').select('id', { count: 'exact', head: false }).eq('status', false);
+  const jumlahBerhenti = (nonaktifRaw||[]).length;
+
+  const jumlahBertahan = Math.max(aktifSekarang - jumlahBaru, 0);
+
+  document.getElementById('sbBaruVal').textContent = jumlahBaru;
+  document.getElementById('sbBertahanVal').textContent = jumlahBertahan;
+  document.getElementById('sbBerhentiVal').textContent = jumlahBerhenti;
+
+  document.getElementById('sbMuridExplain').innerHTML =
+    `Pada <strong>Semester ${sem} ${tahun}</strong>, bimbel mendapat <strong style="color:#16a34a">${jumlahBaru} murid baru</strong>, `
+    + `saat ini memiliki <strong style="color:#2563eb">${aktifSekarang} murid aktif</strong> total `
+    + `(${jumlahBertahan} di antaranya murid lama yang bertahan). `
+    + `<span style="color:#6b7280;font-size:12px">Catatan: jumlah "Murid Berhenti" menampilkan total sepanjang waktu (sistem belum mencatat tanggal spesifik murid berhenti per periode).</span>`;
+
+  if (_chartMurid) _chartMurid.destroy();
+  _chartMurid = new Chart(document.getElementById('chartMurid'), {
+    type: 'bar',
+    data: {
+      labels: ['Pendaftaran Baru', 'Murid Bertahan', 'Murid Berhenti'],
+      datasets: [{
+        data: [jumlahBaru, jumlahBertahan, jumlahBerhenti],
+        backgroundColor: ['#16a34a', '#2563eb', '#dc2626']
+      }]
+    },
+    options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+  });
+
+  // ===== STATISTIK KEUANGAN =====
+  let qTrx = db.from('transaksi').select('*').gte('tanggal', tglMulai).lte('tanggal', tglAkhir).eq('status','approved');
+  if (activeProgramId) qTrx = qTrx.eq('program_id', activeProgramId);
+  const { data: trx } = await qTrx;
+
+  const masuk  = (trx||[]).filter(t=>t.jenis==='masuk').reduce((s,t)=>s+Number(t.jumlah),0);
+  const keluar = (trx||[]).filter(t=>t.jenis==='keluar').reduce((s,t)=>s+Number(t.jumlah),0);
+  const saldo  = masuk - keluar;
+  document.getElementById('sbMasukVal').textContent  = rp(masuk);
+  document.getElementById('sbKeluarVal').textContent = rp(keluar);
+  document.getElementById('sbSaldoVal').textContent  = rp(Math.abs(saldo));
+
+  const byKategori = {};
+  (trx||[]).filter(t=>t.jenis==='masuk').forEach(t => { byKategori[t.kategori] = (byKategori[t.kategori]||0) + Number(t.jumlah); });
+
+  if (_chartKeuBreakdown) _chartKeuBreakdown.destroy();
+  _chartKeuBreakdown = new Chart(document.getElementById('chartKeuBreakdown'), {
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(byKategori).length ? Object.keys(byKategori) : ['Tidak ada data'],
+      datasets: [{
+        data: Object.keys(byKategori).length ? Object.values(byKategori) : [1],
+        backgroundColor: ['#16a34a','#2563eb','#d97706','#9333ea','#dc2626','#0891b2','#65a30d']
+      }]
+    },
+    options: { plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } } }
+  });
+
+  // Tren bulanan sepanjang TAHUN yang dipilih (Jan-Des), pemasukan saja
+  let qTrxTahun = db.from('transaksi').select('tanggal,jumlah,jenis')
+    .gte('tanggal', tahun+'-01-01').lte('tanggal', tahun+'-12-31').eq('status','approved').eq('jenis','masuk');
+  if (activeProgramId) qTrxTahun = qTrxTahun.eq('program_id', activeProgramId);
+  const { data: trxTahun } = await qTrxTahun;
+
+  const bulanLabel = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  const perBulan = new Array(12).fill(0);
+  (trxTahun||[]).forEach(t => {
+    const bln = new Date(t.tanggal).getMonth();
+    perBulan[bln] += Number(t.jumlah);
+  });
+
+  if (_chartKeuTren) _chartKeuTren.destroy();
+  _chartKeuTren = new Chart(document.getElementById('chartKeuTren'), {
+    type: 'line',
+    data: {
+      labels: bulanLabel,
+      datasets: [{
+        label: 'Pemasukan (Rp)', data: perBulan,
+        borderColor: '#b01020', backgroundColor: 'rgba(176,16,32,0.1)', fill: true, tension: 0.3
+      }]
+    },
+    options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: v => 'Rp '+(v/1000)+'rb' } } } }
+  });
+}
+
 function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 
 // ============================================
@@ -2310,6 +2700,18 @@ function toggleJenisSoalFields() {
   const jenis = document.getElementById('bs_jenis_soal').value;
   document.getElementById('bs_pg_wrap').style.display = jenis === 'pilihan_ganda' ? 'block' : 'none';
   document.getElementById('bs_isian_wrap').style.display = jenis !== 'pilihan_ganda' ? 'block' : 'none';
+
+  const hints = {
+    isian: 'Contoh pertanyaan: "写出数字7的汉字" → jawaban: 七',
+    shubihua: 'Contoh pertanyaan: "\'好\'这个字有几画？" → jawaban: 6',
+    bishun: 'Contoh pertanyaan: "\'人\'的笔顺是什么？" → jawaban: 撇、捺 (atau tulis urutan guratannya)',
+    bushou_jiegou: 'Contoh pertanyaan: "\'好\'的部首和结构是什么？" → jawaban: 部首：女，结构：左右结构',
+    lianyilian: 'Contoh pertanyaan: pola kalimat yang perlu dilengkapi/diganti → jawaban: kalimat lengkap hasil substitusi',
+    pinyin: 'Contoh pertanyaan: "写出\'三\'的拼音（声母、韵母、声调）" → jawaban: 声母：s，韵母：ān，声调：1声',
+    lainnya: 'Format bebas sesuai kebutuhan soal.'
+  };
+  const hintEl = document.getElementById('bs_isian_hint');
+  hintEl.textContent = hints[jenis] || '';
 }
 
 async function loadBankSoal() {
@@ -2327,7 +2729,11 @@ async function loadBankSoal() {
   const tbody = document.getElementById('tableBankSoal');
   if (!data?.length) { tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:#6b7280">Belum ada soal</td></tr>`; return; }
 
-  const jenisLabel = { pilihan_ganda: 'Pilihan Ganda', isian: 'Isian', lainnya: 'Lainnya' };
+  const jenisLabel = {
+    pilihan_ganda: '选择题 PG', isian: '填空 Isian', shubihua: '数笔画',
+    bishun: '笔顺', bushou_jiegou: '部首结构', lianyilian: '练一练',
+    pinyin: '拼音', lainnya: '其他'
+  };
   tbody.innerHTML = data.map(s => {
     const jilidTxt = (s.jilid === 0) ? '幼儿 (TK)' : 'Jilid ' + s.jilid;
     const jawabanTxt = s.jenis_soal === 'pilihan_ganda'

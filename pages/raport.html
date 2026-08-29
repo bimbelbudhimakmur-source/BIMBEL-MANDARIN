@@ -277,6 +277,45 @@ async function generate(){
   // Track siswa ids for 判定 panel
   const muridList=[];
 
+  // ====== PRA-HITUNG RANKING (berdasarkan Nilai Perolehan akhir semua murid di kelas) ======
+  const totalNilaiMap={};
+  murid.forEach(e=>{
+    const s=e.siswa;
+    const nilaiMuridR=(nilaiAll||[]).filter(n=>n.siswa_id===s.id);
+    const absMuridR=(absAll||[]).filter(a=>a.siswa_id===s.id);
+    const tidakHadirR=absMuridR.filter(a=>!a.hadir);
+    const sakitR=tidakHadirR.filter(a=>a.catatan==='sakit').length;
+    const izinR=tidakHadirR.filter(a=>a.catatan==='izin').length;
+    const tanpaKetR=tidakHadirR.filter(a=>a.catatan!=='sakit'&&a.catatan!=='izin').length;
+    const hadirR=totalPertemuan-sakitR-izinR-tanpaKetR;
+    const nilaiKehadiranR=totalPertemuan>0?(hadirR/totalPertemuan)*100*0.05:0;
+    const getNilaiR=(jenis)=>{
+      const entries=nilaiMuridR.filter(n=>n.jenis_penilaian===jenis);
+      const vals=[]; entries.forEach(n=>{ if(n.nilai!=null) vals.push(Number(n.nilai)); });
+      return avg(vals);
+    };
+    const vTingxieR=getNilaiR('tingxie'), vLianxiR=getNilaiR('lianxi'), vCeyuanR=getNilaiR('ceyuan'), vPinyinR=getNilaiR('pinyin'), vZaojuR=getNilaiR('zaoju');
+    const na_tingxieR=vTingxieR!=null?vTingxieR*0.10:null;
+    const na_lianxiR =vLianxiR!=null ?vLianxiR*0.10 :null;
+    const na_ceyuanR =vCeyuanR!=null ?vCeyuanR*0.15 :null;
+    const na_pinyinR =vPinyinR!=null ?vPinyinR*0.15 :null;
+    const na_zaojuR  =vZaojuR!=null  ?vZaojuR*0.10  :null;
+    const dakaoEntriesR=nilaiMuridR.filter(n=>n.jenis_penilaian==='dakao');
+    const dakaoByJenisR={};
+    dakaoEntriesR.forEach(n=>{ if(n.nilai!=null){ if(!dakaoByJenisR[n.sub_jenis]) dakaoByJenisR[n.sub_jenis]=[]; dakaoByJenisR[n.sub_jenis].push(Number(n.nilai)); } });
+    const dakaoValsR=Object.values(dakaoByJenisR).map(v=>avg(v)).filter(v=>v!=null);
+    const vDakaoR=dakaoValsR.length?avg(dakaoValsR):null;
+    const na_dakaoR=vDakaoR!=null?vDakaoR*0.35:null;
+    const komponenR=[na_tingxieR,na_lianxiR,na_ceyuanR,na_pinyinR,na_zaojuR];
+    const sub65R=komponenR.filter(v=>v!=null).reduce((a,b)=>a+b,0)+nilaiKehadiranR;
+    totalNilaiMap[s.id]=na_dakaoR!=null?sub65R+na_dakaoR:sub65R;
+  });
+  // Urutkan menurun (nilai tertinggi = ranking 1). Murid tanpa nilai sama sekali (0) tetap masuk urutan.
+  const rankedIds=Object.keys(totalNilaiMap).sort((a,b)=>totalNilaiMap[b]-totalNilaiMap[a]);
+  const rankMap={};
+  rankedIds.forEach((id,idx)=>{ rankMap[id]=idx+1; });
+  const totalMuridKelas=rankedIds.length;
+
   murid.forEach(e=>{
     const s=e.siswa;
     const perilaku=perilakuMap[s.id]||'—';
@@ -426,6 +465,7 @@ async function generate(){
         <div>
           <div class="na-label">总成绩 NILAI PEROLEHAN</div>
           <div class="na-pred">Predikat: <b>${pred(totalNilai)}</b> &nbsp;|&nbsp; ${totalNilai>=80?'Sangat Baik':totalNilai>=70?'Baik':totalNilai>=60?'Cukup':'Perlu Bimbingan'}</div>
+          <div class="na-pred" style="margin-top:2px">Ranking: <b>${rankMap[s.id]||'-'}</b> dari ${totalMuridKelas} murid</div>
         </div>
         <div class="na-val ${sc(totalNilai)}">${rp(totalNilai,1)}</div>
       </div>
