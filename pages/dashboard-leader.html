@@ -2493,10 +2493,13 @@ async function loadRingkasanNilai() {
 
   // ===== PER KELAS =====
   window._rnKelasList = kelasList || [];
-  document.getElementById('tableRnKelas').innerHTML = (kelasList||[]).map(k => {
+  const kelasWithNilai = (kelasList||[]).map(k => {
     const murid = (k.enrollment||[]).filter(e => e.is_active && e.siswa?.status);
     const rows  = nilaiByKelas[k.id] || [];
-    const rerata = avg(rows);
+    return { k, murid, rows, rerata: avg(rows) };
+  }).sort((a,b) => (b.rerata ?? -Infinity) - (a.rerata ?? -Infinity));
+
+  document.getElementById('tableRnKelas').innerHTML = kelasWithNilai.map(({k, murid, rows, rerata}) => {
     const jlbl = (k.jilid===0||k.jilid==='0') ? '幼儿 (TK)' : 'Jilid '+k.jilid;
     return `<tr>
       <td style="font-family:monospace;font-weight:700">${k.kode_kelas}<br><small style="color:#9ca3af;font-family:inherit">${jlbl}</small></td>
@@ -2515,8 +2518,11 @@ async function loadRingkasanNilai() {
     byGuru[gid].kelas.push(k.kode_kelas);
     byGuru[gid].rows = byGuru[gid].rows.concat(nilaiByKelas[k.id] || []);
   });
-  document.getElementById('tableRnGuru').innerHTML = Object.values(byGuru).map(g => {
-    const rerata = avg(g.rows);
+  document.getElementById('tableRnGuru').innerHTML = Object.values(byGuru)
+    .map(g => ({ ...g, rerata: avg(g.rows) }))
+    .sort((a,b) => (b.rerata ?? -Infinity) - (a.rerata ?? -Infinity))
+    .map(g => {
+    const rerata = g.rerata;
     const terakhir = g.rows.length ? new Date(Math.max(...g.rows.map(r=>new Date(r.created_at)))).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}) : '—';
     return `<tr>
       <td><strong>${g.nama}</strong><br><small style="color:#9ca3af">${g.kelas.join(', ')}</small></td>
@@ -2554,7 +2560,7 @@ function renderRnMurid() {
   const filtered = rows.filter(r =>
     (!kelasFilter || r.kelasId === kelasFilter) &&
     (!q || r.nama.toLowerCase().includes(q))
-  );
+  ).sort((a,b) => (b.rerata ?? -Infinity) - (a.rerata ?? -Infinity));
   document.getElementById('tableRnMurid').innerHTML = filtered.map(r => `<tr>
     <td>${r.nomor_induk}</td>
     <td><strong>${r.nama}</strong></td>
