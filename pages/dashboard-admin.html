@@ -370,7 +370,8 @@
     <div class="modal-header"><span class="modal-title" id="modalKelasTitle">Tambah Kelas</span><button class="modal-close" onclick="closeModal('modalKelas')">✕</button></div>
     <div class="form-grid">
       <div class="form-group"><label>Program</label><select id="mk_program" onchange="onProgramKelasChange()"><option value="">-- Pilih --</option></select></div>
-      <div class="form-group"><label>Guru Pengampu</label><select id="mk_guru" onchange="updateKodePreview()"><option value="">-- Pilih Program dulu --</option></select></div>
+      <div class="form-group"><label>Guru Pengampu</label><select id="mk_guru" onchange="updateKodePreview(); updateGuruRekomendasi();"><option value="">-- Pilih Program dulu --</option></select></div>
+      <div id="mk_guru_rekomendasi" style="grid-column:1/-1;font-size:12.5px;padding:8px 12px;border-radius:8px;display:none"></div>
       <div class="form-group" id="mk_jilid_wrap"><label>Jilid</label>
         <select id="mk_jilid" onchange="updateKodePreview()">
           <option value="">-- Pilih --</option>
