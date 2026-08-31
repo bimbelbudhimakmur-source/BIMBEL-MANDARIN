@@ -864,6 +864,7 @@ function openModalTambahKelas() {
   ['mk_guru','mk_jilid','mk_hari','mk_sesi'].forEach(function(id){document.getElementById(id).value='';});
   document.getElementById('mk_guru').innerHTML='<option value="">-- Pilih Program dulu --</option>';
   document.getElementById('mk_jilid_wrap').style.display='';
+  document.getElementById('mk_guru_rekomendasi').style.display='none';
   document.getElementById('mk_kodePreview').textContent='Kode akan muncul otomatis';
   document.getElementById('modalKelas').classList.remove('hidden');
 }
@@ -891,10 +892,53 @@ async function openEditKelas(id) {
     document.getElementById('mk_sesi_text').value=k.sesi||'';
   }
   updateKodePreview();
+  updateGuruRekomendasi();
   document.getElementById('modalKelas').classList.remove('hidden');
 }
 
 var HARI_DEFAULT_NONMANDARIN = 'Senin-Jumat';
+
+async function updateGuruRekomendasi() {
+  var box = document.getElementById('mk_guru_rekomendasi');
+  var programId = document.getElementById('mk_program').value;
+  var prog = programListAdmin.find(function(p){ return p.id === programId; });
+  var isMandarin = prog && prog.kode === 'MANDARIN';
+  var guruId = document.getElementById('mk_guru').value;
+
+  if (!isMandarin || !guruId) { box.style.display = 'none'; box.innerHTML = ''; return; }
+
+  var gs = document.getElementById('mk_guru');
+  var opt = gs.options[gs.selectedIndex];
+  var namaGuru = opt ? opt.textContent.replace(/\s*\[.*\]$/, '') : 'Guru ini';
+
+  var { data } = await db.from('kelas').select('id,hari_belajar,sesi').eq('guru_id', guruId).eq('is_active', true);
+  var occupied = {};
+  (data||[]).forEach(function(k){
+    if (editingKelasId && k.id === editingKelasId) return; // kecualikan kelas yang sedang diedit
+    occupied[k.hari_belajar+'|'+k.sesi] = true;
+  });
+
+  var hariOpts = [{v:'135',l:'Sen·Rab·Jum'},{v:'246',l:'Sel·Kam·Sab'}];
+  var sesiOpts = [{v:'sore',l:'Sore 16:00–17:45'},{v:'malam',l:'Malam 18:00–19:45'}];
+  var free = [];
+  hariOpts.forEach(function(h){
+    sesiOpts.forEach(function(s){
+      if (!occupied[h.v+'|'+s.v]) free.push(h.l+' — '+s.l);
+    });
+  });
+
+  box.style.display = 'block';
+  if (free.length === 4) {
+    box.style.background = '#f0fdf4'; box.style.color = '#166534'; box.style.border = '1px solid #86efac';
+    box.innerHTML = '✅ <b>'+namaGuru+'</b> belum mengajar kelas apapun — semua slot jadwal masih kosong.';
+  } else if (free.length === 0) {
+    box.style.background = '#fef2f2'; box.style.color = '#991b1b'; box.style.border = '1px solid #fca5a5';
+    box.innerHTML = '⚠️ <b>'+namaGuru+'</b> sudah mengajar di semua slot yang ada (135 &amp; 246, Sore &amp; Malam). Menambah kelas baru berisiko bentrok jadwal.';
+  } else {
+    box.style.background = '#eff6ff'; box.style.color = '#1e40af'; box.style.border = '1px solid #93c5fd';
+    box.innerHTML = '💡 <b>'+namaGuru+'</b> masih kosong di: '+free.join(', ')+'.';
+  }
+}
 
 function updateKodePreview() {
   var gs=document.getElementById('mk_guru');
@@ -1347,6 +1391,7 @@ async function onProgramKelasChange() {
   });
   gsel.innerHTML = opts;
   updateKodePreview();
+  updateGuruRekomendasi();
 }
 
 async function populateKelasSelect(elId) {
