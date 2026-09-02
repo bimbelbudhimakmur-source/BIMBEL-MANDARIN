@@ -104,6 +104,8 @@ async function initProgramSwitcherAdmin() {
 
   var currentProg = progs.find(function(p){return p.id===activeProgramId;});
   document.getElementById('programSwitcherLabel').textContent = currentProg ? currentProg.nama : '—';
+  var brandEl = document.getElementById('headerBrandId');
+  if (brandEl) brandEl.textContent = 'BUDHI MAKMUR ' + (currentProg ? currentProg.nama.toUpperCase() : 'MANDARIN');
 
   document.getElementById('programSwitcherMenu').innerHTML = progs.map(function(p) {
     return '<div onclick="switchActiveProgramAdmin(\''+p.id+'\')" style="padding:10px 16px;cursor:pointer;font-size:13px;font-weight:600;'+(p.id===activeProgramId?'background:#fdf2f4;color:#b01020':'color:#374151')+'" onmouseover="this.style.background=\'#fdf2f4\'" onmouseout="this.style.background=\''+(p.id===activeProgramId?'#fdf2f4':'white')+'\'">'
