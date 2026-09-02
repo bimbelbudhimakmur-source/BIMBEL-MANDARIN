@@ -11,7 +11,7 @@
 <header class="dash-header">
   <div class="header-brand">
     <span class="header-zh">興毅南興山口洋補習所</span>
-    <span class="header-id">BUDHI MAKMUR MANDARIN</span>
+    <span class="header-id" id="headerBrandId">BUDHI MAKMUR MANDARIN</span>
   </div>
   <div class="header-right">
     <div class="header-user">
@@ -618,6 +618,8 @@ async function loadSysSettings() {
 
   if (guru) {
     guruData = guru;
+    const brandEl = document.getElementById('headerBrandId');
+    if (brandEl && guru.program?.nama) brandEl.textContent = 'BUDHI MAKMUR ' + guru.program.nama.toUpperCase();
     document.getElementById('headerKode').textContent = guru.kode_guru;
     document.getElementById('namaGuru').textContent   = guru.nama_lengkap;
     document.getElementById('kodeGuru').textContent   = guru.kode_guru;

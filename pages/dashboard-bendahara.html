@@ -11,7 +11,7 @@
 <header class="dash-header">
   <div class="header-brand">
     <span class="header-zh">興毅南興山口洋補習所</span>
-    <span class="header-id">BUDHI MAKMUR MANDARIN</span>
+    <span class="header-id" id="headerBrandId">BUDHI MAKMUR MANDARIN</span>
   </div>
   <div class="header-right">
     <div class="program-switcher" id="programSwitcherWrap" style="position:relative;margin-right:12px">
@@ -2098,6 +2098,8 @@ async function initProgramSwitcherB() {
 
   const currentProg = progs.find(p => p.id === activeProgramId);
   document.getElementById('programSwitcherLabel').textContent = currentProg ? currentProg.nama : '—';
+  const brandEl = document.getElementById('headerBrandId');
+  if (brandEl) brandEl.textContent = 'BUDHI MAKMUR ' + (currentProg ? currentProg.nama.toUpperCase() : 'MANDARIN');
 
   document.getElementById('programSwitcherMenu').innerHTML = progs.map(p => `
     <div onclick="switchActiveProgramB('${p.id}')" style="padding:10px 16px;cursor:pointer;font-size:13px;font-weight:600;${p.id===activeProgramId?'background:#fdf2f4;color:#b01020':'color:#374151'}" onmouseover="this.style.background='#fdf2f4'" onmouseout="this.style.background='${p.id===activeProgramId?'#fdf2f4':'white'}'">
