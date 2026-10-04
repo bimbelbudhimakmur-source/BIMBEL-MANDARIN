@@ -71,9 +71,9 @@
         </div>
         <div class="stat-card" onclick="switchTab('kelas')" style="cursor:pointer;transition:transform 0.15s,box-shadow 0.15s" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 24px rgba(194,24,91,0.15)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
           <div class="stat-icon">👨‍🎓</div>
-          <div class="stat-label">Total Murid</div>
+          <div class="stat-label">Murid Aktif</div>
           <div class="stat-value" id="statMurid">—</div>
-          <div class="stat-desc">Di semua kelas</div>
+          <div class="stat-desc">Di semua kelas · <span id="statMuridNonaktif" style="color:#dc2626;font-weight:700">—</span> nonaktif</div>
         </div>
         <div class="stat-card" onclick="switchTab('pelunasan')" style="cursor:pointer;transition:transform 0.15s,box-shadow 0.15s" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 24px rgba(194,24,91,0.15)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
           <div class="stat-icon">⏳</div>
@@ -765,13 +765,19 @@ async function validateSetoranForm() {
 // ============================================
 async function loadStats() {
   const kelasIds = kelasSaya.map(k => k.id);
-  let totalMurid = 0;
+  // Enrollment aktif bisa aja berisi murid yang status siswa-nya sudah nonaktif
+  // (berhenti tapi belum di-unenroll dari kelas) — jadi dipisah jelas: aktif vs nonaktif.
+  let muridAktif = 0, muridNonaktif = 0;
   for (const kid of kelasIds) {
-    const { count } = await db.from('enrollment')
-      .select('*', { count: 'exact', head: true })
+    const { data: enr } = await db.from('enrollment')
+      .select('siswa:siswa_id(status)')
       .eq('kelas_id', kid).eq('is_active', true);
-    totalMurid += count || 0;
+    (enr || []).forEach(e => {
+      if (e.siswa?.status === false) muridNonaktif++;
+      else muridAktif++;
+    });
   }
+  const totalMurid = muridAktif + muridNonaktif;
 
   const bulanIni = new Date().toISOString().slice(0, 7);
   let belumLunas = 0;
@@ -794,7 +800,9 @@ async function loadStats() {
     .eq('bulan', bulanIni).maybeSingle();
 
   document.getElementById('statKelas').textContent     = kelasSaya.length;
-  document.getElementById('statMurid').textContent     = totalMurid;
+  document.getElementById('statMurid').textContent     = muridAktif;
+  const statMuridNonaktifEl = document.getElementById('statMuridNonaktif');
+  if (statMuridNonaktifEl) statMuridNonaktifEl.textContent = muridNonaktif;
   document.getElementById('statBelumLunas').textContent = belumLunas;
   document.getElementById('statGaji').textContent      = gajiData
     ? (gajiData.status === 'dibayar' ? '✅ Dibayar' : '⏳ Pending')
@@ -858,6 +866,11 @@ function renderKelas() {
 
   container.innerHTML = kelasSaya.map(k => {
     const murid = (k.enrollment || []).filter(e => e.is_active && e.siswa?.status);
+    // Murid yang sudah disetujui Admin jadi Nonaktif (siswa.status=false) tapi enrollment-nya
+    // masih is_active=true (enrollment tidak diubah saat approve). Tetap ditampilkan di list
+    // (diredupkan), tapi TIDAK masuk ke 'murid' di atas — jadi otomatis tidak ikut hitungan
+    // jumlah murid & proyeksi gaji.
+    const muridNonaktifDisetujui = (k.enrollment || []).filter(e => e.is_active && e.siswa && e.siswa.status === false);
     const isTK = k.jilid === 0 || k.jilid === '0';
     const biayaBulanan = isTK ? (guruData.biayaTK || 0) : (guruData.biayaMap?.[k.jilid] || 0);
     const totalIuran   = murid.length * biayaBulanan;
@@ -917,8 +930,8 @@ function renderKelas() {
         </div>
         <div style="font-size:13px;color:var(--text-2);margin-bottom:12px">
           <strong>${murid.length}</strong> murid aktif
-          ${(k.enrollment||[]).filter(e => !e.is_active && !e.has_determination).length > 0
-            ? `<span style="color:#9ca3af;margin-left:6px">(+${(k.enrollment||[]).filter(e => !e.is_active && !e.has_determination).length} nonaktif)</span>`
+          ${((k.enrollment||[]).filter(e => !e.is_active && !e.has_determination).length + muridNonaktifDisetujui.length) > 0
+            ? `<span style="color:#9ca3af;margin-left:6px">(+${(k.enrollment||[]).filter(e => !e.is_active && !e.has_determination).length + muridNonaktifDisetujui.length} nonaktif)</span>`
             : ''}
         </div>
         ${murid.length ? `
@@ -958,8 +971,26 @@ function renderKelas() {
               <td><span style="font-size:11px;color:#9ca3af">—</span></td>
             </tr>`;
             }).join('')}
+            ${muridNonaktifDisetujui.map(e => `<tr style="opacity:0.5;background:#f9fafb">
+              <td style="color:#9ca3af">${e.siswa.nomor_induk||'—'}</td>
+              <td><span style="color:#9ca3af">${e.siswa.nama_lengkap}</span></td>
+              <td style="color:#9ca3af">${e.siswa.nama_mandarin||'—'}</td>
+              <td><span class="badge badge-red">Nonaktif</span></td>
+              <td><span style="font-size:11px;color:#9ca3af">—</span></td>
+            </tr>`).join('')}
           </tbody>
-        </table>` : `<div class="empty-state" style="padding:20px"><div class="empty-state-sub">Belum ada murid di kelas ini</div></div>`}
+        </table>` : (muridNonaktifDisetujui.length ? `<table class="table">
+          <thead><tr><th>No. Induk</th><th>Nama Murid</th><th>Nama Mandarin</th><th>Status</th><th>Aksi</th></tr></thead>
+          <tbody>
+            ${muridNonaktifDisetujui.map(e => `<tr style="opacity:0.5;background:#f9fafb">
+              <td style="color:#9ca3af">${e.siswa.nomor_induk||'—'}</td>
+              <td><span style="color:#9ca3af">${e.siswa.nama_lengkap}</span></td>
+              <td style="color:#9ca3af">${e.siswa.nama_mandarin||'—'}</td>
+              <td><span class="badge badge-red">Nonaktif</span></td>
+              <td><span style="font-size:11px;color:#9ca3af">—</span></td>
+            </tr>`).join('')}
+          </tbody>
+        </table>` : `<div class="empty-state" style="padding:20px"><div class="empty-state-sub">Belum ada murid di kelas ini</div></div>`)}
         ${proyeksiBox}
       </div>
     `;
@@ -1056,32 +1087,58 @@ async function loadHistory() {
   const histEl = document.getElementById('absensiHistory');
   if (!kelasId) { histEl.style.display='none'; return; }
 
+  // Ambil SEMUA riwayat (bukan cuma 20 terakhir) supaya "Pertemuan ke-" bisa dihitung
+  // dengan benar berdasarkan urutan tanggal dari awal.
   const { data } = await db.from('absensi')
-    .select('tanggal, hadir')
+    .select('tanggal, hadir, catatan, siswa:siswa_id(nama_lengkap, nama_mandarin)')
     .eq('kelas_id', kelasId)
-    .order('tanggal', { ascending: false })
-    .limit(20);
+    .order('tanggal', { ascending: true });
 
   if (!data?.length) { histEl.style.display='none'; return; }
 
-  // Grup per tanggal
+  // Grup per tanggal, urut ascending dulu biar nomor pertemuan benar
   const perTanggal = {};
+  const urutTanggalAsc = [];
   data.forEach(a => {
-    if (!perTanggal[a.tanggal]) perTanggal[a.tanggal] = { hadir: 0, tidakHadir: 0 };
-    if (a.hadir) perTanggal[a.tanggal].hadir++;
-    else perTanggal[a.tanggal].tidakHadir++;
+    if (!perTanggal[a.tanggal]) { perTanggal[a.tanggal] = { hadir: 0, tidakHadir: [] }; urutTanggalAsc.push(a.tanggal); }
+    if (a.hadir) {
+      perTanggal[a.tanggal].hadir++;
+    } else {
+      const ketLabel = a.catatan === 'sakit' ? 'Sakit' : a.catatan === 'izin' ? 'Izin' : 'Tanpa Keterangan';
+      perTanggal[a.tanggal].tidakHadir.push({
+        nama: a.siswa?.nama_lengkap || '—',
+        namaMandarin: a.siswa?.nama_mandarin || '',
+        ket: ketLabel
+      });
+    }
   });
 
+  const pertemuanKe = {};
+  urutTanggalAsc.forEach((tgl, idx) => { pertemuanKe[tgl] = idx + 1; });
+
+  // Tampilkan dari yang terbaru di atas, list ke bawah (bukan kotak-kotak)
+  const urutTanggalDesc = [...urutTanggalAsc].sort((a,b) => b.localeCompare(a));
+
   histEl.style.display = 'block';
-  histEl.innerHTML = '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">📅 Riwayat Absensi</div>'
-    +'<div style="display:flex;flex-wrap:wrap;gap:8px">'
-    + Object.entries(perTanggal).sort((a,b) => b[0].localeCompare(a[0])).map(([tgl, stat]) =>
-      '<div style="background:white;border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:12px">'
-      +'<div style="font-weight:600;color:var(--text)">'+tgl+'</div>'
-      +'<div style="color:#059669">✅ '+stat.hadir+' hadir'+(stat.tidakHadir?' &nbsp;·&nbsp; <span style="color:#dc2626">❌ '+stat.tidakHadir+' absen</span>':'')+'</div>'
-      +'</div>'
-    ).join('')
-    +'</div>';
+  histEl.innerHTML = '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px">📅 Riwayat Absensi</div>'
+    + '<div class="table-wrap"><table class="table"><thead><tr>'
+    + '<th>Tanggal</th><th>Pertemuan ke-</th><th>Hadir</th><th>Murid Tidak Hadir</th>'
+    + '</tr></thead><tbody>'
+    + urutTanggalDesc.map(tgl => {
+        const stat = perTanggal[tgl];
+        const tidakHadirCell = stat.tidakHadir.length
+          ? stat.tidakHadir.map(m =>
+              `${m.nama}${m.namaMandarin ? ' ('+m.namaMandarin+')' : ''} <span style="color:#6b7280">— ${m.ket}</span>`
+            ).join('<br>')
+          : '<span style="color:#9ca3af">—</span>';
+        return `<tr>
+          <td style="white-space:nowrap">${tgl}</td>
+          <td style="text-align:center">${pertemuanKe[tgl]}</td>
+          <td style="color:#059669;font-weight:600;white-space:nowrap">✅ ${stat.hadir} murid</td>
+          <td style="font-size:12px;color:#dc2626">${tidakHadirCell}</td>
+        </tr>`;
+      }).join('')
+    + '</tbody></table></div>';
 }
 
 function onChkAbsensi(el) {
@@ -1621,7 +1678,13 @@ async function loadNilaiForm() {
   (nilaiData||[]).forEach(n => {
     if (!nilaiMap[n.siswa_id]) nilaiMap[n.siswa_id] = {};
     let colKey;
-    if (jenis === 'lianxi') colKey = n.bab ? `bab_${n.bab}` : 'nilai';
+    // 听写 (babFirst): bab sudah ditentukan lewat dropdown Bab terpisah, jadi kolomnya
+    // cuma 1 ('nilai') — bukan 'bab_X' seperti 练习. Harus dicek PALING AWAL, karena
+    // n.bab tetap terisi (truthy) untuk jenis ini sehingga kena cabang 'else' di bawah
+    // kalau tidak dicek duluan, akibatnya nilai yang sudah tersimpan gagal dimuat ulang
+    // ke form (kelihatan kosong lagi padahal datanya masih ada di database).
+    if (cfg.babFirst) colKey = 'nilai';
+    else if (jenis === 'lianxi') colKey = n.bab ? `bab_${n.bab}` : 'nilai';
     else if (dbJenis === 'tingshuo') colKey = n.sub_jenis;
     else if (cfg.dateBased) colKey = n.sub_jenis;
     else colKey = n.bab ? `bab_${n.bab}` : 'nilai';
@@ -2009,14 +2072,29 @@ async function loadSetoran() {
     return '—';
   };
 
+  // Nominal gaji di tabel 'penggajian' itu 1 baris per guru per BULAN (gabungan semua kelas
+  // guru itu di bulan tsb), bukan per kelas. Supaya tidak kelihatan "dobel" saat guru punya
+  // >1 kelas di bulan yang sama, nominal cuma ditampilkan sekali di baris pertama tiap bulan.
+  const bulanCount = {};
+  data.forEach(s => { bulanCount[s.bulan] = (bulanCount[s.bulan] || 0) + 1; });
+  const bulanShown = new Set();
+
   tbody.innerHTML = data.map(s => {
     const gaji = gajiMap[s.bulan];
-    const nominalCell = gaji
-      ? `<span style="font-weight:700;color:${gaji.status==='dibayar'?'#15803d':'#6b7280'}">
+    const sudahTampil = bulanShown.has(s.bulan);
+    bulanShown.add(s.bulan);
+
+    let nominalCell;
+    if (!gaji) {
+      nominalCell = '<span style="color:#9ca3af;font-size:12px">—</span>';
+    } else if (sudahTampil) {
+      nominalCell = '<span style="color:#9ca3af;font-size:11px">↑ sudah termasuk di baris atas</span>';
+    } else {
+      nominalCell = `<span style="font-weight:700;color:${gaji.status==='dibayar'?'#15803d':'#6b7280'}">
            Rp ${Number(gaji.total_gaji).toLocaleString('id-ID')}
            ${gaji.status==='dibayar' ? ' <span style="font-size:11px">✅</span>' : ' <span style="font-size:11px;color:#9ca3af">(belum cair)</span>'}
-         </span>`
-      : '<span style="color:#9ca3af;font-size:12px">—</span>';
+         </span>${bulanCount[s.bulan] > 1 ? `<div style="font-size:10px;color:#9ca3af;margin-top:2px">Gabungan ${bulanCount[s.bulan]} kelas bulan ini</div>` : ''}`;
+    }
 
     return `<tr>
       <td>${s.bulan}</td>
