@@ -149,6 +149,14 @@
 
       <div id="absensiWarning" style="display:none;margin-top:12px;padding:10px 14px;background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;font-size:13px;color:#991b1b"></div>
 
+      <div id="absensiTanggalBaruWrap" style="display:none;margin-top:10px">
+        <div class="form-group" style="max-width:220px">
+          <label>📅 Ganti ke Tanggal</label>
+          <input type="date" id="absensiTanggalBaru">
+        </div>
+        <div style="font-size:12px;color:#6b7280;margin-top:-6px">Kosongkan / biarkan sama kalau cuma mau edit data kehadiran tanpa ganti tanggal.</div>
+      </div>
+
       <div id="absensiTableWrap" style="display:none;margin-top:8px">
         <div class="table-wrap">
           <table class="table">
@@ -1036,6 +1044,11 @@ async function loadTableAbsensi() {
   const warningEl = document.getElementById('absensiWarning');
   const btnSimpan = document.getElementById('btnSimpanAbsensi');
   const btnHadir  = document.getElementById('btnHadirSemua');
+  // Reset opsi "Ganti Tanggal" tiap kali pindah kelas/tanggal — defaultnya tersembunyi,
+  // cuma muncul lagi kalau guru klik "Edit / Override" di bawah.
+  const tglBaruWrap = document.getElementById('absensiTanggalBaruWrap');
+  if (tglBaruWrap) tglBaruWrap.style.display = 'none';
+
   if (absensiSudahAda) {
     warningEl.style.display = 'block';
     warningEl.innerHTML = '⚠️ Absensi tanggal <strong>'+tanggal+'</strong> sudah pernah diisi. '
@@ -1080,6 +1093,14 @@ function unlockAbsensi() {
   btnSimpan.disabled = false; btnHadir.disabled = false;
   btnSimpan.style.opacity='1'; btnHadir.style.opacity='1';
   document.querySelectorAll('.chk-absensi').forEach(c => c.disabled = false);
+
+  // Tampilkan opsi ganti tanggal, default-nya sama dengan tanggal yang lagi dibuka
+  const tglBaruWrap  = document.getElementById('absensiTanggalBaruWrap');
+  const tglBaruInput = document.getElementById('absensiTanggalBaru');
+  if (tglBaruWrap && tglBaruInput) {
+    tglBaruInput.value = document.getElementById('absensiTanggal').value;
+    tglBaruWrap.style.display = 'block';
+  }
 }
 
 async function loadHistory() {
@@ -1160,14 +1181,31 @@ function hadirSemuaTable() {
 
 async function simpanAbsensi() {
   const kelasId = document.getElementById('absensiKelas').value;
-  const tanggal = document.getElementById('absensiTanggal').value;
-  if (!kelasId || !tanggal) { alert('Pilih kelas dan tanggal!'); return; }
+  const tanggalAsli = document.getElementById('absensiTanggal').value;
+  if (!kelasId || !tanggalAsli) { alert('Pilih kelas dan tanggal!'); return; }
+
+  // Mode edit bisa sekalian ganti tanggal pertemuan (field ini cuma muncul & dipakai
+  // kalau sedang Edit/Override, lihat unlockAbsensi()).
+  const tglBaruWrap  = document.getElementById('absensiTanggalBaruWrap');
+  const tglBaruInput = document.getElementById('absensiTanggalBaru');
+  const tanggalDipakai = (tglBaruWrap && tglBaruWrap.style.display !== 'none' && tglBaruInput && tglBaruInput.value)
+    ? tglBaruInput.value : tanggalAsli;
+  const pindahTanggal = tanggalDipakai !== tanggalAsli;
+
+  if (pindahTanggal) {
+    const { data: cekBentrok } = await db.from('absensi').select('id')
+      .eq('kelas_id', kelasId).eq('tanggal', tanggalDipakai).limit(1);
+    const pesanKonfirm = (cekBentrok && cekBentrok.length)
+      ? `⚠️ Tanggal ${tanggalDipakai} sudah punya data absensi lain untuk kelas ini. Lanjutkan akan MENIMPA data di tanggal tersebut. Lanjutkan?`
+      : `Pindahkan absensi dari tanggal ${tanggalAsli} ke ${tanggalDipakai}?`;
+    if (!confirm(pesanKonfirm)) return;
+  }
 
   const rows = absensiMuridList.map(e => {
     const checkedEl = document.querySelector(`.chk-absensi[data-id="${e.siswa.id}"]:checked`);
     const ket = checkedEl ? checkedEl.getAttribute('data-ket') : 'hadir';
     return {
-      siswa_id: e.siswa.id, kelas_id: kelasId, tanggal,
+      siswa_id: e.siswa.id, kelas_id: kelasId, tanggal: tanggalDipakai,
       hadir: ket === 'hadir',
       catatan: ket !== 'hadir' ? ket : null
     };
@@ -1175,8 +1213,17 @@ async function simpanAbsensi() {
 
   const { error } = await db.from('absensi').upsert(rows, { onConflict: 'siswa_id,kelas_id,tanggal' });
   if (error) { alert('❌ Gagal simpan: ' + error.message); return; }
+
+  // Kalau tanggal diganti, hapus data lama di tanggal asli supaya tidak nyangkut dobel
+  if (pindahTanggal) {
+    await db.from('absensi').delete().eq('kelas_id', kelasId).eq('tanggal', tanggalAsli);
+    document.getElementById('absensiTanggal').value = tanggalDipakai;
+    if (tglBaruWrap) tglBaruWrap.style.display = 'none';
+  }
+
   const tidakHadir = rows.filter(r => !r.hadir).length;
-  alert('✅ Absensi disimpan!\n'+(rows.length-tidakHadir)+' hadir, '+tidakHadir+' tidak hadir.');
+  alert('✅ Absensi disimpan!\n'+(rows.length-tidakHadir)+' hadir, '+tidakHadir+' tidak hadir.'
+    + (pindahTanggal ? '\n📅 Tanggal pertemuan diubah ke '+tanggalDipakai+'.' : ''));
   absensiSudahAda = true;
   await loadTableAbsensi();
   // Refresh rekap hanya kalau kelas rekap sudah dipilih
