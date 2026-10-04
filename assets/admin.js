@@ -376,17 +376,23 @@ async function viewKelasStudents(kelasId, kelasKode) {
       .eq('kelas_id', kelasId);
     var all = res.data || [];
 
-    var aktif    = all.filter(function(e){ return e.is_active; });
+    // 'is_active' itu status KEANGGOTAAN di kelas, beda sama 'siswa.status' (status aktif
+    // murid itu sendiri). Admin approve "Nonaktifkan" murid cuma update siswa.status —
+    // enrollment-nya TIDAK ikut diubah. Jadi harus dicek keduanya, bukan cuma is_active,
+    // supaya murid yang udah disetujui nonaktif tidak nyasar kehitung/kelihatan "Aktif".
+    var aktif    = all.filter(function(e){ return e.is_active && e.siswa && e.siswa.status !== false; });
+    var nonaktifDisetujui = all.filter(function(e){ return e.is_active && e.siswa && e.siswa.status === false; });
     var riwayat  = all.filter(function(e){ return !e.is_active && !e.has_determination; });
+    var totalNonaktif = nonaktifDisetujui.length + riwayat.length;
 
     var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">'
-      +'<div style="font-size:13px;color:var(--text-2)"><strong>'+(aktif.length + riwayat.length)+'</strong> murid terdaftar'
-      +(riwayat.length ? ' <span style="color:#9ca3af;font-size:11px">('+aktif.length+' aktif, '+riwayat.length+' riwayat)</span>' : '')
+      +'<div style="font-size:13px;color:var(--text-2)"><strong>'+(aktif.length + totalNonaktif)+'</strong> murid terdaftar'
+      +(totalNonaktif ? ' <span style="color:#9ca3af;font-size:11px">('+aktif.length+' aktif, '+totalNonaktif+' nonaktif/riwayat)</span>' : '')
       +'</div>'
       +'<button class="btn btn-primary btn-sm" onclick="closeModal(\'modalKelasDetail\');openModalDaftarAdmin(\''+kelasId+'\')">➕ Tambah Siswa</button>'
       +'</div>';
 
-    if (!aktif.length && !riwayat.length) {
+    if (!aktif.length && !totalNonaktif) {
       html += '<div style="text-align:center;padding:30px;color:var(--text-2)">Belum ada murid di kelas ini</div>';
     } else {
       html += '<table class="table"><thead><tr><th>No. Induk</th><th>Nama Indonesia</th><th>Nama Mandarin</th><th>HP</th><th>Status</th></tr></thead><tbody>';
@@ -400,6 +406,18 @@ async function viewKelasStudents(kelasId, kelasKode) {
           +'<td style="color:#6b7280">'+(s.nama_mandarin||'—')+'</td>'
           +'<td>'+(s.telepon||'—')+'</td>'
           +'<td><span class="badge badge-green">Aktif</span></td>'
+          +'</tr>';
+      });
+
+      // Murid yang sudah disetujui Nonaktif tapi enrollment-nya masih menempel di kelas ini
+      nonaktifDisetujui.forEach(function(e) {
+        var s = e.siswa; if (!s) return;
+        html += '<tr style="opacity:0.5;background:#f9fafb">'
+          +'<td style="font-family:monospace;color:#9ca3af">'+(s.nomor_induk||'—')+'</td>'
+          +'<td style="color:#9ca3af">'+s.nama_lengkap+'</td>'
+          +'<td style="color:#9ca3af">'+(s.nama_mandarin||'—')+'</td>'
+          +'<td style="color:#9ca3af">'+(s.telepon||'—')+'</td>'
+          +'<td><span class="badge badge-red">Nonaktif</span></td>'
           +'</tr>';
       });
 
@@ -583,7 +601,7 @@ async function loadRR() {
   try {
     // Load semua kelas aktif untuk dropdown penempatan
     var kelasResQ = db.from('kelas')
-      .select('id,kode_kelas,jilid,is_active,program_id,enrollment(id,is_active)')
+      .select('id,kode_kelas,jilid,is_active,program_id,enrollment(id,is_active,siswa:siswa_id(status))')
       .eq('is_active', true)
       .order('jilid').order('kode_kelas');
     if (typeof activeProgramId !== 'undefined' && activeProgramId) kelasResQ = kelasResQ.eq('program_id', activeProgramId);
@@ -672,7 +690,7 @@ function renderRR(list) {
 
     var kelasOpts = '<option value="">-- Pilih Kelas --</option>';
     filteredKelas.forEach(function(k){
-      var cnt = k.enrollment ? k.enrollment.filter(function(e){return e.is_active;}).length : 0;
+      var cnt = k.enrollment ? k.enrollment.filter(function(e){return e.is_active && e.siswa && e.siswa.status !== false;}).length : 0;
       kelasOpts += '<option value="'+k.id+'">'+k.kode_kelas+' ('+cnt+' murid)</option>';
     });
 
@@ -754,14 +772,14 @@ async function openPenempatan(siswaId, nama, currentJilid, tipe) {
   }
   if (!targets.length) { alert('Tidak ada jilid tersedia!'); return; }
   var kelas=(await db.from('kelas')
-    .select('*, guru:guru_id(nama_lengkap), enrollment(id,is_active)')
+    .select('*, guru:guru_id(nama_lengkap), enrollment(id,is_active,siswa:siswa_id(status))')
     .in('jilid',targets).eq('is_active',true)).data||[];
   var html='';
   if (kelas.length) {
     for (var i=0;i<kelas.length;i++) {
       var k=kelas[i];
       var hariL=k.hari_belajar==='135'?'Sen·Rab·Jum':'Sel·Kam·Sab';
-      var cnt=k.enrollment?k.enrollment.filter(function(e){return e.is_active;}).length:0;
+      var cnt=k.enrollment?k.enrollment.filter(function(e){return e.is_active && e.siswa && e.siswa.status !== false;}).length:0;
       var total=k.enrollment?k.enrollment.length:0;
       html += '<div class="kelas-option" onclick="assignKelas(\''+siswaId+'\',\''+k.id+'\',this)">'
         +'<div><div style="font-family:monospace;font-weight:700;color:var(--pink)">'+k.kode_kelas+'</div>'
@@ -805,7 +823,7 @@ async function loadKelas() {
     var gf=document.getElementById('filterGuruKelas').value;
     var jf=jilidFilterEl.value;
     var tf=tingkatFilterEl.value;
-    var q=db.from('kelas').select('*, guru:guru_id(id,nama_lengkap,kode_guru), enrollment(id,is_active,has_determination)').order('kode_kelas');
+    var q=db.from('kelas').select('*, guru:guru_id(id,nama_lengkap,kode_guru), enrollment(id,is_active,has_determination,siswa:siswa_id(status))').order('kode_kelas');
     if (activeProgramId) q=q.eq('program_id',activeProgramId);
     if (gf) q=q.eq('guru_id',gf);
     if (isMandarin && jf) q=q.eq('jilid',jf);
@@ -836,7 +854,10 @@ function renderKelas(list) {
     var k=list[i];
     var hari = (k.hari_belajar==='135') ? 'Sen·Rab·Jum' : (k.hari_belajar==='246') ? 'Sel·Kam·Sab' : (k.hari_belajar || '—');
     var jam = (k.sesi==='sore') ? '16:00–17:45' : (k.sesi==='malam') ? '18:00–19:45' : (k.sesi || '');
-    var cnt   = k.enrollment ? k.enrollment.filter(function(e){ return e.is_active; }).length : 0;
+    // is_active = keanggotaan di kelas; siswa.status = status aktif murid itu sendiri.
+    // Approve "Nonaktifkan" cuma update siswa.status, enrollment tetap is_active=true —
+    // jadi cnt (murid AKTIF) harus cek dua-duanya, bukan cuma is_active.
+    var cnt   = k.enrollment ? k.enrollment.filter(function(e){ return e.is_active && e.siswa && e.siswa.status !== false; }).length : 0;
     var total = k.enrollment ? k.enrollment.filter(function(e){ return !e.has_determination; }).length : 0;
     var muridCell = '<strong>'+cnt+'</strong>/<span style="color:#9ca3af">'+total+'</span>';
     html += '<tr>'
