@@ -44,6 +44,9 @@
     <div class="sidebar-item" data-tab="bank-soal">
       <span class="sidebar-icon">📄</span><span>Bank Soal</span>
     </div>
+    <div class="sidebar-item" data-tab="program" id="menuProgram" style="opacity:0.5">
+      <span class="sidebar-icon">🎤</span><span>Program</span><span id="badgeProgram" style="display:none;margin-left:auto;background:#b01020;color:#fff;border-radius:10px;font-size:10px;font-weight:700;padding:1px 7px"></span>
+    </div>
     <div class="sidebar-item" data-tab="penggajian">
       <span class="sidebar-icon">💰</span><span>Penggajian</span>
     </div>
@@ -484,6 +487,45 @@
       </div>
     </div>
 
+    <!-- TAB: PROGRAM (Speaking & HSK Mock Test — khusus guru yang ditunjuk jadi juri) -->
+    <div id="tab-program" class="tab-content">
+      <div class="page-title">Program — Penilaian Juri</div>
+      <div class="page-sub">Event Speaking &amp; HSK Mock Test tempat Anda ditunjuk sebagai juri oleh Leader</div>
+
+      <div id="progKosong" class="empty-state" style="display:none">
+        <div class="empty-state-icon">🔒</div>
+        <div class="empty-state-title">Belum ada penugasan</div>
+        <div class="empty-state-sub">Menu ini aktif otomatis saat Leader menunjuk Anda sebagai juri di sebuah event.</div>
+      </div>
+
+      <div id="progIsi" style="display:none">
+        <div class="form-section">
+          <div class="form-grid">
+            <div class="form-group"><label>Pilih Event</label>
+              <select id="progEvent" onchange="loadProgramNilai()"></select>
+            </div>
+            <div class="form-group"><label>Filter Kelas</label>
+              <select id="progKelasFilter" onchange="progFilterKelas()"><option value="">Semua kelas</option></select>
+            </div>
+          </div>
+          <div id="progInfo" style="margin-top:10px;font-size:13px;color:#374151"></div>
+        </div>
+
+        <div id="progTableWrap" style="display:none;margin-top:12px">
+          <div class="table-wrap">
+            <table class="table">
+              <thead id="progThead"></thead>
+              <tbody id="progTbody"></tbody>
+            </table>
+          </div>
+          <div class="form-actions" style="margin-top:12px">
+            <button class="btn btn-primary" id="btnSimpanProg" onclick="simpanProgramNilai()">💾 Simpan Nilai</button>
+            <span id="progProgress" style="font-size:13px;color:#6b7280;margin-left:12px"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- TAB: KALDIK -->
     <div id="tab-kaldik" class="tab-content">
       <div class="page-title">Kalender Pendidikan</div>
@@ -680,6 +722,7 @@ async function loadSysSettings() {
   if (guruData) {
     await loadKelasSaya();
     await loadStats();
+    await initProgramGuru();
   }
 })();
 
@@ -696,6 +739,7 @@ function switchTab(tab) {
   if (tab === 'nilai')      { toggleNilaiSection(); }
   if (tab === 'notulen-todo') { loadNotulenTodo(); }
   if (tab === 'bank-soal')    { initBankSoalGuru(); }
+  if (tab === 'program')      { loadProgramGuru(); }
 }
 
 function toggleNilaiSection() {
@@ -2153,6 +2197,174 @@ async function loadSetoran() {
     </tr>`;
   }).join('');
 }
+
+// ============================================
+// PROGRAM (Speaking & HSK Mock Test) — GURU SEBAGAI JURI
+// ============================================
+var progEvents = [];
+var progPeserta = [];
+var progNilaiAwal = {}; // `${siswa_id}|${kriteria}` -> nilai yang sudah tersimpan
+
+function progEsc(v) {
+  return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Cek penugasan juri -> aktifkan/kunci menu Program di sidebar
+async function initProgramGuru() {
+  const menu = document.getElementById('menuProgram');
+  const badge = document.getElementById('badgeProgram');
+  if (!menu || !guruData) return;
+  try {
+    const { data, error } = await db.from('program_event_juri')
+      .select('event:event_id(id, jenis, judul, tanggal, kriteria, status)')
+      .eq('guru_id', guruData.id);
+    if (error) throw error;
+    progEvents = (data || []).map(r => r.event).filter(Boolean)
+      .sort((a, b) => (a.status === b.status ? 0 : a.status === 'aktif' ? -1 : 1) || String(b.tanggal).localeCompare(String(a.tanggal)));
+  } catch (e) {
+    progEvents = [];
+    console.warn('initProgramGuru:', e && e.message);
+  }
+  const aktif = progEvents.filter(e => e.status === 'aktif').length;
+  menu.style.opacity = aktif ? '1' : '0.5';
+  menu.title = aktif ? '' : 'Belum ada penugasan juri dari Leader';
+  if (badge) { badge.style.display = aktif ? 'inline-block' : 'none'; badge.textContent = aktif; }
+}
+
+async function loadProgramGuru() {
+  await initProgramGuru();
+  const kosong = document.getElementById('progKosong');
+  const isi = document.getElementById('progIsi');
+  if (!progEvents.length) { kosong.style.display = 'block'; isi.style.display = 'none'; return; }
+  kosong.style.display = 'none'; isi.style.display = 'block';
+
+  const sel = document.getElementById('progEvent');
+  const prev = sel.value;
+  const label = { speaking: '🎤 Speaking', hsk_mock: '📝 HSK Mock Test' };
+  sel.innerHTML = progEvents.map(e =>
+    '<option value="' + e.id + '">' + (label[e.jenis] || e.jenis) + ' — ' + progEsc(e.judul) + ' (' + progEsc(e.tanggal) + ')' + (e.status === 'selesai' ? ' [selesai]' : '') + '</option>').join('');
+  if (prev && progEvents.some(e => e.id === prev)) sel.value = prev;
+  await loadProgramNilai();
+}
+
+async function loadProgramNilai() {
+  const evId = document.getElementById('progEvent').value;
+  const ev = progEvents.find(e => e.id === evId);
+  const wrap = document.getElementById('progTableWrap');
+  const info = document.getElementById('progInfo');
+  if (!ev) { wrap.style.display = 'none'; return; }
+
+  info.textContent = '⏳ Memuat peserta...';
+  const [pRes, nRes] = await Promise.all([
+    db.rpc('get_event_peserta', { p_event: evId }),
+    db.from('program_event_nilai').select('siswa_id, kriteria, nilai').eq('event_id', evId).eq('guru_id', guruData.id)
+  ]);
+  if (pRes.error) { info.innerHTML = '<span style="color:#b91c1c">❌ ' + progEsc(pRes.error.message) + '</span>'; wrap.style.display = 'none'; return; }
+  progPeserta = pRes.data || [];
+  progNilaiAwal = {};
+  (nRes.data || []).forEach(n => { progNilaiAwal[n.siswa_id + '|' + n.kriteria] = Number(n.nilai); });
+
+  const krit = ev.kriteria || [];
+  const selesai = ev.status === 'selesai';
+  info.innerHTML = 'Anda menilai <strong>' + progPeserta.length + ' peserta</strong> dengan <strong>' + krit.length + ' kriteria</strong>. '
+    + 'Isi skor tiap kolom (0 – skor maksimal). Kosongkan kolom jika belum dinilai.'
+    + (selesai ? ' <span style="color:#b91c1c;font-weight:700">Event sudah diselesaikan Leader — nilai tidak bisa diubah.</span>' : '');
+
+  // Filter kelas
+  const kelasMap = {};
+  progPeserta.forEach(p => { kelasMap[p.kelas_id] = p.kode_kelas; });
+  const fsel = document.getElementById('progKelasFilter');
+  fsel.innerHTML = '<option value="">Semua kelas</option>' + Object.entries(kelasMap).map(([id, kd]) => '<option value="' + id + '">' + progEsc(kd) + '</option>').join('');
+
+  if (!progPeserta.length) { wrap.style.display = 'none'; info.innerHTML += '<br><span style="color:#d97706">Belum ada peserta (kelas event belum punya murid aktif).</span>'; return; }
+
+  document.getElementById('progThead').innerHTML = '<tr><th>No</th><th>Nama</th><th>Nama Mandarin</th><th>Kelas</th>'
+    + krit.map(k => '<th style="text-align:center;min-width:90px">' + progEsc(k.nama) + '<div style="font-size:10px;font-weight:400;color:#9ca3af">maks ' + progEsc(k.maks) + '</div></th>').join('') + '</tr>';
+
+  document.getElementById('progTbody').innerHTML = progPeserta.map((p, i) =>
+    '<tr class="prog-row" data-kelas="' + p.kelas_id + '"><td>' + (i + 1) + '</td>'
+    + '<td><strong>' + progEsc(p.nama_lengkap) + '</strong></td>'
+    + '<td style="color:#b91c1c">' + progEsc(p.nama_mandarin || '—') + '</td>'
+    + '<td style="font-family:monospace;font-size:12px">' + progEsc(p.kode_kelas) + '</td>'
+    + krit.map((k, ki) => {
+        const v = progNilaiAwal[p.siswa_id + '|' + k.nama];
+        return '<td style="text-align:center"><input type="number" class="prog-input" data-siswa="' + p.siswa_id + '" data-k="' + ki + '"'
+          + ' min="0" max="' + progEsc(k.maks) + '" step="0.5" value="' + (v == null ? '' : v) + '" placeholder="—"'
+          + (selesai ? ' disabled' : '') + ' oninput="progHitungProgress()"'
+          + ' style="width:80px;border:1px solid #e5e7eb;border-radius:6px;padding:5px 8px;text-align:center;font-size:13px"></td>';
+      }).join('')
+    + '</tr>').join('');
+
+  const btn = document.getElementById('btnSimpanProg');
+  btn.disabled = selesai; btn.style.opacity = selesai ? '0.5' : '1';
+  wrap.style.display = 'block';
+  progHitungProgress();
+}
+
+function progFilterKelas() {
+  const k = document.getElementById('progKelasFilter').value;
+  document.querySelectorAll('#progTbody .prog-row').forEach(tr => {
+    tr.style.display = (!k || tr.dataset.kelas === k) ? '' : 'none';
+  });
+}
+
+function progHitungProgress() {
+  const ev = progEvents.find(e => e.id === document.getElementById('progEvent').value);
+  if (!ev) return;
+  const jumlahK = (ev.kriteria || []).length;
+  let lengkap = 0;
+  progPeserta.forEach(p => {
+    const inputs = Array.from(document.querySelectorAll('.prog-input[data-siswa="' + p.siswa_id + '"]'));
+    if (inputs.length === jumlahK && inputs.every(i => i.value !== '')) lengkap++;
+  });
+  document.getElementById('progProgress').textContent = lengkap + ' dari ' + progPeserta.length + ' peserta sudah terisi lengkap';
+}
+
+async function simpanProgramNilai() {
+  const evId = document.getElementById('progEvent').value;
+  const ev = progEvents.find(e => e.id === evId);
+  if (!ev || ev.status !== 'aktif') { alert('Event ini sudah tidak aktif.'); return; }
+  const krit = ev.kriteria || [];
+
+  const upserts = [];
+  const hapus = [];
+  const salah = [];
+  document.querySelectorAll('.prog-input').forEach(inp => {
+    const siswaId = inp.dataset.siswa;
+    const k = krit[parseInt(inp.dataset.k)];
+    if (!k) return;
+    const key = siswaId + '|' + k.nama;
+    if (inp.value === '') {
+      if (progNilaiAwal[key] != null) hapus.push({ siswaId, kriteria: k.nama });
+      return;
+    }
+    const v = parseFloat(inp.value);
+    const maks = Number(k.maks) || 100;
+    if (isNaN(v) || v < 0 || v > maks) {
+      const p = progPeserta.find(x => x.siswa_id === siswaId);
+      salah.push((p ? p.nama_lengkap : siswaId) + ' — ' + k.nama + ' (harus 0–' + maks + ')');
+      return;
+    }
+    if (progNilaiAwal[key] === v) return; // tidak berubah
+    upserts.push({ event_id: evId, siswa_id: siswaId, guru_id: guruData.id, kriteria: k.nama, nilai: v, updated_at: new Date().toISOString() });
+  });
+
+  if (salah.length) { alert('❌ Ada nilai di luar rentang:\n\n' + salah.slice(0, 10).join('\n') + (salah.length > 10 ? '\n...dan ' + (salah.length - 10) + ' lainnya' : '')); return; }
+  if (!upserts.length && !hapus.length) { alert('Tidak ada perubahan untuk disimpan.'); return; }
+
+  if (upserts.length) {
+    const { error } = await db.from('program_event_nilai').upsert(upserts, { onConflict: 'event_id,siswa_id,guru_id,kriteria' });
+    if (error) { alert('❌ Gagal simpan: ' + error.message); return; }
+  }
+  for (const h of hapus) {
+    const { error } = await db.from('program_event_nilai').delete()
+      .eq('event_id', evId).eq('siswa_id', h.siswaId).eq('guru_id', guruData.id).eq('kriteria', h.kriteria);
+    if (error) { alert('❌ Gagal menghapus nilai yang dikosongkan: ' + error.message); return; }
+  }
+  alert('✅ Nilai tersimpan! (' + upserts.length + ' nilai disimpan' + (hapus.length ? ', ' + hapus.length + ' dikosongkan' : '') + ')');
+  await loadProgramNilai();
+}
+
 // ============================================
 // KALDIK (VIEW ONLY)
 // ============================================

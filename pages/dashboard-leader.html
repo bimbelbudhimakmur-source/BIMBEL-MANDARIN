@@ -508,6 +508,23 @@
         </div>
       </div>
 
+      <!-- PROGRAM KHUSUS: SPEAKING & HSK MOCK TEST -->
+      <div class="form-section" style="margin-top:20px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:6px">
+          <div>
+            <div class="form-title" style="margin-bottom:2px">🎤 Program Khusus: Speaking &amp; HSK Mock Test</div>
+            <div style="font-size:12px;color:#6b7280">Buat event, pilih kelas pesertanya, lalu tunjuk guru sebagai juri. Sidebar <strong>Program</strong> di akun guru yang ditunjuk otomatis aktif untuk input nilai.</div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="openModalEvent()">➕ Buat Event</button>
+        </div>
+        <div class="table-wrap" style="margin-top:12px">
+          <table class="table">
+            <thead><tr><th>Program</th><th>Judul</th><th>Tanggal</th><th>Kelas Peserta</th><th>Juri</th><th>Status</th><th>Aksi</th></tr></thead>
+            <tbody id="tableProgramEvent"><tr class="loading-row"><td colspan="7">⏳ Memuat...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- AUTO TIME-LOCK INFO -->
       <div class="form-section" style="margin-top:20px">
         <div class="form-title">🗓️ Fitur Terkunci Otomatis (Berdasarkan Bulan)</div>
@@ -1044,7 +1061,7 @@ function switchTab(tab) {
   if (tab === 'pengaturan-gaji')  loadSettingGaji();
   if (tab === 'pengaturan-biaya') loadSettingBiaya();
   if (tab === 'kaldik')           loadKaldikReadOnly();
-  if (tab === 'pengaturan-sistem') loadPengaturanSistem();
+  if (tab === 'pengaturan-sistem') { loadPengaturanSistem(); loadProgramEvents(); }
   if (tab === 'kelola-user')      loadUsers();
   if (tab === 'kelola-program')   loadProgram();
   if (tab === 'notulen-todo')     loadNotulenTodo();
@@ -3027,7 +3044,311 @@ async function saveToggle(key, val) {
   await loadPengaturanSistem();
 }
 
+
+// ============================================
+// PROGRAM KHUSUS: SPEAKING & HSK MOCK TEST (event + juri)
+// ============================================
+const PE_DEFAULT_KRITERIA = {
+  speaking: [
+    {nama:'发音声调 (Pelafalan & Nada)', maks:100},
+    {nama:'流利度 (Kelancaran)', maks:100},
+    {nama:'词汇语法 (Kosakata & Tata Bahasa)', maks:100},
+    {nama:'内容表达 (Isi & Ekspresi)', maks:100}
+  ],
+  hsk_mock: [
+    {nama:'听力 (Mendengar)', maks:100},
+    {nama:'阅读 (Membaca)', maks:100},
+    {nama:'书写 (Menulis)', maks:100}
+  ]
+};
+const PE_JENIS_LABEL = { speaking:'🎤 Speaking', hsk_mock:'📝 HSK Mock Test' };
+let _peEvents = [];
+let _peKelasOpts = [];
+let _peGuruOpts = [];
+let _peJuriDipilih = [];
+
+function peEsc(v) {
+  return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function peKriteriaToText(arr) {
+  return (arr || []).map(k => k.nama + ' | ' + k.maks).join('\n');
+}
+function peTextToKriteria(txt) {
+  const out = [];
+  String(txt || '').split('\n').forEach(line => {
+    const t = line.trim();
+    if (!t) return;
+    const parts = t.split('|');
+    const nama = parts[0].trim();
+    const maks = parts.length > 1 ? parseFloat(parts[1]) : 100;
+    if (nama) out.push({ nama, maks: (maks > 0 ? maks : 100) });
+  });
+  return out;
+}
+
+async function loadProgramEvents() {
+  const tbody = document.getElementById('tableProgramEvent');
+  if (!tbody) return;
+  let q = db.from('program_event')
+    .select('*, program_event_kelas(kelas_id, kelas:kelas_id(kode_kelas)), program_event_juri(guru_id, guru:guru_id(nama_lengkap, kode_guru))')
+    .order('tanggal', { ascending: false });
+  if (activeProgramId) q = q.eq('program_id', activeProgramId);
+  const { data, error } = await q;
+  if (error) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:#b91c1c">❌ ' + peEsc(error.message) + '<br><span style="font-size:12px;color:#6b7280">Pastikan file SQL <strong>fitur_program_event.sql</strong> sudah dijalankan di Supabase.</span></td></tr>';
+    return;
+  }
+  _peEvents = data || [];
+  if (!_peEvents.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:#6b7280">Belum ada event. Klik "Buat Event" untuk memulai.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = _peEvents.map(ev => {
+    const kelas = (ev.program_event_kelas || []).map(k => k.kelas?.kode_kelas).filter(Boolean);
+    const juri  = (ev.program_event_juri || []).map(j => j.guru ? j.guru.nama_lengkap + ' [' + j.guru.kode_guru + ']' : null).filter(Boolean);
+    const aktif = ev.status === 'aktif';
+    return '<tr>'
+      + '<td>' + (PE_JENIS_LABEL[ev.jenis] || peEsc(ev.jenis)) + '</td>'
+      + '<td><strong>' + peEsc(ev.judul) + '</strong></td>'
+      + '<td style="white-space:nowrap">' + peEsc(ev.tanggal) + '</td>'
+      + '<td style="font-family:monospace;font-size:12px">' + (kelas.length ? kelas.map(peEsc).join('<br>') : '<span style="color:#9ca3af">—</span>') + '</td>'
+      + '<td style="font-size:12px">' + (juri.length ? juri.map(peEsc).join('<br>') : '<span style="color:#dc2626">Belum ada juri</span>') + '</td>'
+      + '<td>' + (aktif ? '<span class="badge badge-green">Aktif</span>' : '<span class="badge badge-red">Selesai</span>') + '</td>'
+      + '<td style="white-space:nowrap">'
+      +   '<button class="btn btn-secondary btn-sm" onclick="lihatHasilEvent(\'' + ev.id + '\')">📊 Hasil</button> '
+      +   '<button class="btn btn-secondary btn-sm" onclick="openModalEvent(\'' + ev.id + '\')">✏️</button> '
+      +   '<button class="btn btn-secondary btn-sm" onclick="toggleStatusEvent(\'' + ev.id + '\',' + (aktif ? 'true' : 'false') + ')">' + (aktif ? '🔒 Selesaikan' : '🔓 Aktifkan') + '</button> '
+      +   '<button class="btn btn-danger btn-sm" onclick="hapusEvent(\'' + ev.id + '\')">🗑️</button>'
+      + '</td></tr>';
+  }).join('');
+}
+
+async function peLoadOpsi() {
+  let qk = db.from('kelas').select('id, kode_kelas, jilid, nama_level').eq('is_active', true).order('kode_kelas');
+  if (activeProgramId) qk = qk.eq('program_id', activeProgramId);
+  const [{ data: kelas }, { data: guru }] = await Promise.all([
+    qk,
+    db.from('guru').select('id, nama_lengkap, kode_guru').eq('is_active', true).order('nama_lengkap')
+  ]);
+  _peKelasOpts = kelas || [];
+  _peGuruOpts = guru || [];
+}
+
+function peOnJenisChange() {
+  const jenis = document.getElementById('ev_jenis').value;
+  // Isi kriteria default hanya kalau kolom masih kosong / masih isi default jenis lain
+  const cur = document.getElementById('ev_kriteria').value.trim();
+  const isDefaultLain = Object.values(PE_DEFAULT_KRITERIA).some(arr => peKriteriaToText(arr) === cur);
+  if (!cur || isDefaultLain) document.getElementById('ev_kriteria').value = peKriteriaToText(PE_DEFAULT_KRITERIA[jenis]);
+}
+
+function peRenderJuriChips() {
+  const wrap = document.getElementById('ev_juri_chips');
+  const sel = document.getElementById('ev_juri_add');
+  if (!_peJuriDipilih.length) {
+    wrap.innerHTML = '<span style="font-size:12px;color:#9ca3af">Belum ada juri dipilih</span>';
+  } else {
+    wrap.innerHTML = _peJuriDipilih.map(id => {
+      const g = _peGuruOpts.find(x => x.id === id);
+      const nm = g ? g.nama_lengkap + ' [' + g.kode_guru + ']' : id;
+      return '<span style="display:inline-flex;align-items:center;gap:6px;background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:16px;padding:4px 10px;font-size:12px">'
+        + peEsc(nm) + '<button type="button" onclick="peHapusJuri(\'' + id + '\')" style="border:none;background:none;color:#991b1b;cursor:pointer;font-size:14px;line-height:1;padding:0">✕</button></span>';
+    }).join('');
+  }
+  sel.innerHTML = '<option value="">➕ Tambah juri...</option>' + _peGuruOpts
+    .filter(g => !_peJuriDipilih.includes(g.id))
+    .map(g => '<option value="' + g.id + '">' + peEsc(g.nama_lengkap) + ' [' + peEsc(g.kode_guru) + ']</option>').join('');
+}
+function peTambahJuri(id) { if (id && !_peJuriDipilih.includes(id)) { _peJuriDipilih.push(id); peRenderJuriChips(); } }
+function peHapusJuri(id) { _peJuriDipilih = _peJuriDipilih.filter(x => x !== id); peRenderJuriChips(); }
+
+async function openModalEvent(id) {
+  await peLoadOpsi();
+  const ev = id ? _peEvents.find(e => e.id === id) : null;
+  document.getElementById('modalEventTitle').textContent = ev ? 'Edit Event' : 'Buat Event Baru';
+  document.getElementById('ev_id').value = ev ? ev.id : '';
+  document.getElementById('ev_jenis').value = ev ? ev.jenis : 'speaking';
+  document.getElementById('ev_judul').value = ev ? ev.judul : '';
+  document.getElementById('ev_tanggal').value = ev ? ev.tanggal : new Date().toISOString().slice(0, 10);
+  document.getElementById('ev_kriteria').value = peKriteriaToText(ev ? ev.kriteria : PE_DEFAULT_KRITERIA.speaking);
+
+  const kelasDipilih = ev ? (ev.program_event_kelas || []).map(k => k.kelas_id) : [];
+  document.getElementById('ev_kelas_list').innerHTML = _peKelasOpts.length
+    ? _peKelasOpts.map(k => '<label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;padding:3px 0">'
+        + '<input type="checkbox" class="ev-kelas-chk" value="' + k.id + '"' + (kelasDipilih.includes(k.id) ? ' checked' : '') + '> '
+        + '<span style="font-family:monospace">' + peEsc(k.kode_kelas) + '</span></label>').join('')
+    : '<span style="font-size:12px;color:#9ca3af">Belum ada kelas aktif</span>';
+
+  _peJuriDipilih = ev ? (ev.program_event_juri || []).map(j => j.guru_id) : [];
+  peRenderJuriChips();
+  document.getElementById('modalEvent').classList.remove('hidden');
+}
+
+async function simpanEvent() {
+  const id = document.getElementById('ev_id').value;
+  const jenis = document.getElementById('ev_jenis').value;
+  const judul = document.getElementById('ev_judul').value.trim();
+  const tanggal = document.getElementById('ev_tanggal').value;
+  const kriteria = peTextToKriteria(document.getElementById('ev_kriteria').value);
+  const kelasIds = Array.from(document.querySelectorAll('.ev-kelas-chk:checked')).map(c => c.value);
+
+  if (!judul) { alert('Judul event wajib diisi!'); return; }
+  if (!tanggal) { alert('Tanggal wajib diisi!'); return; }
+  if (!kriteria.length) { alert('Isi minimal 1 kriteria/bagian penilaian!'); return; }
+  if (!kelasIds.length) { alert('Pilih minimal 1 kelas peserta!'); return; }
+  if (!_peJuriDipilih.length) { alert('Tunjuk minimal 1 guru sebagai juri!'); return; }
+  const namaKriteria = kriteria.map(k => k.nama);
+  if (new Set(namaKriteria).size !== namaKriteria.length) { alert('Nama kriteria tidak boleh sama!'); return; }
+
+  const { data: { user } } = await db.auth.getUser();
+  let eventId = id;
+  if (id) {
+    const { error } = await db.from('program_event')
+      .update({ jenis, judul, tanggal, kriteria, updated_at: new Date().toISOString() }).eq('id', id);
+    if (error) { alert('❌ Gagal menyimpan: ' + error.message); return; }
+  } else {
+    const { data, error } = await db.from('program_event')
+      .insert({ program_id: activeProgramId, jenis, judul, tanggal, kriteria, status: 'aktif', created_by: user.id })
+      .select('id').single();
+    if (error) { alert('❌ Gagal menyimpan: ' + error.message); return; }
+    eventId = data.id;
+  }
+
+  // Ganti daftar kelas & juri dengan pilihan terbaru
+  const delK = await db.from('program_event_kelas').delete().eq('event_id', eventId);
+  if (delK.error) { alert('❌ Gagal memperbarui kelas: ' + delK.error.message); return; }
+  const insK = await db.from('program_event_kelas').insert(kelasIds.map(k => ({ event_id: eventId, kelas_id: k })));
+  if (insK.error) { alert('❌ Gagal menyimpan kelas: ' + insK.error.message); return; }
+
+  const delJ = await db.from('program_event_juri').delete().eq('event_id', eventId);
+  if (delJ.error) { alert('❌ Gagal memperbarui juri: ' + delJ.error.message); return; }
+  const insJ = await db.from('program_event_juri').insert(_peJuriDipilih.map(g => ({ event_id: eventId, guru_id: g })));
+  if (insJ.error) { alert('❌ Gagal menyimpan juri: ' + insJ.error.message); return; }
+
+  closeModal('modalEvent');
+  alert('✅ Event tersimpan! Sidebar "Program" di akun juri yang ditunjuk sekarang aktif.');
+  await loadProgramEvents();
+}
+
+async function toggleStatusEvent(id, sedangAktif) {
+  const pesan = sedangAktif
+    ? 'Selesaikan event ini? Juri tidak bisa mengubah nilai lagi setelah diselesaikan.'
+    : 'Aktifkan kembali event ini? Juri bisa menginput/mengubah nilai lagi.';
+  if (!confirm(pesan)) return;
+  const { error } = await db.from('program_event')
+    .update({ status: sedangAktif ? 'selesai' : 'aktif', updated_at: new Date().toISOString() }).eq('id', id);
+  if (error) { alert('❌ Gagal: ' + error.message); return; }
+  await loadProgramEvents();
+}
+
+async function hapusEvent(id) {
+  const ev = _peEvents.find(e => e.id === id);
+  if (!confirm('Hapus event "' + (ev ? ev.judul : '') + '"?\n\nSemua nilai yang sudah diinput juri untuk event ini ikut terhapus dan tidak bisa dikembalikan.')) return;
+  const { error } = await db.from('program_event').delete().eq('id', id);
+  if (error) { alert('❌ Gagal menghapus: ' + error.message); return; }
+  await loadProgramEvents();
+}
+
+// Hitung rekap nilai: rata-rata antar juri per kriteria, lalu nilai akhir skala 0-100
+function peHitungRekap(ev, peserta, nilaiRows) {
+  const krit = ev.kriteria || [];
+  const juriIds = (ev.program_event_juri || []).map(j => j.guru_id);
+  return peserta.map(p => {
+    const rows = nilaiRows.filter(n => n.siswa_id === p.siswa_id);
+    const perKrit = krit.map(k => {
+      const vals = rows.filter(n => n.kriteria === k.nama).map(n => Number(n.nilai));
+      return { nama: k.nama, maks: Number(k.maks) || 100, avg: vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null, jumlahJuri: vals.length };
+    });
+    const terisi = perKrit.filter(k => k.avg != null);
+    const persen = terisi.length ? terisi.reduce((a, k) => a + (k.avg / k.maks) * 100, 0) / terisi.length : null;
+    const totalSkor = terisi.length ? terisi.reduce((a, k) => a + k.avg, 0) : null;
+    const totalMaks = krit.reduce((a, k) => a + (Number(k.maks) || 100), 0);
+    const juriMenilai = new Set(rows.map(n => n.guru_id)).size;
+    return { ...p, perKrit, persen, totalSkor, totalMaks, juriMenilai, juriTotal: juriIds.length };
+  });
+}
+
+async function lihatHasilEvent(id) {
+  const ev = _peEvents.find(e => e.id === id);
+  if (!ev) return;
+  document.getElementById('modalHasilEventTitle').textContent = '📊 Hasil: ' + ev.judul;
+  const box = document.getElementById('hasilEventContent');
+  box.innerHTML = '<div style="text-align:center;padding:24px">⏳ Memuat...</div>';
+  document.getElementById('modalHasilEvent').classList.remove('hidden');
+
+  const [pRes, nRes] = await Promise.all([
+    db.rpc('get_event_peserta', { p_event: id }),
+    db.from('program_event_nilai').select('siswa_id, guru_id, kriteria, nilai').eq('event_id', id)
+  ]);
+  if (pRes.error) { box.innerHTML = '<div style="color:#b91c1c;padding:16px">❌ ' + peEsc(pRes.error.message) + '</div>'; return; }
+  if (nRes.error) { box.innerHTML = '<div style="color:#b91c1c;padding:16px">❌ ' + peEsc(nRes.error.message) + '</div>'; return; }
+
+  const rekap = peHitungRekap(ev, pRes.data || [], nRes.data || []);
+  if (!rekap.length) { box.innerHTML = '<div style="text-align:center;padding:24px;color:#6b7280">Belum ada peserta (kelas yang dipilih belum punya murid aktif).</div>'; return; }
+
+  rekap.sort((a, b) => (b.persen == null ? -1 : b.persen) - (a.persen == null ? -1 : a.persen));
+  const isHsk = ev.jenis === 'hsk_mock';
+  const warna = v => v == null ? '#9ca3af' : v >= 80 ? '#059669' : v >= 65 ? '#d97706' : '#dc2626';
+  const f1 = v => v == null ? '—' : (Math.round(v * 10) / 10);
+
+  let html = '<div style="font-size:12px;color:#6b7280;margin-bottom:10px">Nilai tiap kriteria = rata-rata semua juri. Nilai akhir = rata-rata kriteria dalam skala 0–100.'
+    + (isHsk ? ' Total skor = jumlah skor semua bagian.' : '') + '</div>'
+    + '<div style="overflow-x:auto"><table class="table"><thead><tr><th>#</th><th>Peserta</th><th>Kelas</th>'
+    + (ev.kriteria || []).map(k => '<th style="text-align:center">' + peEsc(k.nama) + '<div style="font-size:10px;font-weight:400;color:#9ca3af">maks ' + peEsc(k.maks) + '</div></th>').join('')
+    + (isHsk ? '<th style="text-align:center">Total Skor</th>' : '')
+    + '<th style="text-align:center">Nilai Akhir</th><th style="text-align:center">Juri</th></tr></thead><tbody>';
+  rekap.forEach((r, i) => {
+    html += '<tr><td>' + (r.persen == null ? '—' : (i + 1)) + '</td>'
+      + '<td><strong>' + peEsc(r.nama_lengkap) + '</strong>' + (r.nama_mandarin ? '<div style="font-size:12px;color:#b91c1c">' + peEsc(r.nama_mandarin) + '</div>' : '') + '</td>'
+      + '<td style="font-family:monospace;font-size:12px">' + peEsc(r.kode_kelas) + '</td>'
+      + r.perKrit.map(k => '<td style="text-align:center;font-weight:600;color:' + warna(k.avg == null ? null : (k.avg / k.maks) * 100) + '">' + f1(k.avg) + '</td>').join('')
+      + (isHsk ? '<td style="text-align:center;font-weight:700">' + (r.totalSkor == null ? '—' : f1(r.totalSkor) + ' / ' + r.totalMaks) + '</td>' : '')
+      + '<td style="text-align:center;font-weight:800;color:' + warna(r.persen) + '">' + f1(r.persen) + '</td>'
+      + '<td style="text-align:center;font-size:12px;color:' + (r.juriMenilai >= r.juriTotal ? '#059669' : '#d97706') + '">' + r.juriMenilai + '/' + r.juriTotal + '</td></tr>';
+  });
+  html += '</tbody></table></div>';
+  box.innerHTML = html;
+}
 </script>
+
+<!-- Modal: Event Program (Speaking / HSK Mock Test) -->
+<div class="modal-overlay hidden" id="modalEvent">
+  <div class="modal-box" style="max-width:640px;max-height:90vh;overflow-y:auto">
+    <div class="modal-header"><span class="modal-title" id="modalEventTitle">Buat Event Baru</span><button class="modal-close" onclick="closeModal('modalEvent')">✕</button></div>
+    <input type="hidden" id="ev_id">
+    <div class="form-grid">
+      <div class="form-group"><label>Program <span style="color:red">*</span></label>
+        <select id="ev_jenis" onchange="peOnJenisChange()">
+          <option value="speaking">🎤 Speaking</option>
+          <option value="hsk_mock">📝 HSK Mock Test</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Tanggal <span style="color:red">*</span></label><input type="date" id="ev_tanggal"></div>
+    </div>
+    <div class="form-group" style="margin-top:12px"><label>Judul Event <span style="color:red">*</span></label><input type="text" id="ev_judul" placeholder="Contoh: Lomba Speaking Semester 1 2026"></div>
+    <div class="form-group" style="margin-top:12px"><label>Kelas Peserta <span style="color:red">*</span> <span style="font-weight:400;color:#6b7280;font-size:12px">— semua murid aktif di kelas yang dicentang ikut event</span></label>
+      <div id="ev_kelas_list" style="max-height:150px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px;padding:8px 12px;columns:2"></div>
+    </div>
+    <div class="form-group" style="margin-top:12px"><label>Juri (guru yang ditunjuk) <span style="color:red">*</span></label>
+      <select id="ev_juri_add" onchange="peTambahJuri(this.value);this.value=''"></select>
+      <div id="ev_juri_chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
+    </div>
+    <div class="form-group" style="margin-top:12px"><label>Kriteria / Bagian Penilaian <span style="color:red">*</span></label>
+      <textarea id="ev_kriteria" style="height:110px;font-family:monospace;font-size:12px"></textarea>
+      <div style="font-size:11px;color:#6b7280;margin-top:4px">Satu baris satu kriteria, format: <code>Nama | skor maksimal</code>. Contoh: <code>听力 (Mendengar) | 100</code></div>
+    </div>
+    <div class="form-actions"><button class="btn btn-primary" onclick="simpanEvent()">💾 Simpan</button><button class="btn btn-secondary" onclick="closeModal('modalEvent')">Batal</button></div>
+  </div>
+</div>
+
+<!-- Modal: Hasil Event -->
+<div class="modal-overlay hidden" id="modalHasilEvent">
+  <div class="modal-box" style="max-width:960px;max-height:90vh;overflow-y:auto">
+    <div class="modal-header"><span class="modal-title" id="modalHasilEventTitle">Hasil Event</span><button class="modal-close" onclick="closeModal('modalHasilEvent')">✕</button></div>
+    <div id="hasilEventContent"></div>
+  </div>
+</div>
 
 <!-- Modal: Tambah/Edit Guru -->
 <div class="modal-overlay hidden" id="modalGuruL">

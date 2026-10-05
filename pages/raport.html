@@ -267,6 +267,21 @@ async function generate(){
   const perilakuMap={};
   (perilakuAll||[]).forEach(p=>{perilakuMap[p.siswa_id]=p.nilai;});
 
+  // Program khusus (Speaking / HSK Mock Test) untuk kelas ini pada semester ini.
+  // Dibungkus try/catch supaya raport tetap jalan walau tabel belum dibuat.
+  let eventsSem=[], nilaiEvent=[];
+  try{
+    const {data:evKelas}=await db.from('program_event_kelas')
+      .select('event:event_id(id,jenis,judul,tanggal,kriteria)').eq('kelas_id',kelasId);
+    eventsSem=(evKelas||[]).map(r=>r.event)
+      .filter(e=>e&&e.tanggal>=tglMulai&&e.tanggal<=tglAkhir)
+      .sort((a,b)=>String(a.tanggal).localeCompare(String(b.tanggal)));
+    if(eventsSem.length){
+      const {data:ne}=await db.from('program_event_nilai')
+        .select('event_id,siswa_id,kriteria,nilai').in('event_id',eventsSem.map(e=>e.id)).in('siswa_id',siswaIds);
+      nilaiEvent=ne||[];
+    }
+  }catch(e){ console.warn('program_event raport:',e); }
   const totalPertemuan=new Set((absAll||[]).map(a=>a.tanggal)).size;
   const today=new Date().toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'});
   const rp=(v,d=1)=>v!=null?Number(v).toFixed(d):'-';
@@ -405,6 +420,37 @@ async function generate(){
       <td class="tc ${nilaiAkhir!=null?sc(nilaiAkhir*10):''}">${ nilaiAkhir!=null?rp(nilaiAkhir,2):'-'}</td>
     </tr>`;
 
+    // ====== PROGRAM KHUSUS (Speaking / HSK Mock Test) ======
+    const programKhususHtml=(()=>{
+      const baris=eventsSem.map(ev=>{
+        const rows=nilaiEvent.filter(n=>n.event_id===ev.id&&n.siswa_id===s.id);
+        if(!rows.length) return '';
+        const per=(ev.kriteria||[]).map(k=>{
+          const vs=rows.filter(n=>n.kriteria===k.nama).map(n=>Number(n.nilai));
+          return {nama:k.nama,maks:Number(k.maks)||100,avg:vs.length?vs.reduce((a,b)=>a+b,0)/vs.length:null};
+        });
+        const terisi=per.filter(k=>k.avg!=null);
+        if(!terisi.length) return '';
+        const persen=terisi.reduce((a,k)=>a+(k.avg/k.maks)*100,0)/terisi.length;
+        const isHsk=ev.jenis==='hsk_mock';
+        const total=terisi.reduce((a,k)=>a+k.avg,0);
+        const totalMaks=per.reduce((a,k)=>a+k.maks,0);
+        const rincian=per.map(k=>k.nama.split(' (')[0]+': <b>'+(k.avg!=null?(Math.round(k.avg*10)/10):'—')+'</b>').join(' &nbsp;·&nbsp; ');
+        return `<tr>
+          <td>${isHsk?'HSK Mock Test':'Speaking'}<br><span style="font-size:8px;color:#888">${ev.tanggal}</span></td>
+          <td>${ev.judul}</td>
+          <td style="font-size:9px">${rincian}${isHsk?'<br>Total skor: <b>'+(Math.round(total*10)/10)+' / '+totalMaks+'</b>':''}</td>
+          <td class="tc ${sc(persen)}">${persen.toFixed(1)}</td>
+        </tr>`;
+      }).filter(Boolean);
+      if(!baris.length) return '';
+      return `<div class="sec">专项项目 Program Khusus (Speaking &amp; HSK Mock Test)</div>
+      <table>
+        <thead><tr><th class="tl">Program</th><th class="tl">Event</th><th class="tl">Rincian (rata-rata juri)</th><th>Nilai Akhir</th></tr></thead>
+        <tbody>${baris.join('')}</tbody>
+      </table>`;
+    })();
+
     muridList.push({id:s.id, nama:s.nama_lengkap});
 
     const perilakuLabel={'A':'A — Sangat Baik','B':'B — Baik','C':'C — Cukup','D':'D — Perlu Bimbingan'};
@@ -499,6 +545,8 @@ async function generate(){
           </table>
         </div>
       </div>
+
+      ${programKhususHtml}
 
       <!-- KEHADIRAN, PERILAKU & 判定 -->
       <div class="info-grid">
