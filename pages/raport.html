@@ -128,10 +128,11 @@
 
     .cal-footer{text-align:center;font-size:8px;color:#aaa;margin-top:14px;padding-top:6px;border-top:1px solid #ddd;font-family:Arial,sans-serif;}
 
-    @page{size:A4 portrait;margin:0;}
+    @page{size:210mm 297mm;margin:0;}
     @media print{
       *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
-      body{background:#fff;}
+      html,body{background:#fff;width:210mm;margin:0;}
+      #pages{width:210mm;}
       .ui{display:none!important;}
       #msg{display:none!important;}
       #hanteiPanel{display:none!important;}
@@ -151,6 +152,7 @@
   <div class="fg"><label>学年 Tahun Ajaran</label><input id="selTahun" placeholder="cth: 2025"></div>
   <button class="btn btn-red" onclick="generate()">📊 Generate Raport</button>
   <button class="btn btn-green" id="btnPrint" onclick="doPrint()">🖨️ Print / Download PDF</button>
+  <div style="width:100%;font-size:11px;color:#6b7280;font-family:Arial,sans-serif">Di jendela print pilih: <b>Layout/Orientation = Portrait</b>, <b>Paper = A4</b>, <b>Margins = None</b>, <b>Scale = 100</b>, centang <b>Background graphics</b>.</div>
 </div>
 
 <!-- Panel 判定 per murid — muncul setelah generate -->
