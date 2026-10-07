@@ -974,25 +974,6 @@
   </div>
 </div>
 
-<!-- MODAL EDIT BIAYA -->
-<div class="modal-overlay hidden" id="modalEditBiaya">
-  <div class="modal-box" style="max-width:380px">
-    <div class="modal-header">
-      <span class="modal-title">💲 Edit Biaya Jilid</span>
-      <button class="modal-close" onclick="closeModal('modalEditBiaya')">✕</button>
-    </div>
-    <div id="editBiayaJilid" style="font-weight:700;margin-bottom:16px"></div>
-    <div class="form-group" style="margin-bottom:16px">
-      <label>Biaya Bulanan (Rp)</label>
-      <input type="number" id="editBiayaAmount" min="0" placeholder="0">
-    </div>
-    <div class="form-actions">
-      <button class="btn btn-primary" onclick="simpanBiaya()">💾 Simpan</button>
-      <button class="btn btn-secondary" onclick="closeModal('modalEditBiaya')">Batal</button>
-    </div>
-  </div>
-</div>
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <script src="../assets/supabase-client.js"></script>

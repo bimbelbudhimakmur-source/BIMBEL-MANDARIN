@@ -1161,38 +1161,6 @@ async function loadTransaksi() {
 // SETTING BIAYA
 // ============================================
 function fmtInput(val) { return val || 0; }
-function biayaRow(id, label, b, isTK) {
-  const tgl = b.updated_at ? new Date(b.updated_at).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}) : '—';
-  const key = isTK ? 'tk' : b.jilid;
-  return `<tr style="border-bottom:1px solid #f3f4f6">
-    <td style="padding:8px 14px;font-weight:700">${label}</td>
-    <td style="padding:8px 12px"><div style="display:flex;align-items:center;gap:4px;justify-content:flex-end">
-      <span style="color:var(--text-2);font-size:12px">Rp</span>
-      <input type="number" id="b_bulanan_${key}" value="${fmtInput(b.biaya_bulanan)}" min="0" step="1000"
-        style="width:120px;border:1px solid #e5e7eb;border-radius:6px;padding:5px 8px;text-align:right;font-size:13px">
-    </div></td>
-    <td style="padding:8px 12px"><div style="display:flex;align-items:center;gap:4px;justify-content:flex-end">
-      <span style="color:var(--text-2);font-size:12px">Rp</span>
-      <input type="number" id="b_daftar_${key}" value="${fmtInput(b.biaya_pendaftaran)}" min="0" step="1000"
-        style="width:120px;border:1px solid #e5e7eb;border-radius:6px;padding:5px 8px;text-align:right;font-size:13px">
-    </div></td>
-    <td style="padding:8px 12px"><div style="display:flex;align-items:center;gap:4px;justify-content:flex-end">
-      <span style="color:var(--text-2);font-size:12px">Rp</span>
-      <input type="number" id="b_kas_${key}" value="${fmtInput(b.uang_kas_semester)}" min="0" step="1000"
-        style="width:120px;border:1px solid #e5e7eb;border-radius:6px;padding:5px 8px;text-align:right;font-size:13px">
-    </div></td>
-    <td style="padding:8px 12px"><div style="display:flex;align-items:center;gap:4px;justify-content:flex-end">
-      <span style="color:var(--text-2);font-size:12px">Rp</span>
-      <input type="number" id="b_buku_${key}" value="${fmtInput(b.uang_buku)}" min="0" step="1000"
-        style="width:120px;border:1px solid #e5e7eb;border-radius:6px;padding:5px 8px;text-align:right;font-size:13px">
-    </div></td>
-    <td style="padding:8px 12px;text-align:center;font-size:11px;color:var(--text-2)">${tgl}</td>
-    <td style="padding:8px 12px;text-align:center">
-      <button class="btn btn-primary btn-sm" onclick="simpanBiaya('${key}','${b.id}',${isTK})">💾 Simpan</button>
-    </td>
-  </tr>`;
-}
-
 async function loadBiaya() {
   const isMandarin = isMandarinActive();
   const mandarinSec = document.getElementById('biayaMandarinSection');
@@ -1420,11 +1388,6 @@ function resetBiayaStep() {
   document.getElementById('biayaSampai').value = '';
   window._biayaEditRange = [];
 }
-
-// legacy compat
-async function simpanBiaya() {}
-async function simpanBiayaBulk() {}
-function biayaRow() { return ''; }
 
 // ============================================
 // BIAYA PENDAFTARAN ULANG
