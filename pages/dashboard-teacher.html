@@ -292,9 +292,12 @@
               <option value="zaoju">造句 (Zào jù)</option>
               <option value="dakao">大考 (Dà kǎo)</option>
               <option value="yanjiang">演讲 (Yǎn jiǎng)</option>
+              <option value="speaking_juri">演讲 Speaking – Juri (otomatis)</option>
+              <option value="hsk_juri">HSK Mock Test – Juri (otomatis)</option>
             </select>
           </div>
           <!-- Sub-pilihan: muncul sesuai jenis -->
+          <div id="nilaiJuriInfo" style="display:none;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px;font-size:13px;color:#1e40af;margin-bottom:12px"></div>
           <div class="form-group" id="nilaiBabWrap" style="display:none">
             <label>Pilih Bab</label>
             <select id="nilaiBab" onchange="onNilaiBabChange()"></select>
@@ -1608,7 +1611,9 @@ function onNilaiKelasChange() {
        <option value="tk_xie">写 (Xiě)</option>
        <option value="tk_lianxi">练习 (Liàn xí)</option>
        <option value="ceyuan">测验 (Cè yàn)</option>
-       <option value="dakao">大考 (Dà kǎo)</option>`
+       <option value="dakao">大考 (Dà kǎo)</option>
+       <option value="speaking_juri">演讲 Speaking – Juri (otomatis)</option>
+       <option value="hsk_juri">HSK Mock Test – Juri (otomatis)</option>`
     : `<option value="tingxie">听写 (Tīng xiě)</option>
        <option value="ceyuan">测验 (Cè yàn)</option>
        <option value="lianxi">练习 (Liàn xí)</option>
@@ -1616,7 +1621,9 @@ function onNilaiKelasChange() {
        <option value="tingshuo">听说读写</option>
        <option value="zaoju">造句 (Zào jù)</option>
        <option value="dakao">大考 (Dà kǎo)</option>
-       <option value="yanjiang">演讲 (Yǎn jiǎng)</option>`);
+       <option value="yanjiang">演讲 (Yǎn jiǎng)</option>
+       <option value="speaking_juri">演讲 Speaking – Juri (otomatis)</option>
+       <option value="hsk_juri">HSK Mock Test – Juri (otomatis)</option>`);
 
   // Sync preview kelas
   const prevSel = document.getElementById('previewKelas');
@@ -1635,8 +1642,16 @@ function onNilaiJenisChange() {
   subWrap.style.display = 'none';
   babWrap.style.display = 'none';
   tglWrap.style.display = 'none';
+  const juriInfo = document.getElementById('nilaiJuriInfo');
+  if (juriInfo) juriInfo.style.display = 'none';
 
   if (!jenis) return;
+  if (jenis === 'speaking_juri' || jenis === 'hsk_juri') {
+    const nm = jenis === 'hsk_juri' ? 'HSK Mock Test' : 'Speaking';
+    juriInfo.innerHTML = `<b>${nm} dinilai oleh juri yang ditunjuk Leader.</b><br>Rata-rata nilai dari semua juri otomatis masuk ke Preview Nilai di bawah. Nilai ini <b>tidak</b> memengaruhi nilai akhir raport, tapi tetap ditampilkan di raport.`;
+    juriInfo.style.display = 'block';
+    return;
+  }
   const cfg = JENIS_CONFIG[jenis];
 
   if (cfg.dateBased) {
@@ -1865,14 +1880,15 @@ async function loadPreviewNilai() {
     .order('jenis_penilaian').order('sub_jenis').order('bab');
 
   const container = document.getElementById('previewNilaiContainer');
-  if (!nilaiData?.length) {
+  const juriHtml = await buildJuriPreview(kelasId, murid);
+  if (!nilaiData?.length && !juriHtml) {
     container.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-2)">Belum ada nilai untuk periode ini</div>';
     return;
   }
 
   // Kelompokkan per jenis_penilaian
   const perJenis = {};
-  nilaiData.forEach(n => {
+  (nilaiData || []).forEach(n => {
     if (!perJenis[n.jenis_penilaian]) perJenis[n.jenis_penilaian] = [];
     perJenis[n.jenis_penilaian].push(n);
   });
@@ -2005,7 +2021,64 @@ async function loadPreviewNilai() {
     </div>`;
   });
 
-  container.innerHTML = html;
+  container.innerHTML = html + juriHtml;
+}
+
+// Rata-rata Speaking / HSK dari juri (otomatis dari Program Khusus). Tidak masuk nilai akhir raport.
+async function buildJuriPreview(kelasId, murid) {
+  try {
+    const { data: ek } = await db.from('program_event_kelas').select('event_id').eq('kelas_id', kelasId);
+    const evIds = (ek || []).map(x => x.event_id);
+    if (!evIds.length) return '';
+    const { data: evs } = await db.from('program_event').select('id,jenis,judul,tanggal,kriteria').in('id', evIds).order('tanggal');
+    if (!evs?.length) return '';
+    const siswaIds = murid.map(e => e.siswa.id);
+    const { data: nl } = await db.from('program_event_nilai').select('event_id,siswa_id,guru_id,kriteria,nilai')
+      .in('event_id', evIds).in('siswa_id', siswaIds);
+    const esc = t => String(t ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const col = v => v == null ? '#9ca3af' : v >= 80 ? '#059669' : v >= 65 ? '#d97706' : '#dc2626';
+    // hasil per event per siswa
+    const hitung = (ev, sid) => {
+      const kr = Array.isArray(ev.kriteria) ? ev.kriteria : [];
+      const persen = []; let tot = 0, maks = 0;
+      kr.forEach(k => {
+        const v = (nl || []).filter(r => r.event_id === ev.id && r.siswa_id === sid && r.kriteria === k.nama).map(r => Number(r.nilai));
+        if (!v.length) return;
+        const avg = v.reduce((a, b) => a + b, 0) / v.length;
+        persen.push(avg / Number(k.maks) * 100); tot += avg; maks += Number(k.maks);
+      });
+      if (!persen.length) return null;
+      return { akhir: Math.round(persen.reduce((a, b) => a + b, 0) / persen.length), tot: Math.round(tot * 10) / 10, maks };
+    };
+    let out = '';
+    [['speaking', '演讲 Speaking – rata-rata juri'], ['hsk_mock', 'HSK Mock Test – rata-rata juri']].forEach(([jenis, label]) => {
+      const list = evs.filter(e => e.jenis === jenis);
+      if (!list.length) return;
+      const tglF = t => new Date(t).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+      out += `<div style="margin-bottom:24px">
+        <div style="font-size:14px;font-weight:700;margin-bottom:10px;padding:8px 12px;background:#eff6ff;border-radius:8px;border-left:4px solid #3b82f6">${label}
+          <span style="font-weight:400;font-size:11px;color:var(--text-2)"> · otomatis, tidak masuk nilai akhir raport</span></div>
+        <div style="overflow-x:auto;border:1px solid var(--border);border-radius:8px">
+        <table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f9fafb">
+          <th style="padding:8px 12px;text-align:left;border-bottom:1px solid var(--border)">Nama</th>
+          <th style="padding:8px 12px;text-align:left;border-bottom:1px solid var(--border)">名字</th>
+          ${list.map(e => `<th style="padding:8px 10px;text-align:center;border-bottom:1px solid var(--border);white-space:nowrap">${esc(e.judul)}<br><span style="font-weight:400;color:var(--text-2)">${tglF(e.tanggal)}</span></th>`).join('')}
+          <th style="padding:8px 10px;text-align:center;border-bottom:1px solid var(--border);background:#fef9c3;color:#92400e">Rata-rata</th>
+        </tr></thead><tbody>
+        ${murid.map(m => {
+          const hs = list.map(e => hitung(e, m.siswa.id));
+          const ada = hs.filter(Boolean);
+          const avg = ada.length ? Math.round(ada.reduce((a, b) => a + b.akhir, 0) / ada.length) : null;
+          return `<tr style="border-bottom:1px solid #f3f4f6">
+            <td style="padding:7px 12px;font-weight:600;white-space:nowrap">${esc(m.siswa.nama_lengkap)}</td>
+            <td style="padding:7px 12px;color:#b91c1c;white-space:nowrap">${esc(m.siswa.nama_mandarin || '—')}</td>
+            ${hs.map(h => `<td style="padding:7px 10px;text-align:center;font-weight:${h ? 700 : 400};color:${col(h?.akhir)}">${h ? h.akhir + (jenis === 'hsk_mock' ? `<div style="font-size:10px;font-weight:400;color:var(--text-2)">${h.tot}/${h.maks}</div>` : '') : '—'}</td>`).join('')}
+            <td style="padding:7px 10px;text-align:center;background:#fef9c3;font-weight:700;color:${col(avg)}">${avg ?? '—'}</td></tr>`;
+        }).join('')}
+        </tbody></table></div></div>`;
+    });
+    return out;
+  } catch (err) { console.warn('buildJuriPreview', err); return ''; }
 }
 
 function getPredikat(nilai) {
