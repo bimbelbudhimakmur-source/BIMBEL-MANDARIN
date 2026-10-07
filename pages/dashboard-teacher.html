@@ -1551,11 +1551,22 @@ const JENIS_CONFIG = {
   },
   // ===== KHUSUS TK (幼儿) =====
   tk_tingxie: {
-    label: '听写', subLabel: 'Kelompok Bab', dbJenis: 'tingxie', tkSingle: 'dikte',
+    label: '听写', dbJenis: 'tingxie', tkSingle: 'dikte',
+    babFirst: true, babRange: Array.from({length:10},(_,i)=>i+1),   // per bab, tanpa sub
+    subs: null, afterSub: null
+  },
+  tk_ceyuan: {
+    label: '测验', dbJenis: 'ceyuan', tkSingle: 'tk',
+    babFirst: true, babRange: Array.from({length:10},(_,i)=>i+1),   // per bab, tanpa sub
+    subs: null, afterSub: null
+  },
+  tk_dakao: {
+    label: '大考', subLabel: 'Jenis Ujian', dbJenis: 'dakao',
     subs: [
-      {v:'1-2',l:'Bab 1–2'},{v:'3-4',l:'Bab 3–4'},
-      {v:'5-6',l:'Bab 5–6'},{v:'7-8',l:'Bab 7–8'},
-      {v:'9-10',l:'Bab 9–10'}
+      {v:'zhongwen',l:'中文 (Zhōng wén)'},
+      {v:'pinyin',l:'汉语拼音 (Pīn yīn)'},
+      {v:'du',l:'读 (Dú)'},
+      {v:'xie',l:'写 (Xiě)'}
     ],
     afterSub: null
   },
@@ -1578,22 +1589,12 @@ const JENIS_CONFIG = {
     afterSub: null
   },
   tk_du: {
-    label: '读', subLabel: 'Kelompok Bab', dbJenis: 'tingshuo', tkSingle: 'du',
-    subs: [
-      {v:'1-2',l:'Bab 1–2'},{v:'3-4',l:'Bab 3–4'},
-      {v:'5-6',l:'Bab 5–6'},{v:'7-8',l:'Bab 7–8'},
-      {v:'9-10',l:'Bab 9–10'}
-    ],
-    afterSub: null
+    label: '读', dbJenis: 'tingshuo', tkSingle: 'du',     // tanpa sub penilaian
+    subs: null, afterSub: null
   },
   tk_xie: {
-    label: '写', subLabel: 'Kelompok Bab', dbJenis: 'tingshuo', tkXie: true,
-    subs: [
-      {v:'1-2',l:'Bab 1–2'},{v:'3-4',l:'Bab 3–4'},
-      {v:'5-6',l:'Bab 5–6'},{v:'7-8',l:'Bab 7–8'},
-      {v:'9-10',l:'Bab 9–10'}
-    ],
-    afterSub: null
+    label: '写', dbJenis: 'tingshuo', tkSingle: 'xie',    // tanpa sub penilaian
+    subs: null, afterSub: null
   },
   tk_lianxi: {
     label: '练习', subLabel: 'Tanggal Tugas', dbJenis: 'lianxi_tk', dateBased: true,
@@ -1614,11 +1615,11 @@ function onNilaiKelasChange() {
   const jenisSel = document.getElementById('nilaiJenis');
   jenisSel.innerHTML = '<option value="">-- Pilih Jenis --</option>' + (isTK
     ? `<option value="tk_tingxie">听写 / Dikte (Tīng xiě)</option>
-       <option value="ceyuan">测验 / Ulangan (Cè yàn)</option>
+       <option value="tk_ceyuan">测验 / Ulangan (Cè yàn)</option>
        <option value="tk_lianxi">练习 (Liàn xí)</option>
        <option value="tk_du">读 / Baca (Dú)</option>
        <option value="tk_xie">写 / Tulis (Xiě)</option>
-       <option value="dakao">大考 (Dà kǎo)</option>
+       <option value="tk_dakao">大考 (Dà kǎo)</option>
        <option value="speaking_juri">演讲 Speaking (Juri) – otomatis</option>
        <option value="hsk_juri">HSK Mock Test – Juri (otomatis)</option>`
     : `<option value="tingxie">听写 (Tīng xiě)</option>
@@ -1697,6 +1698,7 @@ function onNilaiBabChange() {
   const subSel  = document.getElementById('nilaiSub');
   document.getElementById('nilaiContainer').style.display = 'none';
   if (!bab) { subWrap.style.display = 'none'; return; }
+  if (!cfg.subs) { subWrap.style.display = 'none'; loadNilaiForm(); return; }   // TK: per bab tanpa sub
 
   // Setelah pilih bab, tampilkan sub (课文/阅读)
   document.getElementById('nilaiSubLabel').textContent = cfg.subLabel;
@@ -1718,6 +1720,7 @@ async function loadNilaiForm() {
   const cfg = JENIS_CONFIG[jenis];
   const dbJenis = cfg.dbJenis || jenis;
   if (cfg.subs && !sub) return;
+  if (cfg.babFirst && !babPilih) return;
   if (cfg.dateBased && !tanggalPilih) return;
 
   const kelas = kelasSaya.find(k => k.id === kelasId);
@@ -1736,7 +1739,7 @@ async function loadNilaiForm() {
   let cols = [];
   if (cfg.babFirst) {
     // 听写: satu bab, satu sub → 1 kolom nilai
-    cols = [{key:'nilai', label:'Nilai', bab: parseInt(babPilih), sub_jenis: sub, range_bab: null}];
+    cols = [{key:'nilai', label:'Nilai', bab: parseInt(babPilih), sub_jenis: sub || cfg.tkSingle || null, range_bab: null}];
   } else if (jenis === 'lianxi') {
     // 练习 (reguler): 12 kolom bab
     cols = cfg.babRange.map(b => ({key:`bab_${b}`, label:`Bab ${b}`, bab:b, sub_jenis:null, range_bab:null}));
@@ -1761,10 +1764,11 @@ async function loadNilaiForm() {
     ];
     cols = komponen.map(k => ({key:k.v, label:k.l, bab:null, sub_jenis:k.v, range_bab: sub||null}));
   } else if (cfg.dateBased) {
-    // TK: 练习 — 3 kolom (拼音 / 笔顺 / 翻译), per tanggal tugas
+    // TK: 练习 — 4 kolom (拼音 / 笔顺 / 数笔画 / 翻译), per tanggal tugas
     cols = [
       {key:'pinyin', label:'拼音',        bab:null, sub_jenis:'pinyin', range_bab:null, tanggal_tugas: tanggalPilih},
       {key:'bishun', label:'笔顺 Bishun', bab:null, sub_jenis:'bishun', range_bab:null, tanggal_tugas: tanggalPilih},
+      {key:'shubihua', label:'数笔画', bab:null, sub_jenis:'shubihua', range_bab:null, tanggal_tugas: tanggalPilih},
       {key:'fanyi',  label:'翻译',        bab:null, sub_jenis:'fanyi',  range_bab:null, tanggal_tugas: tanggalPilih}
     ];
   } else {
@@ -1782,6 +1786,7 @@ async function loadNilaiForm() {
   } else if (dbJenis === 'tingshuo' || cfg.tkSingle || cfg.tkXie) {
     if (sub) q = q.eq('range_bab', sub);
     if (cfg.tkSingle) q = q.eq('sub_jenis', cfg.tkSingle);
+    if (cfg.tkSingle && !sub && !cfg.babFirst) q = q.is('range_bab', null);   // 读/写 tanpa sub: abaikan data lama per kelompok bab
   } else if (sub) {
     q = q.eq('sub_jenis', sub);
   }
@@ -1980,13 +1985,15 @@ async function loadPreviewNilai() {
           const [sub, bab] = colKey.split('_bab');
           const subLabel = cfg?.subs?.find(s=>s.v===sub)?.l || sub;
           // Singkat: ambil bagian pertama saja
+          if (sub === 'tk') return 'Bab '+bab;
           const subShort = sub === 'kewen' ? '课文' : sub === 'yuedu' ? '阅读' : sub;
           return subShort+' B'+bab;
         }
         if (colKey.startsWith('bab')) return 'Bab '+colKey.replace('bab','');
         if (/^\d+-\d+$/.test(colKey)) return 'Bab '+colKey.replace('-','–');
         const sub = cfg?.subs?.find(s=>s.v===colKey);
-        return sub?.l || colKey;
+        const extraLbl = {du:'读 (Dú)',xie:'写 (Xiě)'};
+        return sub?.l || extraLbl[colKey] || colKey;
       };
 
       rows.forEach(r => {
