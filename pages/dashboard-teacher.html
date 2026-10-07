@@ -291,8 +291,7 @@
               <option value="tingshuo">听说读写</option>
               <option value="zaoju">造句 (Zào jù)</option>
               <option value="dakao">大考 (Dà kǎo)</option>
-              <option value="yanjiang">演讲 (Yǎn jiǎng)</option>
-              <option value="speaking_juri">演讲 Speaking – Juri (otomatis)</option>
+              <option value="speaking_juri">演讲 Speaking (Juri) – otomatis</option>
               <option value="hsk_juri">HSK Mock Test – Juri (otomatis)</option>
             </select>
           </div>
@@ -1612,7 +1611,7 @@ function onNilaiKelasChange() {
        <option value="tk_lianxi">练习 (Liàn xí)</option>
        <option value="ceyuan">测验 (Cè yàn)</option>
        <option value="dakao">大考 (Dà kǎo)</option>
-       <option value="speaking_juri">演讲 Speaking – Juri (otomatis)</option>
+       <option value="speaking_juri">演讲 Speaking (Juri) – otomatis</option>
        <option value="hsk_juri">HSK Mock Test – Juri (otomatis)</option>`
     : `<option value="tingxie">听写 (Tīng xiě)</option>
        <option value="ceyuan">测验 (Cè yàn)</option>
@@ -1621,8 +1620,7 @@ function onNilaiKelasChange() {
        <option value="tingshuo">听说读写</option>
        <option value="zaoju">造句 (Zào jù)</option>
        <option value="dakao">大考 (Dà kǎo)</option>
-       <option value="yanjiang">演讲 (Yǎn jiǎng)</option>
-       <option value="speaking_juri">演讲 Speaking – Juri (otomatis)</option>
+       <option value="speaking_juri">演讲 Speaking (Juri) – otomatis</option>
        <option value="hsk_juri">HSK Mock Test – Juri (otomatis)</option>`);
 
   // Sync preview kelas
@@ -1648,7 +1646,7 @@ function onNilaiJenisChange() {
   if (!jenis) return;
   if (jenis === 'speaking_juri' || jenis === 'hsk_juri') {
     const nm = jenis === 'hsk_juri' ? 'HSK Mock Test' : 'Speaking';
-    juriInfo.innerHTML = `<b>${nm} dinilai oleh juri yang ditunjuk Leader.</b><br>Rata-rata nilai dari semua juri otomatis masuk ke Preview Nilai di bawah. Nilai ini <b>tidak</b> memengaruhi nilai akhir raport, tapi tetap ditampilkan di raport.`;
+    juriInfo.innerHTML = `<b>${nm} dinilai oleh juri yang ditunjuk Leader.</b><br>Guru tidak bisa mengubah nilai ini (supaya objektif). Rata-rata nilai dari semua juri otomatis masuk ke Preview Nilai di bawah, <b>tidak</b> memengaruhi nilai akhir raport, tapi tetap ditampilkan di raport.`;
     juriInfo.style.display = 'block';
     return;
   }

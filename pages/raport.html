@@ -421,8 +421,25 @@ async function generate(){
     </tr>`;
 
     // ====== PROGRAM KHUSUS (Speaking / HSK Mock Test) ======
+    const hasilEvent=(ev)=>{
+      const rows=nilaiEvent.filter(n=>n.event_id===ev.id&&n.siswa_id===s.id);
+      if(!rows.length) return null;
+      const per=(ev.kriteria||[]).map(k=>{
+        const vs=rows.filter(n=>n.kriteria===k.nama).map(n=>Number(n.nilai));
+        return {nama:k.nama,maks:Number(k.maks)||100,avg:vs.length?vs.reduce((a,b)=>a+b,0)/vs.length:null};
+      });
+      const terisi=per.filter(k=>k.avg!=null);
+      if(!terisi.length) return null;
+      return {per,persen:terisi.reduce((a,k)=>a+(k.avg/k.maks)*100,0)/terisi.length};
+    };
+    const speakingJuri=eventsSem.filter(ev=>ev.jenis==='speaking').map(ev=>{
+      const h=hasilEvent(ev); if(!h) return null;
+      const rincian=h.per.map(k=>k.nama.split(' (')[0]+' '+(k.avg!=null?(Math.round(k.avg*10)/10):'—')).join(' · ');
+      return {label:ev.judul+'<br><span style="font-size:8px;color:#888">'+rincian+' (rata-rata juri)</span>',nilai:Math.round(h.persen*10)/10};
+    }).filter(Boolean);
+    const yanjiangGab=[...yanjiang,...speakingJuri];
     const programKhususHtml=(()=>{
-      const baris=eventsSem.map(ev=>{
+      const baris=eventsSem.filter(ev=>ev.jenis==='hsk_mock').map(ev=>{
         const rows=nilaiEvent.filter(n=>n.event_id===ev.id&&n.siswa_id===s.id);
         if(!rows.length) return '';
         const per=(ev.kriteria||[]).map(k=>{
@@ -444,7 +461,7 @@ async function generate(){
         </tr>`;
       }).filter(Boolean);
       if(!baris.length) return '';
-      return `<div class="sec">专项项目 Program Khusus (Speaking &amp; HSK Mock Test)</div>
+      return `<div class="sec">HSK Mock Test (rata-rata juri, tidak masuk nilai akhir)</div>
       <table>
         <thead><tr><th class="tl">Program</th><th class="tl">Event</th><th class="tl">Rincian (rata-rata juri)</th><th>Nilai Akhir</th></tr></thead>
         <tbody>${baris.join('')}</tbody>
@@ -537,9 +554,9 @@ async function generate(){
         <div>
           <div class="sec" style="margin-top:0">演讲 (Yǎn jiǎng)</div>
           <table>
-            <thead><tr><th class="tl">Sesi</th><th>Nilai</th></tr></thead>
+            <thead><tr><th class="tl">Sesi / Event</th><th>Nilai</th></tr></thead>
             <tbody>
-              ${yanjiang.length?yanjiang.map(r=>`<tr><td>${r.label}</td><td class="tc ${r.nilai!=null?sc(r.nilai):''}">${r.nilai??'—'}</td></tr>`).join('')
+              ${yanjiangGab.length?yanjiangGab.map(r=>`<tr><td>${r.label}</td><td class="tc ${r.nilai!=null?sc(r.nilai):''}">${r.nilai??'—'}</td></tr>`).join('')
               :`<tr><td colspan="2" class="tc" style="color:#aaa">Belum ada data</td></tr>`}
             </tbody>
           </table>
