@@ -1550,6 +1550,15 @@ const JENIS_CONFIG = {
     afterSub: null
   },
   // ===== KHUSUS TK (幼儿) =====
+  tk_tingxie: {
+    label: '听写', subLabel: 'Kelompok Bab', dbJenis: 'tingxie', tkSingle: 'dikte',
+    subs: [
+      {v:'1-2',l:'Bab 1–2'},{v:'3-4',l:'Bab 3–4'},
+      {v:'5-6',l:'Bab 5–6'},{v:'7-8',l:'Bab 7–8'},
+      {v:'9-10',l:'Bab 9–10'}
+    ],
+    afterSub: null
+  },
   tk_ting: {
     label: '听', subLabel: 'Kelompok Bab', dbJenis: 'tingshuo', tkSingle: 'ting',
     subs: [
@@ -1604,12 +1613,11 @@ function onNilaiKelasChange() {
   const isTK = kelas && (kelas.jilid === 0 || kelas.jilid === '0');
   const jenisSel = document.getElementById('nilaiJenis');
   jenisSel.innerHTML = '<option value="">-- Pilih Jenis --</option>' + (isTK
-    ? `<option value="tk_ting">听 (Tīng)</option>
-       <option value="tk_shuo">说 (Shuō)</option>
-       <option value="tk_du">读 (Dú)</option>
-       <option value="tk_xie">写 (Xiě)</option>
+    ? `<option value="tk_tingxie">听写 / Dikte (Tīng xiě)</option>
+       <option value="ceyuan">测验 / Ulangan (Cè yàn)</option>
        <option value="tk_lianxi">练习 (Liàn xí)</option>
-       <option value="ceyuan">测验 (Cè yàn)</option>
+       <option value="tk_du">读 / Baca (Dú)</option>
+       <option value="tk_xie">写 / Tulis (Xiě)</option>
        <option value="dakao">大考 (Dà kǎo)</option>
        <option value="speaking_juri">演讲 Speaking (Juri) – otomatis</option>
        <option value="hsk_juri">HSK Mock Test – Juri (otomatis)</option>`
@@ -1753,10 +1761,11 @@ async function loadNilaiForm() {
     ];
     cols = komponen.map(k => ({key:k.v, label:k.l, bab:null, sub_jenis:k.v, range_bab: sub||null}));
   } else if (cfg.dateBased) {
-    // TK: 练习 — 2 kolom (拼音 / 翻译), per tanggal tugas
+    // TK: 练习 — 3 kolom (拼音 / 笔顺 / 翻译), per tanggal tugas
     cols = [
-      {key:'pinyin', label:'拼音', bab:null, sub_jenis:'pinyin', range_bab:null, tanggal_tugas: tanggalPilih},
-      {key:'fanyi',  label:'翻译', bab:null, sub_jenis:'fanyi',  range_bab:null, tanggal_tugas: tanggalPilih}
+      {key:'pinyin', label:'拼音',        bab:null, sub_jenis:'pinyin', range_bab:null, tanggal_tugas: tanggalPilih},
+      {key:'bishun', label:'笔顺 Bishun', bab:null, sub_jenis:'bishun', range_bab:null, tanggal_tugas: tanggalPilih},
+      {key:'fanyi',  label:'翻译',        bab:null, sub_jenis:'fanyi',  range_bab:null, tanggal_tugas: tanggalPilih}
     ];
   } else {
     // Jenis dengan range_bab atau sub → 1 kolom nilai
@@ -1770,8 +1779,9 @@ async function loadNilaiForm() {
     .eq('semester', semester).eq('jenis_penilaian', dbJenis);
   if (cfg.dateBased) {
     q = q.eq('tanggal_tugas', tanggalPilih);
-  } else if (dbJenis === 'tingshuo') {
+  } else if (dbJenis === 'tingshuo' || cfg.tkSingle || cfg.tkXie) {
     if (sub) q = q.eq('range_bab', sub);
+    if (cfg.tkSingle) q = q.eq('sub_jenis', cfg.tkSingle);
   } else if (sub) {
     q = q.eq('sub_jenis', sub);
   }
@@ -1787,7 +1797,7 @@ async function loadNilaiForm() {
     // n.bab tetap terisi (truthy) untuk jenis ini sehingga kena cabang 'else' di bawah
     // kalau tidak dicek duluan, akibatnya nilai yang sudah tersimpan gagal dimuat ulang
     // ke form (kelihatan kosong lagi padahal datanya masih ada di database).
-    if (cfg.babFirst) colKey = 'nilai';
+    if (cfg.babFirst || cfg.tkSingle) colKey = 'nilai';
     else if (jenis === 'lianxi') colKey = n.bab ? `bab_${n.bab}` : 'nilai';
     else if (dbJenis === 'tingshuo') colKey = n.sub_jenis;
     else if (cfg.dateBased) colKey = n.sub_jenis;
@@ -1962,6 +1972,7 @@ async function loadPreviewNilai() {
           return subShort+' B'+bab;
         }
         if (colKey.startsWith('bab')) return 'Bab '+colKey.replace('bab','');
+        if (/^\d+-\d+$/.test(colKey)) return 'Bab '+colKey.replace('-','–');
         const sub = cfg?.subs?.find(s=>s.v===colKey);
         return sub?.l || colKey;
       };

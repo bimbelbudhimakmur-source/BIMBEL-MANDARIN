@@ -290,6 +290,23 @@ async function generate(){
   const sc=v=>{const n=Number(v);return n>=80?'sg':n>=60?'sy':'sr';};
   const avg=arr=>{const v=arr.filter(x=>x!=null&&x!=='');return v.length?v.reduce((a,b)=>a+Number(b),0)/v.length:null;};
 
+  // ====== KHUSUS TK: nilai akhir pakai 听说读写 35% + 练习 10% + 测验 15% + 大考 35% + kehadiran 5% ======
+  const isTKKelas=(kelas.jilid===0||kelas.jilid==='0');
+  const tkTS=(list)=>{
+    const bucketMap={ting:'ting',shuo:'shuo',du:'du',xie:'xie',xiehanzi:'xie',bishun:'xie',shubihua:'xie'};
+    const g={};
+    (list||[]).filter(n=>n.jenis_penilaian==='tingshuo'&&n.nilai!=null&&n.sub_jenis).forEach(n=>{
+      const b=bucketMap[n.sub_jenis]||n.sub_jenis;
+      (g[b]=g[b]||[]).push(Number(n.nilai));
+    });
+    // TK: hanya 读 & 写 yang ikut (听/说 lama diabaikan) + 听写 (Dikte)
+    delete g.ting; delete g.shuo;
+    const dikte=(list||[]).filter(n=>n.jenis_penilaian==='tingxie'&&n.nilai!=null).map(n=>Number(n.nilai));
+    if(dikte.length) g.dikte=dikte;
+    const perBucket=Object.values(g).map(v=>avg(v)).filter(v=>v!=null);
+    return perBucket.length?avg(perBucket):null;
+  };
+
   const pages=document.getElementById('pages');
   // Track siswa ids for 判定 panel
   const muridList=[];
@@ -311,7 +328,7 @@ async function generate(){
       const vals=[]; entries.forEach(n=>{ if(n.nilai!=null) vals.push(Number(n.nilai)); });
       return avg(vals);
     };
-    const vTingxieR=getNilaiR('tingxie'), vLianxiR=getNilaiR('lianxi'), vCeyuanR=getNilaiR('ceyuan'), vPinyinR=getNilaiR('pinyin'), vZaojuR=getNilaiR('zaoju');
+    const vTingxieR=isTKKelas?null:getNilaiR('tingxie'), vLianxiR=getNilaiR(isTKKelas?'lianxi_tk':'lianxi'), vCeyuanR=getNilaiR('ceyuan'), vPinyinR=getNilaiR('pinyin'), vZaojuR=getNilaiR('zaoju');
     const na_tingxieR=vTingxieR!=null?vTingxieR*0.10:null;
     const na_lianxiR =vLianxiR!=null ?vLianxiR*0.10 :null;
     const na_ceyuanR =vCeyuanR!=null ?vCeyuanR*0.15 :null;
@@ -323,7 +340,9 @@ async function generate(){
     const dakaoValsR=Object.values(dakaoByJenisR).map(v=>avg(v)).filter(v=>v!=null);
     const vDakaoR=dakaoValsR.length?avg(dakaoValsR):null;
     const na_dakaoR=vDakaoR!=null?vDakaoR*0.35:null;
-    const komponenR=[na_tingxieR,na_lianxiR,na_ceyuanR,na_pinyinR,na_zaojuR];
+    const vTSR=isTKKelas?tkTS(nilaiMuridR):null;
+    const na_tsR=vTSR!=null?vTSR*0.35:null;
+    const komponenR=[na_tingxieR,na_lianxiR,na_ceyuanR,na_pinyinR,na_zaojuR,na_tsR];
     const sub65R=komponenR.filter(v=>v!=null).reduce((a,b)=>a+b,0)+nilaiKehadiranR;
     totalNilaiMap[s.id]=na_dakaoR!=null?sub65R+na_dakaoR:sub65R;
   });
@@ -366,8 +385,8 @@ async function generate(){
       return rows;
     };
 
-    const vTingxie=getNilai('tingxie');
-    const vLianxi =getNilai('lianxi');
+    const vTingxie=isTKKelas?null:getNilai('tingxie');
+    const vLianxi =getNilai(isTKKelas?'lianxi_tk':'lianxi');
     const vCeyuan =getNilai('ceyuan');
     const vPinyin =getNilai('pinyin');
     const vZaoju  =getNilai('zaoju');
@@ -390,7 +409,9 @@ async function generate(){
     const vDakao=dakaoVals.length?avg(dakaoVals):null;
     const na_dakao=vDakao!=null?vDakao*0.35:null;
 
-    const komponen=[na_tingxie,na_lianxi,na_ceyuan,na_pinyin,na_zaoju];
+    const vTS=isTKKelas?tkTS(nilaiMurid):null;
+    const na_ts=vTS!=null?vTS*0.35:null;
+    const komponen=[na_tingxie,na_lianxi,na_ceyuan,na_pinyin,na_zaoju,na_ts];
     const sub65=komponen.filter(v=>v!=null).reduce((a,b)=>a+b,0)+nilaiKehadiran;
     const totalNilai=na_dakao!=null?sub65+na_dakao:sub65;
 
@@ -408,10 +429,15 @@ async function generate(){
         if(!grouped[bucket]) grouped[bucket]=[];
         grouped[bucket].push(Number(r.nilai));
       });
-      return order.filter(k=>grouped[k]&&grouped[k].length).map(k=>({
+      const hasil=order.filter(k=>grouped[k]&&grouped[k].length&&!(isTKKelas&&(k==='ting'||k==='shuo'))).map(k=>({
         label: labelMap[k]||k,
         nilai: grouped[k].reduce((a,b)=>a+b,0)/grouped[k].length
       }));
+      if(isTKKelas){
+        const dk=nilaiMurid.filter(n=>n.jenis_penilaian==='tingxie'&&n.nilai!=null).map(n=>Number(n.nilai));
+        if(dk.length) hasil.unshift({label:'听写 (Tīng xiě) — Dikte',nilai:dk.reduce((a,b)=>a+b,0)/dk.length});
+      }
+      return hasil;
     })();
     const yanjiang=getNilaiDetail('yanjiang');
 
@@ -500,11 +526,9 @@ async function generate(){
       <table>
         <thead><tr><th class="tl">Indikator</th><th>Bobot</th><th>Jumlah Nilai</th><th>Rata-rata Nilai</th><th>Nilai Akhir</th></tr></thead>
         <tbody>
-          ${nilaiRow('听写 (Tīng xiě)',vTingxie,'10%',na_tingxie)}
-          ${nilaiRow('练习 (Liàn xí)',vLianxi,'10%',na_lianxi)}
-          ${nilaiRow('测验 (Cè yàn)',vCeyuan,'15%',na_ceyuan)}
-          ${nilaiRow('汉语拼音 (Pīn yīn)',vPinyin,'15%',na_pinyin)}
-          ${nilaiRow('造句 (Zào jù)',vZaoju,'10%',na_zaoju)}
+          ${isTKKelas
+            ? nilaiRow('听写 · 读 · 写 (Dikte, Baca, Tulis)',vTS,'35%',na_ts)+nilaiRow('练习 (Liàn xí)',vLianxi,'10%',na_lianxi)+nilaiRow('测验 (Cè yàn)',vCeyuan,'15%',na_ceyuan)
+            : nilaiRow('听写 (Tīng xiě)',vTingxie,'10%',na_tingxie)+nilaiRow('练习 (Liàn xí)',vLianxi,'10%',na_lianxi)+nilaiRow('测验 (Cè yàn)',vCeyuan,'15%',na_ceyuan)+nilaiRow('汉语拼音 (Pīn yīn)',vPinyin,'15%',na_pinyin)+nilaiRow('造句 (Zào jù)',vZaoju,'10%',na_zaoju)}
           <tr style="background:#fff8f8">
             <td>出勤情况 Kehadiran</td><td class="tc">5%</td>
             <td class="tc">${hadir}/${totalPertemuan} pertemuan</td>
@@ -538,7 +562,7 @@ async function generate(){
       <!-- INFO TAMBAHAN -->
       <div class="info-grid">
         <div>
-          <div class="sec" style="margin-top:0">听说读写</div>
+          <div class="sec" style="margin-top:0">${isTKKelas?'听写 · 读 · 写':'听说读写'}</div>
           <table>
             <thead><tr><th class="tl">Komponen</th><th>Nilai</th></tr></thead>
             <tbody>
