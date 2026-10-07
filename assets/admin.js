@@ -70,6 +70,7 @@ async function generateNomorInduk(prefix) {
     await populateProgramDropdownKelas();
     await initProgramSwitcherAdmin();
     await loadStats();
+    updateBadgePlacement();
     await loadKelasHariIni();
     setupStatCardClicks();
     await loadAndApplySysSettings();
@@ -131,6 +132,7 @@ async function switchActiveProgramAdmin(programId) {
   await initProgramSwitcherAdmin();
   await populateGuruDropdowns();
   await loadStats();
+  updateBadgePlacement();
   await loadKelasHariIni();
   var activeTab = document.querySelector('.tab-content.active');
   if (!activeTab) return;
@@ -207,6 +209,7 @@ function switchTab(tab) {
   document.querySelector('[data-tab="'+tab+'"]').classList.add('active');
   if (tab==='register')   loadPendaftaran();
   if (tab==='reregister') loadRR();
+  if (tab==='placement')  loadPlacement();
   if (tab==='kelas')      loadKelas();
   if (tab==='murid')      loadMurid();
   if (tab==='approval-status') loadApprovalStatus();
@@ -468,7 +471,7 @@ async function loadPendaftaran() {
         +'<td><strong>'+(d.nama_lengkap||'')+'</strong></td>'
         +(showMandarin ? '<td style="color:#6b7280">'+(d.nama_mandarin||'—')+'</td>' : '')
         +'<td>'+(d.created_at?new Date(d.created_at).toLocaleDateString('id-ID'):'—')+'</td>'
-        +'<td style="font-family:monospace">'+(d.kelas?d.kelas.kode_kelas:'—')+'</td>'
+        +'<td style="font-family:monospace">'+(d.placement?'🧭 PLACEMENT'+(d.level_diinginkan?' <span style="font-family:inherit;color:#6b7280">('+d.level_diinginkan+')</span>':''):(d.kelas?d.kelas.kode_kelas:'—'))+'</td>'
         +'<td>'+sb+'</td>'
         +'<td><button class="btn-icon" onclick="showDetailDaftar(\''+d.id+'\')">👁</button> '+ab+'</td></tr>';
     }
@@ -500,7 +503,7 @@ async function showDetailDaftar(id) {
       +'<div class="modal-row"><span class="modal-label">Tempat Lahir</span><span class="modal-value">'+(d.tempat_lahir||'—')+'</span></div>'
       +'<div class="modal-row"><span class="modal-label">Tgl Lahir</span><span class="modal-value">'+(d.tanggal_lahir?new Date(d.tanggal_lahir).toLocaleDateString('id-ID'):'—')+'</span></div>'
       +'<div class="modal-row"><span class="modal-label">Alamat</span><span class="modal-value">'+(d.alamat||'—')+'</span></div>'
-      +'<div class="modal-row"><span class="modal-label">Kelas Dipilih</span><span class="modal-value" style="font-family:monospace">'+(d.kelas?d.kelas.kode_kelas:'—')+'</span></div>'
+      +'<div class="modal-row"><span class="modal-label">Kelas Dipilih</span><span class="modal-value" style="font-family:monospace">'+(d.placement?'🧭 PLACEMENT'+(d.level_diinginkan?' — level diinginkan: '+d.level_diinginkan:''):(d.kelas?d.kelas.kode_kelas:'—'))+'</span></div>'
       +'<div class="modal-row"><span class="modal-label">Bukti Bayar</span><span class="modal-value">'+fileHtml+'</span></div>';
 
     document.getElementById('detailDaftarAksi').innerHTML = d.status==='pending'
@@ -531,12 +534,18 @@ async function proseskan(id, status) {
         telepon:regData.telepon,telepon_ortu:regData.telepon_ortu,
         tanggal_join:new Date().toISOString().split('T')[0],status:true
       }).select().single();
-      if (sr.data&&regData.kelas_dipilih) {
-        await db.from('enrollment').insert({siswa_id:sr.data.id,kelas_id:regData.kelas_dipilih,tahun_ajaran_id:tahunAjaranId,is_active:true});
+      if (sr.data&&regData.placement) {
+        var plRes=await db.from('placement').insert({siswa_id:sr.data.id,program_id:regData.program_id||activeProgramId||null,level_diinginkan:regData.level_diinginkan||null});
+        if (plRes.error) { alert('⚠️ Murid tersimpan tapi gagal masuk PLACEMENT: '+plRes.error.message); }
+        else { alert('✅ Murid didaftarkan ke PLACEMENT! No. Induk: '+noInduk+'\nArahkan ke kelas lewat menu PLACEMENT.'); }
+      } else {
+        if (sr.data&&regData.kelas_dipilih) {
+          await db.from('enrollment').insert({siswa_id:sr.data.id,kelas_id:regData.kelas_dipilih,tahun_ajaran_id:tahunAjaranId,is_active:true});
+        }
+        alert('✅ Murid didaftarkan! No. Induk: '+noInduk);
       }
-      alert('✅ Murid didaftarkan! No. Induk: '+noInduk);
     }
-    await loadPendaftaran(); await loadStats();
+    await loadPendaftaran(); await loadStats(); await updateBadgePlacement();
   } catch(e) { console.error('proseskan:',e); alert('Error: '+e.message); }
 }
 
@@ -545,10 +554,19 @@ function openModalDaftarAdmin(presetKelasId) {
   ['da_tanggalLahir'].forEach(function(id){document.getElementById(id).value='';});
   document.getElementById('da_tanggalJoin').value=new Date().toISOString().split('T')[0];
   document.getElementById('da_namaMandarinWrap').style.display = isMandarinActive() ? '' : 'none';
+  document.getElementById('da_level').value='';
+  document.getElementById('da_levelWrap').style.display='none';
   populateKelasSelect('da_kelas').then(function() {
-    if (presetKelasId) document.getElementById('da_kelas').value=presetKelasId;
+    var sel=document.getElementById('da_kelas');
+    var o=document.createElement('option'); o.value='__PLACEMENT__'; o.textContent='🧭 PLACEMENT (level belum ada kelasnya / belum tahu)';
+    sel.appendChild(o);
+    if (presetKelasId) sel.value=presetKelasId;
   });
   document.getElementById('modalDaftarAdmin').classList.remove('hidden');
+}
+
+function onDaKelasChange() {
+  document.getElementById('da_levelWrap').style.display = (document.getElementById('da_kelas').value==='__PLACEMENT__') ? '' : 'none';
 }
 
 async function simpanDaftarAdmin() {
@@ -577,21 +595,116 @@ async function simpanDaftarAdmin() {
     }).select().single();
     if (sr.error) { alert('Error: '+sr.error.message); return; }
     var erEnr = null;
-    if (sr.data) {
+    var isPlacement = (kelasId==='__PLACEMENT__');
+    if (sr.data && isPlacement) {
+      var plRes = await db.from('placement').insert({siswa_id:sr.data.id,program_id:activeProgramId||null,level_diinginkan:document.getElementById('da_level').value.trim()||null});
+      erEnr = plRes.error;
+    } else if (sr.data) {
       var enrRes = await db.from('enrollment').insert({siswa_id:sr.data.id,kelas_id:kelasId,tahun_ajaran_id:tahunAjaranId,is_active:true});
       erEnr = enrRes.error;
     }
     closeModal('modalDaftarAdmin');
     if (erEnr) {
-      alert('⚠️ Murid "'+namaIndo+'" tersimpan (No. Induk: '+noInduk+'), TAPI gagal didaftarkan ke kelas!\nError: '+erEnr.message+'\n\nMurid ini tidak akan muncul di Data Murid sampai didaftarkan ulang ke kelas via tab Pendaftaran Ulang.');
+      alert('⚠️ Murid "'+namaIndo+'" tersimpan (No. Induk: '+noInduk+'), TAPI gagal didaftarkan ke '+(isPlacement?'PLACEMENT':'kelas')+'!\nError: '+erEnr.message+'\n\nMurid ini tidak akan muncul di Data Murid sampai didaftarkan ulang ke kelas via tab Pendaftaran Ulang.');
     } else {
-      alert('✅ Murid didaftarkan! No. Induk: '+noInduk);
+      alert('✅ Murid didaftarkan'+(isPlacement?' ke PLACEMENT':'')+'! No. Induk: '+noInduk);
     }
     await loadStats();
     await loadMurid();
+    await updateBadgePlacement();
     // Refresh kelas detail if open
     if (currentKelasDetailId===kelasId) viewKelasStudents(kelasId, '');
   } catch(e) { console.error('simpanDaftarAdmin:',e); alert('Error: '+e.message); }
+}
+
+// ============================================
+// PLACEMENT — calon murid yang levelnya belum punya kelas
+// ============================================
+var allPlacement = [], kelasPlacementOpts = [];
+
+async function updateBadgePlacement() {
+  try {
+    var q = db.from('placement').select('*',{count:'exact',head:true}).eq('status','menunggu');
+    if (activeProgramId) q = q.eq('program_id', activeProgramId);
+    var r = await q;
+    var b = document.getElementById('badgePlacement');
+    if (!b) return;
+    var n = r.count || 0;
+    b.textContent = n; b.style.display = n ? '' : 'none';
+  } catch(e) {}
+}
+
+async function loadPlacement() {
+  try {
+    var st = document.getElementById('filterStatusPlacement').value || 'menunggu';
+    var q = db.from('placement').select('*, siswa:siswa_id(id,nomor_induk,nama_lengkap,nama_mandarin,status), kelas:kelas_tujuan(kode_kelas)').eq('status', st).order('created_at',{ascending:true});
+    if (activeProgramId) q = q.eq('program_id', activeProgramId);
+    var res = await q;
+    if (res.error) throw new Error(res.error.message);
+    allPlacement = res.data || [];
+
+    var kq = db.from('kelas').select('id,kode_kelas,jilid,nama_level,program_id,enrollment(is_active,siswa:siswa_id(status))').eq('is_active',true).order('kode_kelas');
+    if (activeProgramId) kq = kq.eq('program_id', activeProgramId);
+    kelasPlacementOpts = (await kq).data || [];
+    renderPlacement();
+    updateBadgePlacement();
+  } catch(e) {
+    console.error('loadPlacement:', e);
+    document.getElementById('tablePlacement').innerHTML = '<tr><td colspan="5" style="text-align:center;padding:30px;color:#b01020">Error: '+e.message+' (sudah jalankan fitur_placement.sql?)</td></tr>';
+  }
+}
+
+function renderPlacement() {
+  var tbody = document.getElementById('tablePlacement');
+  var q = (document.getElementById('searchPlacement').value||'').toLowerCase();
+  var st = document.getElementById('filterStatusPlacement').value || 'menunggu';
+  var list = allPlacement.filter(function(p){
+    return p.siswa && ((p.siswa.nama_lengkap||'').toLowerCase().indexOf(q)>=0 || (p.siswa.nama_mandarin||'').toLowerCase().indexOf(q)>=0);
+  });
+  if (!list.length) { tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:40px;color:#6b7280">'+(st==='menunggu'?'Tidak ada calon murid yang menunggu penempatan':'Belum ada riwayat')+'</td></tr>'; return; }
+  var html = '';
+  list.forEach(function(p){
+    var s = p.siswa;
+    var nm = s.nama_mandarin ? ' <span style="color:#9ca3af;font-size:12px">'+s.nama_mandarin+'</span>' : '';
+    var tgl = p.created_at ? new Date(p.created_at).toLocaleDateString('id-ID') : '—';
+    var aksi;
+    if (p.status === 'selesai') {
+      aksi = '<span class="badge badge-green">→ '+(p.kelas ? p.kelas.kode_kelas : 'kelas dihapus')+'</span>';
+    } else {
+      var opts = '<option value="">-- Pilih Kelas --</option>';
+      kelasPlacementOpts.forEach(function(k){
+        var cnt = (k.enrollment||[]).filter(function(e){return e.is_active && e.siswa && e.siswa.status !== false;}).length;
+        var lvl = kelasLevelLabel(k);
+        opts += '<option value="'+k.id+'">'+k.kode_kelas+(lvl?' — '+lvl:'')+' ('+cnt+' murid)</option>';
+      });
+      aksi = '<select id="plKelas_'+p.id+'" style="font-size:12px;padding:4px 8px;border:1px solid #e5e7eb;border-radius:6px;min-width:200px">'+opts+'</select> '
+        +'<button class="btn btn-success btn-sm" onclick="arahkanPlacement(\''+p.id+'\')">✓ Arahkan</button>';
+    }
+    html += '<tr>'
+      +'<td style="font-family:monospace">'+s.nomor_induk+'</td>'
+      +'<td><strong>'+s.nama_lengkap+'</strong>'+nm+'</td>'
+      +'<td>'+(p.level_diinginkan||'<span style="color:#9ca3af">—</span>')+'</td>'
+      +'<td>'+tgl+'</td>'
+      +'<td>'+aksi+'</td></tr>';
+  });
+  tbody.innerHTML = html;
+}
+
+async function arahkanPlacement(plId) {
+  var p = allPlacement.find(function(x){return x.id===plId;});
+  if (!p) return;
+  var sel = document.getElementById('plKelas_'+plId);
+  var kelasId = sel ? sel.value : '';
+  if (!kelasId) { alert('Pilih kelas tujuan dulu!'); return; }
+  if (!confirm('Arahkan '+p.siswa.nama_lengkap+' ke kelas '+sel.options[sel.selectedIndex].text+'?')) return;
+  try {
+    var ins = await db.from('enrollment').insert({siswa_id:p.siswa_id,kelas_id:kelasId,tahun_ajaran_id:tahunAjaranId,is_active:true});
+    if (ins.error) throw new Error('Enrollment: '+ins.error.message);
+    var up = await db.from('placement').update({status:'selesai',kelas_tujuan:kelasId,selesai_at:new Date().toISOString()}).eq('id',plId);
+    if (up.error) throw new Error('Placement: '+up.error.message);
+    alert('✅ '+p.siswa.nama_lengkap+' sudah masuk kelas. Murid kini tampil di Data Murid dan dashboard guru.');
+    await loadPlacement(); await loadStats();
+  } catch(e) { console.error('arahkanPlacement:',e); alert('Error: '+e.message); }
 }
 
 // ============================================
