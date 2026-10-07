@@ -2035,33 +2035,40 @@ async function buildJuriPreview(kelasId, murid) {
       .in('event_id', evIds).in('siswa_id', siswaIds);
     const esc = t => String(t ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
     const col = v => v == null ? '#9ca3af' : v >= 80 ? '#059669' : v >= 65 ? '#d97706' : '#dc2626';
-    // hasil per event per siswa
+    // hasil per event per siswa (rincian per kriteria + nilai akhir)
     const hitung = (ev, sid) => {
       const kr = Array.isArray(ev.kriteria) ? ev.kriteria : [];
       const persen = []; let tot = 0, maks = 0;
-      kr.forEach(k => {
+      const per = kr.map(k => {
         const v = (nl || []).filter(r => r.event_id === ev.id && r.siswa_id === sid && r.kriteria === k.nama).map(r => Number(r.nilai));
-        if (!v.length) return;
+        if (!v.length) return null;
         const avg = v.reduce((a, b) => a + b, 0) / v.length;
         persen.push(avg / Number(k.maks) * 100); tot += avg; maks += Number(k.maks);
+        return Math.round(avg * 10) / 10;
       });
       if (!persen.length) return null;
-      return { akhir: Math.round(persen.reduce((a, b) => a + b, 0) / persen.length), tot: Math.round(tot * 10) / 10, maks };
+      return { per, akhir: Math.round(persen.reduce((a, b) => a + b, 0) / persen.length), tot: Math.round(tot * 10) / 10, maks };
     };
+    const th = 'padding:8px 10px;text-align:center;border-bottom:1px solid var(--border);white-space:nowrap;';
     let out = '';
     [['speaking', '演讲 Speaking – rata-rata juri'], ['hsk_mock', 'HSK Mock Test – rata-rata juri']].forEach(([jenis, label]) => {
       const list = evs.filter(e => e.jenis === jenis);
       if (!list.length) return;
       const tglF = t => new Date(t).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+      const krOf = e => Array.isArray(e.kriteria) ? e.kriteria : [];
       out += `<div style="margin-bottom:24px">
         <div style="font-size:14px;font-weight:700;margin-bottom:10px;padding:8px 12px;background:#eff6ff;border-radius:8px;border-left:4px solid #3b82f6">${label}
           <span style="font-weight:400;font-size:11px;color:var(--text-2)"> · otomatis, tidak masuk nilai akhir raport</span></div>
         <div style="overflow-x:auto;border:1px solid var(--border);border-radius:8px">
-        <table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f9fafb">
-          <th style="padding:8px 12px;text-align:left;border-bottom:1px solid var(--border)">Nama</th>
-          <th style="padding:8px 12px;text-align:left;border-bottom:1px solid var(--border)">名字</th>
-          ${list.map(e => `<th style="padding:8px 10px;text-align:center;border-bottom:1px solid var(--border);white-space:nowrap">${esc(e.judul)}<br><span style="font-weight:400;color:var(--text-2)">${tglF(e.tanggal)}</span></th>`).join('')}
-          <th style="padding:8px 10px;text-align:center;border-bottom:1px solid var(--border);background:#fef9c3;color:#92400e">Rata-rata</th>
+        <table style="width:100%;border-collapse:collapse;font-size:12px"><thead>
+        <tr style="background:#f9fafb">
+          <th rowspan="2" style="padding:8px 12px;text-align:left;border-bottom:1px solid var(--border)">Nama</th>
+          <th rowspan="2" style="padding:8px 12px;text-align:left;border-bottom:1px solid var(--border)">名字</th>
+          ${list.map(e => `<th colspan="${krOf(e).length + 1}" style="${th}border-left:1px solid var(--border)">${esc(e.judul)}<br><span style="font-weight:400;color:var(--text-2)">${tglF(e.tanggal)}</span></th>`).join('')}
+          <th rowspan="2" style="${th}background:#fef9c3;color:#92400e;border-left:1px solid var(--border)">Rata-rata</th>
+        </tr>
+        <tr style="background:#f9fafb">
+          ${list.map(e => krOf(e).map((k, i) => `<th style="${th}font-weight:600;font-size:11px;${i === 0 ? 'border-left:1px solid var(--border);' : ''}">${esc(k.nama)}<br><span style="font-weight:400;color:var(--text-2)">/${k.maks}</span></th>`).join('') + `<th style="${th}font-size:11px;background:#f0fdf4;color:#166534">Akhir</th>`).join('')}
         </tr></thead><tbody>
         ${murid.map(m => {
           const hs = list.map(e => hitung(e, m.siswa.id));
@@ -2070,8 +2077,9 @@ async function buildJuriPreview(kelasId, murid) {
           return `<tr style="border-bottom:1px solid #f3f4f6">
             <td style="padding:7px 12px;font-weight:600;white-space:nowrap">${esc(m.siswa.nama_lengkap)}</td>
             <td style="padding:7px 12px;color:#b91c1c;white-space:nowrap">${esc(m.siswa.nama_mandarin || '—')}</td>
-            ${hs.map(h => `<td style="padding:7px 10px;text-align:center;font-weight:${h ? 700 : 400};color:${col(h?.akhir)}">${h ? h.akhir + (jenis === 'hsk_mock' ? `<div style="font-size:10px;font-weight:400;color:var(--text-2)">${h.tot}/${h.maks}</div>` : '') : '—'}</td>`).join('')}
-            <td style="padding:7px 10px;text-align:center;background:#fef9c3;font-weight:700;color:${col(avg)}">${avg ?? '—'}</td></tr>`;
+            ${hs.map((h, ei) => krOf(list[ei]).map((k, i) => `<td style="padding:7px 10px;text-align:center;${i === 0 ? 'border-left:1px solid #f3f4f6;' : ''}">${h && h.per[i] != null ? h.per[i] : '—'}</td>`).join('') +
+              `<td style="padding:7px 10px;text-align:center;font-weight:${h ? 700 : 400};color:${col(h?.akhir)};background:#f0fdf4">${h ? h.akhir + (jenis === 'hsk_mock' ? `<div style="font-size:10px;font-weight:400;color:var(--text-2)">${h.tot}/${h.maks}</div>` : '') : '—'}</td>`).join('')}
+            <td style="padding:7px 10px;text-align:center;background:#fef9c3;font-weight:700;color:${col(avg)};border-left:1px solid #f3f4f6">${avg ?? '—'}</td></tr>`;
         }).join('')}
         </tbody></table></div></div>`;
     });
