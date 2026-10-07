@@ -222,8 +222,17 @@ function switchTab(tab) {
 // ============================================
 // STATS
 // ============================================
+async function getPlacementWaitingIds() {
+  try {
+    var r = await db.from('placement').select('siswa_id').eq('status','menunggu');
+    return (r.data||[]).map(function(x){return x.siswa_id;});
+  } catch(e) { return []; }
+}
+
 async function loadStats() {
   try {
+    var plIds = await getPlacementWaitingIds();
+    var notPl = function(q){ return plIds.length ? q.not('id','in','('+plIds.join(',')+')') : q; };
     var qPending = db.from('pendaftaran').select('*',{count:'exact',head:true}).eq('status','pending');
     var qKelas = db.from('kelas').select('*',{count:'exact',head:true}).eq('is_active',true);
     if (activeProgramId) { qPending = qPending.eq('program_id', activeProgramId); qKelas = qKelas.eq('program_id', activeProgramId); }
@@ -239,8 +248,8 @@ async function loadStats() {
     }
 
     var r = await Promise.all([
-      activeProgramId ? Promise.resolve({count: cAktif}) : db.from('siswa').select('*',{count:'exact',head:true}).eq('status',true),
-      activeProgramId ? Promise.resolve({count: cBerhenti}) : db.from('siswa').select('*',{count:'exact',head:true}).eq('status',false),
+      activeProgramId ? Promise.resolve({count: cAktif}) : notPl(db.from('siswa').select('*',{count:'exact',head:true}).eq('status',true)),
+      activeProgramId ? Promise.resolve({count: cBerhenti}) : notPl(db.from('siswa').select('*',{count:'exact',head:true}).eq('status',false)),
       qPending,
       qKelas
     ]);
@@ -473,7 +482,7 @@ async function loadPendaftaran() {
         +'<td>'+(d.created_at?new Date(d.created_at).toLocaleDateString('id-ID'):'—')+'</td>'
         +'<td style="font-family:monospace">'+(d.placement?'🧭 PLACEMENT'+(d.level_diinginkan?' <span style="font-family:inherit;color:#6b7280">('+d.level_diinginkan+')</span>':''):(d.kelas?d.kelas.kode_kelas:'—'))+'</td>'
         +'<td>'+sb+'</td>'
-        +'<td><button class="btn-icon" onclick="showDetailDaftar(\''+d.id+'\')">👁</button> '+ab+'</td></tr>';
+        +'<td><button class="btn-icon" onclick="showDetailDaftar(\''+d.id+'\')">👁</button> '+ab+' <button class="btn btn-danger btn-sm" onclick="hapusPendaftaran(\''+d.id+'\',\''+(d.nama_lengkap||'').replace(/['\\]/g,'')+'\')">🗑️</button></td></tr>';
     }
     tbody.innerHTML=html;
   } catch(e) { console.error('loadPendaftaran:',e); }
@@ -680,6 +689,7 @@ function renderPlacement() {
       aksi = '<select id="plKelas_'+p.id+'" style="font-size:12px;padding:4px 8px;border:1px solid #e5e7eb;border-radius:6px;min-width:200px">'+opts+'</select> '
         +'<button class="btn btn-success btn-sm" onclick="arahkanPlacement(\''+p.id+'\')">✓ Arahkan</button>';
     }
+    aksi += ' <button class="btn btn-danger btn-sm" onclick="hapusPlacement(\''+p.id+'\')">🗑️</button>';
     html += '<tr>'
       +'<td style="font-family:monospace">'+s.nomor_induk+'</td>'
       +'<td><strong>'+s.nama_lengkap+'</strong>'+nm+'</td>'
@@ -688,6 +698,43 @@ function renderPlacement() {
       +'<td>'+aksi+'</td></tr>';
   });
   tbody.innerHTML = html;
+}
+
+async function hapusPendaftaran(id, nama) {
+  if (!confirm('Hapus data pendaftaran "'+nama+'"?\n\nHanya baris pendaftaran (dan file bukti bayarnya) yang dihapus. Kalau sudah disetujui, data murid di Data Murid tidak ikut terhapus.')) return;
+  try {
+    var d = (await db.from('pendaftaran').select('bukti_bayar_url').eq('id',id).maybeSingle()).data;
+    if (d && d.bukti_bayar_url) { try { await db.storage.from('bukti-bayar').remove([d.bukti_bayar_url]); } catch(fe) {} }
+    var er = (await db.from('pendaftaran').delete().eq('id',id)).error;
+    if (er) { alert('❌ Gagal hapus: '+er.message); return; }
+    await loadPendaftaran(); await loadStats(); await updateBadgePlacement();
+  } catch(e) { alert('❌ Error: '+e.message); }
+}
+
+async function hapusPlacement(plId) {
+  var p = allPlacement.find(function(x){return x.id===plId;});
+  if (!p) return;
+  var nama = p.siswa ? p.siswa.nama_lengkap : '';
+  var hapusSiswa = false;
+  if (p.status === 'menunggu') {
+    if (!confirm('Hapus "'+nama+'" dari PLACEMENT?\n\nData calon murid ini ikut dihapus permanen (cocok untuk pendaftaran yang batal atau data testing).')) return;
+    hapusSiswa = true;
+  } else {
+    if (!confirm('Hapus riwayat PLACEMENT "'+nama+'"?\n\nMurid tetap ada di kelasnya, hanya catatan riwayat ini yang dihapus.')) return;
+  }
+  try {
+    var er = (await db.from('placement').delete().eq('id',plId)).error;
+    if (er) throw new Error(er.message);
+    if (hapusSiswa && p.siswa_id) {
+      var enr = (await db.from('enrollment').select('id').eq('siswa_id',p.siswa_id).limit(1)).data || [];
+      if (!enr.length) {
+        await db.from('iuran').delete().eq('siswa_id',p.siswa_id);
+        var e2 = (await db.from('siswa').delete().eq('id',p.siswa_id)).error;
+        if (e2) throw new Error('Hapus data murid: '+e2.message);
+      }
+    }
+    await loadPlacement(); await loadStats();
+  } catch(e) { console.error('hapusPlacement:',e); alert('❌ Error: '+e.message); }
 }
 
 async function arahkanPlacement(plId) {
@@ -1219,7 +1266,8 @@ function clearSelectKelas(){selectedKelas.clear();document.querySelectorAll('.ch
 async function loadMurid() {
   try {
     var res=await db.from('siswa').select('*, enrollment(is_active,kelas:kelas_id(kode_kelas,jilid,nama_level,program_id))').order('nomor_induk');
-    var list=res.data||[];
+    var plIds=await getPlacementWaitingIds();
+    var list=(res.data||[]).filter(function(s){return plIds.indexOf(s.id)<0;});
     if (activeProgramId) {
       list = list.filter(function(s){
         var ae=null;
