@@ -1197,13 +1197,14 @@ async function loadHistorical() {
 
   // ===== ADMINISTRASI =====
   // Pendaftar baru = murid yang dibuat pada periode ini (dari semua jalur: form pendaftaran maupun tambah manual)
+  window._plIdsAdm = await getPlacementWaitingIds();
   const { data: muridBaruRaw } = await db.from('siswa')
     .select('id, nama_lengkap, enrollment(is_active, kelas:kelas_id(kode_kelas,jilid,program_id))')
     .gte('created_at', tglMulai+'T00:00:00').lte('created_at', tglAkhir+'T23:59:59');
 
   const muridBaru = activeProgramId
     ? (muridBaruRaw||[]).filter(s => (s.enrollment||[]).some(e => e.kelas?.program_id === activeProgramId))
-    : muridBaruRaw;
+    : (muridBaruRaw||[]).filter(s => !(window._plIdsAdm||[]).includes(s.id));
 
   const pendFilt   = muridBaru || [];
   const totalMurid = pendFilt.filter(s => s.status !== false).length;
@@ -1495,9 +1496,11 @@ async function loadDashboard() {
     cMuridTotal = scoped.length;
     cMuridAktif = scoped.filter(e => e.siswa?.status).length;
   } else {
+    const plIdsC = await getPlacementWaitingIds();
+    const notPlC = q => plIdsC.length ? q.not('id','in','('+plIdsC.join(',')+')') : q;
     const [{ count: a }, { count: t }] = await Promise.all([
-      db.from('siswa').select('*', { count: 'exact', head: true }).eq('status', true),
-      db.from('siswa').select('*', { count: 'exact', head: true }),
+      notPlC(db.from('siswa').select('*', { count: 'exact', head: true }).eq('status', true)),
+      notPlC(db.from('siswa').select('*', { count: 'exact', head: true })),
     ]);
     cMuridAktif = a; cMuridTotal = t;
   }
@@ -1526,7 +1529,7 @@ async function loadDashboard() {
   // Pendaftaran baru bulan ini
   const nowD = new Date(), ym = nowD.getFullYear()+'-'+String(nowD.getMonth()+1).padStart(2,'0');
   const lastDayM = new Date(nowD.getFullYear(), nowD.getMonth()+1, 0).getDate();
-  let qDaftarCount = db.from('pendaftaran').select('*',{count:'exact',head:true})
+  let qDaftarCount = db.from('pendaftaran').select('*',{count:'exact',head:true}).eq('status','approved').eq('placement',false)
     .gte('created_at', ym+'-01T00:00:00').lte('created_at', ym+'-'+lastDayM+'T23:59:59');
   if (activeProgramId) qDaftarCount = qDaftarCount.eq('program_id', activeProgramId);
   const { count: cDaftar } = await qDaftarCount;
@@ -1698,11 +1701,19 @@ async function loadKelasLeader() {
 // ADMINISTRASI — DATA MURID (Leader)
 // ============================================
 var allMuridL = [];
+async function getPlacementWaitingIds() {
+  try {
+    var r = await db.from('placement').select('siswa_id').eq('status','menunggu');
+    return (r.data||[]).map(function(x){return x.siswa_id;});
+  } catch(e) { return []; }
+}
+
 
 async function loadMuridLeader() {
   document.getElementById('tableMuridL').innerHTML = '<tr class="loading-row"><td colspan="6">⏳ Memuat...</td></tr>';
   const { data } = await db.from('siswa').select('*, enrollment(id,is_active,kelas:kelas_id(kode_kelas,jilid,nama_level,program_id))').order('nomor_induk');
-  let list = data || [];
+  const plIdsL = await getPlacementWaitingIds();
+  let list = (data || []).filter(s => !plIdsL.includes(s.id));
   if (activeProgramId) {
     list = list.filter(s => {
       const ae = Array.isArray(s.enrollment) ? s.enrollment.find(e => e.is_active) : null;
@@ -2112,7 +2123,7 @@ async function generateLaporanLeader() {
   const endDate = bulan + '-' + String(lastDay).padStart(2,'0');
 
   let qTrx = db.from('transaksi').select('*').gte('tanggal', bulan+'-01').lte('tanggal', endDate).eq('status', 'approved').order('tanggal');
-  let qPendaftaran = db.from('pendaftaran').select('*',{count:'exact',head:true}).gte('created_at', bulan+'-01').lte('created_at', endDate+'T23:59:59');
+  let qPendaftaran = db.from('pendaftaran').select('*',{count:'exact',head:true}).eq('status','approved').eq('placement',false).gte('created_at', bulan+'-01').lte('created_at', endDate+'T23:59:59');
   let qGaji = db.from('penggajian').select('*, guru:guru_id!inner(nama_lengkap,kode_guru,program_id)').eq('bulan', bulan);
   if (activeProgramId) {
     qTrx = qTrx.eq('program_id', activeProgramId);
@@ -2130,6 +2141,8 @@ async function generateLaporanLeader() {
     cMuridStop  = scoped.filter(e => !e.siswa?.status).length;
   }
 
+  const plIdsR = await getPlacementWaitingIds();
+  const notPlR = q => plIdsR.length ? q.not('id','in','('+plIdsR.join(',')+')') : q;
   const [
     { data: trx },
     { count: muridAktif },
@@ -2138,8 +2151,8 @@ async function generateLaporanLeader() {
     { data: gajiData },
   ] = await Promise.all([
     qTrx,
-    activeProgramId ? Promise.resolve({count: cMuridAktif}) : db.from('siswa').select('*',{count:'exact',head:true}).eq('status',true),
-    activeProgramId ? Promise.resolve({count: cMuridStop}) : db.from('siswa').select('*',{count:'exact',head:true}).eq('status',false),
+    activeProgramId ? Promise.resolve({count: cMuridAktif}) : notPlR(db.from('siswa').select('*',{count:'exact',head:true}).eq('status',true)),
+    activeProgramId ? Promise.resolve({count: cMuridStop}) : notPlR(db.from('siswa').select('*',{count:'exact',head:true}).eq('status',false)),
     qPendaftaran,
     qGaji,
   ]);
@@ -2613,9 +2626,10 @@ async function loadStatistikBimbel() {
   const { data: muridBaruRaw } = await db.from('siswa')
     .select('id, status, created_at, enrollment(is_active, kelas:kelas_id(program_id))')
     .gte('created_at', tglMulai+'T00:00:00').lte('created_at', tglAkhir+'T23:59:59');
+  const plIdsS = await getPlacementWaitingIds();
   const muridBaru = activeProgramId
     ? (muridBaruRaw||[]).filter(s => (s.enrollment||[]).some(e => e.kelas?.program_id === activeProgramId))
-    : (muridBaruRaw||[]);
+    : (muridBaruRaw||[]).filter(s => !plIdsS.includes(s.id));
   const jumlahBaru = muridBaru.length;
 
   // Total murid aktif SAAT INI di program ini
@@ -2623,7 +2637,7 @@ async function loadStatistikBimbel() {
   const { data: aktifRaw } = await qAktif;
   const aktifSekarang = activeProgramId
     ? (aktifRaw||[]).filter(s => (s.enrollment||[]).some(e => e.is_active && e.kelas?.program_id === activeProgramId)).length
-    : (aktifRaw||[]).length;
+    : (aktifRaw||[]).filter(s => !plIdsS.includes(s.id)).length;
 
   // Total murid nonaktif (berhenti) — data histori tanggal berhenti belum tersedia di sistem,
   // jadi ini menampilkan TOTAL murid berhenti sepanjang waktu (bukan spesifik periode ini)
