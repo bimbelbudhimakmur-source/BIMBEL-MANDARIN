@@ -1589,12 +1589,24 @@ const JENIS_CONFIG = {
     afterSub: null
   },
   tk_du: {
-    label: '读', dbJenis: 'tingshuo', tkSingle: 'du',     // tanpa sub penilaian
-    subs: null, afterSub: null
+    label: '读', dbJenis: 'tingshuo', tkSingle: 'du',  // satu nilai per 2 bab, tanpa komponen
+    subLabel: 'Kelompok Bab',
+    subs: [
+      {v:'1-2',l:'Bab 1–2'},{v:'3-4',l:'Bab 3–4'},
+      {v:'5-6',l:'Bab 5–6'},{v:'7-8',l:'Bab 7–8'},
+      {v:'9-10',l:'Bab 9–10'}
+    ],
+    afterSub: null
   },
   tk_xie: {
-    label: '写', dbJenis: 'tingshuo', tkSingle: 'xie',    // tanpa sub penilaian
-    subs: null, afterSub: null
+    label: '写', dbJenis: 'tingshuo', tkSingle: 'xie',  // satu nilai per 2 bab, tanpa komponen
+    subLabel: 'Kelompok Bab',
+    subs: [
+      {v:'1-2',l:'Bab 1–2'},{v:'3-4',l:'Bab 3–4'},
+      {v:'5-6',l:'Bab 5–6'},{v:'7-8',l:'Bab 7–8'},
+      {v:'9-10',l:'Bab 9–10'}
+    ],
+    afterSub: null
   },
   tk_lianxi: {
     label: '练习', subLabel: 'Tanggal Tugas', dbJenis: 'lianxi_tk', dateBased: true,
