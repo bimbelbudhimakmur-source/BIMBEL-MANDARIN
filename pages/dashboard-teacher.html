@@ -1895,17 +1895,29 @@ async function loadPreviewNilai() {
   }
 
   // Kelompokkan per jenis_penilaian
+  const isTKp = !!kelas && (kelas.jilid === 0 || kelas.jilid === '0');
   const perJenis = {};
+  // TK: 听写 (Dikte) + 读 + 写 digabung dalam satu tabel "听写 · 读 · 写"
+  if (isTKp) perJenis.tingshuo = [];
   (nilaiData || []).forEach(n => {
+    if (isTKp && n.jenis_penilaian === 'tingxie') {
+      perJenis.tingshuo.push({ ...n, jenis_penilaian: 'tingshuo', sub_jenis: 'dikte' });
+      return;
+    }
     if (!perJenis[n.jenis_penilaian]) perJenis[n.jenis_penilaian] = [];
     perJenis[n.jenis_penilaian].push(n);
   });
+  if (isTKp) {
+    // 听/说 lama tidak ditampilkan lagi di TK
+    perJenis.tingshuo = perJenis.tingshuo.filter(r => r.sub_jenis !== 'ting' && r.sub_jenis !== 'shuo');
+    if (!perJenis.tingshuo.length) delete perJenis.tingshuo;
+  }
 
   let html = '';
 
   Object.entries(perJenis).forEach(([jenis, rows]) => {
     const cfg = JENIS_CONFIG[jenis] || Object.values(JENIS_CONFIG).find(c => c.dbJenis === jenis);
-    const jenisLabel = cfg?.label || jenis;
+    const jenisLabel = (isTKp && jenis === 'tingshuo') ? '听写 · 读 · 写 (Dikte · Baca · Tulis)' : (cfg?.label || jenis);
 
     // Build nilai map per murid per kolom
     const muridMap = {};
@@ -1916,9 +1928,9 @@ async function loadPreviewNilai() {
     if (jenis === 'tingshuo') {
       // Khusus 听说读写 (reguler & TK): tampilkan rata-rata per komponen (听/说/读/写),
       // gabungan dari semua kelompok bab. Untuk TK, 写汉字/笔顺/数笔画 digabung jadi satu nilai "写".
-      const bucketMap = { ting:'ting', shuo:'shuo', du:'du', xie:'xie', xiehanzi:'xie', bishun:'xie', shubihua:'xie' };
-      const komponenOrder = ['ting','shuo','du','xie'];
-      const komponenLabelMap = {ting:'听 (Tīng)',shuo:'说 (Shuō)',du:'读 (Dú)',xie:'写 (Xiě)'};
+      const bucketMap = { ting:'ting', shuo:'shuo', du:'du', xie:'xie', xiehanzi:'xie', bishun:'xie', shubihua:'xie', dikte:'dikte' };
+      const komponenOrder = isTKp ? ['dikte','du','xie'] : ['ting','shuo','du','xie'];
+      const komponenLabelMap = {dikte:'听写 (Dikte)',ting:'听 (Tīng)',shuo:'说 (Shuō)',du:'读 (Dú)',xie:'写 (Xiě)'};
       kolom = komponenOrder;
       getKolomLabel = (c) => komponenLabelMap[c] || c;
 
@@ -2019,7 +2031,8 @@ async function loadPreviewNilai() {
                 ${kolom.map(c => {
                   const v = m[c];
                   const color = getNilaiColor(v);
-                  return `<td style="padding:7px 10px;text-align:center;color:${color};font-weight:${v?'700':'400'}">${v??'—'}</td>`;
+                  const vTampil = (v === undefined || v === null || v === '') ? '—' : (Math.round(Number(v) * 10) / 10);
+                  return `<td style="padding:7px 10px;text-align:center;color:${color};font-weight:${v?'700':'400'}">${vTampil}</td>`;
                 }).join('')}
                 <td style="padding:7px 10px;text-align:center;background:#fef9c3;font-weight:700;color:${avgColor}">${avg??'—'}</td>
               </tr>`;
