@@ -119,6 +119,10 @@
             <option value="">-- Pilih Kelas --</option>
           </select>
         </div>
+        <div class="form-group" id="levelWrap" style="display:none">
+          <label>Level yang Diinginkan</label>
+          <input type="text" id="levelDiinginkan" placeholder="cth: Jilid 3 / TK B / belum tahu">
+        </div>
       </div>
 
       <!-- Info Biaya Pendaftaran -->
@@ -237,6 +241,11 @@
       if (!data?.length) {
         sel.innerHTML = '<option value="">-- Belum ada kelas untuk program ini --</option>';
       }
+      const optPl = document.createElement('option');
+      optPl.value = '__PLACEMENT__';
+      optPl.textContent = '🧭 PLACEMENT — belum tahu level / level yang diinginkan belum ada kelasnya';
+      sel.appendChild(optPl);
+      document.getElementById('levelWrap').style.display = 'none';
       document.getElementById('biayaInfoBox').style.display = 'none';
       document.getElementById('biayaBelumAdaBox').style.display = 'none';
     }
@@ -254,7 +263,9 @@
       const kelasId = sel.value;
       const box = document.getElementById('biayaInfoBox');
       const belumAdaBox = document.getElementById('biayaBelumAdaBox');
+      document.getElementById('levelWrap').style.display = (kelasId === '__PLACEMENT__') ? '' : 'none';
       if (!kelasId) { box.style.display = 'none'; belumAdaBox.style.display = 'none'; return; }
+      if (kelasId === '__PLACEMENT__') { box.style.display = 'none'; belumAdaBox.style.display = 'block'; return; }
 
       // Biaya per-jilid saat ini cuma didesain buat program Mandarin.
       // Program lain (Calistung/SD) tampilkan info placeholder dulu.
@@ -301,6 +312,7 @@
       const tanggalJoin = document.getElementById('tanggalJoin').value;
       const kelasDipilih = document.getElementById('kelasDipilih').value;
       const errEl       = document.getElementById('errMsgDaftar');
+      const isPlacement = (kelasDipilih === '__PLACEMENT__');
 
       if (!namaIndo || !hpOrtu || !tanggalJoin || !kelasDipilih) {
         errEl.textContent = 'Lengkapi semua field wajib (*)'; return;
@@ -331,7 +343,9 @@
         tempat_lahir:    document.getElementById('tempatLahir').value.trim() || null,
         tanggal_lahir:   document.getElementById('tanggalLahir').value || null,
         alamat:          document.getElementById('alamat').value.trim() || null,
-        kelas_dipilih:   kelasDipilih,
+        kelas_dipilih:   isPlacement ? null : kelasDipilih,
+        placement:       isPlacement,
+        level_diinginkan: isPlacement ? (document.getElementById('levelDiinginkan').value.trim() || null) : null,
         program_id:      programTerpilih?.id || null,
         bukti_bayar_url: buktiUrl,
         status:          'pending'
