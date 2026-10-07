@@ -47,6 +47,7 @@
     <div class="sidebar-item active" data-tab="dashboard"><span class="sidebar-icon">📊</span><span>Dashboard</span></div>
     <div class="sidebar-item" data-tab="register"><span class="sidebar-icon">📋</span><span>Pendaftaran</span></div>
     <div class="sidebar-item" data-tab="reregister"><span class="sidebar-icon">🔄</span><span>Pendaftaran Ulang</span></div>
+    <div class="sidebar-item" data-tab="placement"><span class="sidebar-icon">🧭</span><span>PLACEMENT</span><span id="badgePlacement" class="badge badge-yellow" style="margin-left:auto;display:none"></span></div>
     <div class="sidebar-section">Data</div>
     <div class="sidebar-item" data-tab="kelas"><span class="sidebar-icon">📚</span><span>Data Kelas</span></div>
     <div class="sidebar-item" data-tab="murid"><span class="sidebar-icon">👨‍🎓</span><span>Data Murid</span></div>
@@ -129,6 +130,25 @@
         <table class="table">
           <thead><tr><th>No. Induk</th><th>Nama</th><th>Kelas Saat Ini</th><th>Status</th><th id="thPenentuanRR">Penentuan 升/留</th><th>Kelas Baru</th></tr></thead>
           <tbody id="tableRR"><tr class="loading-row"><td colspan="6">⏳ Memuat...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ===== PLACEMENT ===== -->
+    <div id="tab-placement" class="tab-content">
+      <div class="page-title">PLACEMENT</div>
+      <div class="page-sub">Calon murid baru yang levelnya belum masuk kelas yang ada. Arahkan ke kelas setelah levelnya jelas.</div>
+      <div class="toolbar">
+        <input class="search-input" id="searchPlacement" placeholder="🔍 Cari nama..." oninput="renderPlacement()">
+        <select class="filter-select" id="filterStatusPlacement" onchange="loadPlacement()">
+          <option value="menunggu">Menunggu</option>
+          <option value="selesai">Sudah diarahkan</option>
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>No. Induk</th><th>Nama</th><th>Level Diinginkan</th><th>Masuk</th><th>Arahkan ke Kelas</th></tr></thead>
+          <tbody id="tablePlacement"><tr class="loading-row"><td colspan="5">⏳ Memuat...</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -348,7 +368,8 @@
       <div class="form-group"><label>Tempat Lahir</label><input type="text" id="da_tempatLahir"></div>
       <div class="form-group"><label>Tanggal Lahir</label><input type="date" id="da_tanggalLahir"></div>
       <div class="form-group"><label>Tanggal Join *</label><input type="date" id="da_tanggalJoin"></div>
-      <div class="form-group"><label>Kelas *</label><select id="da_kelas"><option value="">-- Pilih Kelas --</option></select></div>
+      <div class="form-group"><label>Kelas *</label><select id="da_kelas" onchange="onDaKelasChange()"><option value="">-- Pilih Kelas --</option></select></div>
+      <div class="form-group" id="da_levelWrap" style="display:none"><label>Level yang Diinginkan</label><input type="text" id="da_level" placeholder="cth: Jilid 3 / TK B / belum tahu"></div>
     </div>
     <div class="form-group" style="margin-top:12px"><label>Alamat</label><textarea id="da_alamat"></textarea></div>
     <div class="form-actions"><button class="btn btn-primary" onclick="simpanDaftarAdmin()">✅ Daftarkan Murid</button><button class="btn btn-secondary" onclick="closeModal('modalDaftarAdmin')">Batal</button></div>
