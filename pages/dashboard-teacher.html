@@ -633,6 +633,12 @@ let guruData = null;
 let kelasSaya = [];
 let muridPerKelas = {};
 let tahunAjaranId = null;
+// Tahun ajaran = tahun kalender. Semester 2 yang diisi pada bulan Januari tetap masuk tahun sebelumnya.
+function tahunSemester(sem) {
+  const wib = new Date(Date.now() + 7*3600*1000);
+  const y = wib.getUTCFullYear(), m = wib.getUTCMonth() + 1;
+  return (parseInt(sem) === 2 && m === 1) ? y - 1 : y;
+}
 let sysSettings = {}; // { guru_tambah_murid: bool, admin_tambah_kelas: bool }
 
 function isAkhirSemesterT() {
@@ -1159,6 +1165,7 @@ async function loadHistory() {
   const { data } = await db.from('absensi')
     .select('tanggal, hadir, catatan, siswa:siswa_id(nama_lengkap, nama_mandarin)')
     .eq('kelas_id', kelasId)
+    .gte('tanggal', tahunSemester(1) + '-01-01').lte('tanggal', tahunSemester(1) + '-12-31')
     .order('tanggal', { ascending: true });
 
   if (!data?.length) { histEl.style.display='none'; return; }
@@ -1792,7 +1799,7 @@ async function loadNilaiForm() {
   const siswaIds = murid.map(e => e.siswa.id);
   let q = db.from('nilai_detail').select('*')
     .in('siswa_id', siswaIds).eq('kelas_id', kelasId)
-    .eq('semester', semester).eq('jenis_penilaian', dbJenis);
+    .eq('semester', semester).eq('tahun', tahunSemester(semester)).eq('jenis_penilaian', dbJenis);
   if (cfg.dateBased) {
     q = q.eq('tanggal_tugas', tanggalPilih);
   } else if (dbJenis === 'tingshuo' || cfg.tkSingle || cfg.tkXie) {
@@ -1869,6 +1876,7 @@ async function simpanNilai() {
       const row = {
         siswa_id: e.siswa.id, kelas_id: kelasId,
         semester: parseInt(semester),
+        tahun: tahunSemester(semester),
         jenis_penilaian: dbJenis,
         sub_jenis: c.sub_jenis || null,
         bab: c.bab || null,
@@ -1884,7 +1892,7 @@ async function simpanNilai() {
   if (!rows.length) { alert('Tidak ada nilai yang diisi!'); return; }
 
   const { error } = await db.from('nilai_detail').upsert(rows,
-    { onConflict: 'siswa_id,kelas_id,semester,jenis_penilaian,sub_jenis,bab,range_bab,tanggal_tugas' });
+    { onConflict: 'siswa_id,kelas_id,semester,tahun,jenis_penilaian,sub_jenis,bab,range_bab,tanggal_tugas' });
   if (error) { alert('❌ Gagal simpan: '+error.message); return; }
   alert('✅ '+rows.length+' nilai berhasil disimpan!');
   loadPreviewNilai();
@@ -1901,7 +1909,7 @@ async function loadPreviewNilai() {
 
   const { data: nilaiData } = await db.from('nilai_detail')
     .select('*').in('siswa_id', siswaIds)
-    .eq('kelas_id', kelasId).eq('semester', semester)
+    .eq('kelas_id', kelasId).eq('semester', semester).eq('tahun', tahunSemester(semester))
     .order('jenis_penilaian').order('sub_jenis').order('bab');
 
   const container = document.getElementById('previewNilaiContainer');
@@ -2980,7 +2988,7 @@ async function loadPerilakuMurid() {
   // Load existing perilaku data
   const { data: existing } = await db.from('penilaian_perilaku')
     .select('siswa_id, nilai, semester')
-    .eq('kelas_id', kelasId).eq('semester', semInt)
+    .eq('kelas_id', kelasId).eq('semester', semInt).eq('tahun', tahunSemester(semInt))
     .in('siswa_id', siswaIds);
 
   const nilaiMap = {};
@@ -3036,6 +3044,7 @@ async function simpanPerilaku() {
       siswa_id:   e.siswa.id,
       kelas_id:   kelasId,
       semester:   semInt,
+      tahun:      tahunSemester(semInt),
       nilai:      val,
       updated_by: user.id,
       updated_at: now
@@ -3045,7 +3054,7 @@ async function simpanPerilaku() {
   if (!upserts.length) { alert('Belum ada nilai perilaku yang dipilih.'); return; }
 
   const { error } = await db.from('penilaian_perilaku')
-    .upsert(upserts, { onConflict: 'siswa_id,kelas_id,semester' });
+    .upsert(upserts, { onConflict: 'siswa_id,kelas_id,semester,tahun' });
 
   if (error) { alert('❌ Gagal menyimpan: ' + error.message); return; }
   alert('✅ Nilai perilaku berhasil disimpan untuk ' + upserts.length + ' murid!');

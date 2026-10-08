@@ -114,19 +114,22 @@
     <!-- ===== PENDAFTARAN ULANG ===== -->
     <div id="tab-reregister" class="tab-content">
       <div class="page-title">Pendaftaran Ulang</div>
-      <div class="page-sub">Kelola status murid dan penempatan kelas semester baru</div>
+      <div class="page-sub">Murid <b>tinggal kelas (留班)</b> diarahkan manual ke kelas. Murid <b>naik (升班)</b> tidak perlu dipindah satu-satu: cukup ubah detail kelasnya (jilid, nama, dll) di Data Kelas.</div>
+      <div id="rrSummary" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
       <div class="toolbar">
           <input class="search-input" id="searchRR" placeholder="🔍 Cari nama murid..." oninput="filterRR()">
           <select class="filter-select" id="filterStatusRR" onchange="filterRR()">
-            <option value="">Semua Status</option>
-            <option value="true">Aktif</option>
-            <option value="false">Nonaktif</option>
+            <option value="tinggal">Tinggal Kelas 留班 (perlu diarahkan)</option>
+            <option value="naik">Naik 升班 (ubah detail kelas)</option>
+            <option value="belum">Belum ditentukan guru</option>
+            <option value="all">Semua murid aktif</option>
           </select>
           <select class="filter-select" id="filterKelasRR" onchange="filterRR()">
             <option value="">Semua Kelas</option>
           </select>
         </div>
-      <div class="table-wrap">
+      <div id="rrNaikBox" style="display:none"></div>
+      <div class="table-wrap" id="rrTableWrap">
         <table class="table">
           <thead><tr><th>No. Induk</th><th>Nama</th><th>Kelas Saat Ini</th><th>Status</th><th id="thPenentuanRR">Penentuan 升/留</th><th>Kelas Baru</th></tr></thead>
           <tbody id="tableRR"><tr class="loading-row"><td colspan="6">⏳ Memuat...</td></tr></tbody>

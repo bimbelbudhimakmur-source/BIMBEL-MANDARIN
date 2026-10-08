@@ -251,7 +251,7 @@ async function generate(){
   // Load nilai dari nilai_detail (integer semester)
   const {data:nilaiAll}=await db.from('nilai_detail')
     .select('*')
-    .eq('kelas_id',kelasId).eq('semester',parseInt(sem))
+    .eq('kelas_id',kelasId).eq('semester',parseInt(sem)).eq('tahun',parseInt(tahun))
     .in('siswa_id',siswaIds);
 
   // Load absensi
@@ -264,7 +264,7 @@ async function generate(){
   // Load perilaku per murid dari DB
   const {data:perilakuAll}=await db.from('penilaian_perilaku')
     .select('siswa_id,nilai')
-    .eq('kelas_id',kelasId).eq('semester',parseInt(sem))
+    .eq('kelas_id',kelasId).eq('semester',parseInt(sem)).eq('tahun',parseInt(tahun))
     .in('siswa_id',siswaIds);
   const perilakuMap={};
   (perilakuAll||[]).forEach(p=>{perilakuMap[p.siswa_id]=p.nilai;});
@@ -695,7 +695,8 @@ async function setHantei(siswaId, val) {
   try {
     await db.from('penilaian_perilaku')
       .update({ hantei: val, updated_at: new Date().toISOString() })
-      .eq('siswa_id', siswaId);
+      .eq('siswa_id', siswaId)
+      .eq('tahun', parseInt(document.getElementById('selTahun').value) || new Date().getFullYear());
   } catch(e) { console.warn('setHantei DB save failed:', e); }
 }
 

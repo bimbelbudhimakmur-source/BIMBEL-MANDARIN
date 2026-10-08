@@ -2488,7 +2488,7 @@ async function loadRingkasanNilai() {
   let nilaiAll = [];
   if (kelasIds.length) {
     const { data } = await db.from('nilai_detail').select('siswa_id,kelas_id,nilai,created_at')
-      .in('kelas_id', kelasIds).eq('semester', parseInt(semester));
+      .in('kelas_id', kelasIds).eq('semester', parseInt(semester)).eq('tahun', (function(){var w=new Date(Date.now()+7*3600*1000);return (parseInt(semester)===2&&w.getUTCMonth()===0)?w.getUTCFullYear()-1:w.getUTCFullYear();})());
     nilaiAll = data || [];
   }
 
