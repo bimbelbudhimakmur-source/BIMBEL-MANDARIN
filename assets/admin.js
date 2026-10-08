@@ -761,7 +761,7 @@ async function loadRR() {
   try {
     // Load semua kelas aktif untuk dropdown penempatan
     var kelasResQ = db.from('kelas')
-      .select('id,kode_kelas,jilid,is_active,program_id,enrollment(id,is_active,siswa:siswa_id(status))')
+      .select('id,kode_kelas,jilid,nama_level,hari_belajar,sesi,guru:guru_id(nama_lengkap),is_active,program_id,enrollment(id,siswa_id,is_active,siswa:siswa_id(status))')
       .eq('is_active', true)
       .order('jilid').order('kode_kelas');
     if (typeof activeProgramId !== 'undefined' && activeProgramId) kelasResQ = kelasResQ.eq('program_id', activeProgramId);
@@ -939,6 +939,7 @@ function renderRRSummary() {
 }
 
 function filterRR() {
+  if (rrMergeOn) return;
   var q=document.getElementById('searchRR').value.toLowerCase();
   var mode=document.getElementById('filterStatusRR').value || 'tinggal';
   var kl=document.getElementById('filterKelasRR').value;
@@ -1004,6 +1005,148 @@ async function editKelasDariRR(kelasId) {
   } catch(e) { alert('Error: '+e.message); }
 }
 
+
+
+// ============================================
+// MERGE KELAS (gabung 2+ kelas dengan jilid sama)
+// ============================================
+var rrMergeOn = false, rrMergePilih = {};
+
+function toggleMergeRR() {
+  rrMergeOn = !rrMergeOn;
+  rrMergePilih = {};
+  var btn = document.getElementById('btnToggleMergeRR');
+  btn.textContent = '🔀 MERGE KELAS: ' + (rrMergeOn ? 'ON' : 'OFF');
+  btn.className = 'btn ' + (rrMergeOn ? 'btn-primary' : 'btn-secondary');
+  document.getElementById('rrMainBox').style.display = rrMergeOn ? 'none' : '';
+  document.getElementById('rrMergeBox').style.display = rrMergeOn ? '' : 'none';
+  if (rrMergeOn) renderMergeRR(); else filterRR();
+}
+
+function muridAktifKelasRR(k) {
+  return (k.enrollment || []).filter(function(e){ return e.is_active; });
+}
+
+function kunciLevelRR(k) {
+  return isMandarinActive() ? 'J' + k.jilid : 'L' + (k.nama_level || '');
+}
+
+function labelLevelRR(k) {
+  return isMandarinActive() ? ('Jilid ' + jilidLabel(k.jilid)) : (k.nama_level || 'Tanpa level');
+}
+
+function renderMergeRR() {
+  var box = document.getElementById('rrMergeBox');
+  var grup = {};
+  (allKelasRR || []).forEach(function(k){
+    var key = kunciLevelRR(k);
+    (grup[key] = grup[key] || []).push(k);
+  });
+  var keys = Object.keys(grup).filter(function(k){ return grup[k].length >= 2; }).sort();
+  if (!keys.length) {
+    box.innerHTML = '<div style="text-align:center;padding:40px;color:#6b7280">Tidak ada dua kelas dengan jilid yang sama, jadi belum ada yang bisa digabung.</div>';
+    return;
+  }
+  var pilihKeys = Object.keys(rrMergePilih);
+  var aktifLevel = pilihKeys.length ? kunciLevelRR((allKelasRR || []).find(function(k){ return k.id === pilihKeys[0]; }) || {}) : null;
+  var html = '<div style="font-size:13px;color:#374151;margin-bottom:10px">Centang 2 kelas atau lebih <b>dengan jilid yang sama</b>, lalu pilih kelas tujuan. Semua murid aktif ikut pindah ke kelas tujuan beserta nilai, perilaku, dan absensinya.</div>';
+  keys.forEach(function(key){
+    var list = grup[key];
+    html += '<div style="border:1px solid #e5e7eb;border-radius:10px;margin-bottom:12px;overflow:hidden">'
+      + '<div style="background:#f9fafb;padding:8px 14px;font-weight:700">' + labelLevelRR(list[0]) + ' <span style="font-weight:400;color:#6b7280">· ' + list.length + ' kelas</span></div>'
+      + '<table class="table" style="margin:0"><tbody>';
+    list.forEach(function(k){
+      var cnt = muridAktifKelasRR(k).length;
+      var dis = (aktifLevel && aktifLevel !== key) ? ' disabled' : '';
+      var chk = rrMergePilih[k.id] ? ' checked' : '';
+      html += '<tr><td style="width:40px"><input type="checkbox" onchange="pilihMergeRR(\'' + k.id + '\',this.checked)"' + chk + dis + '></td>'
+        + '<td style="font-family:monospace;font-weight:700">' + k.kode_kelas + '</td>'
+        + '<td>' + (k.guru ? k.guru.nama_lengkap : '—') + '</td>'
+        + '<td>' + (k.hari_belajar || '') + ' ' + (k.sesi || '') + '</td>'
+        + '<td><span class="badge ' + (cnt <= 3 ? 'badge-red' : 'badge-green') + '">' + cnt + ' murid</span></td></tr>';
+    });
+    html += '</tbody></table></div>';
+  });
+
+  if (pilihKeys.length >= 2) {
+    var opts = pilihKeys.map(function(id){
+      var k = allKelasRR.find(function(x){ return x.id === id; });
+      return '<option value="' + id + '">' + k.kode_kelas + ' (' + muridAktifKelasRR(k).length + ' murid)</option>';
+    }).join('');
+    html += '<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">'
+      + '<b>Kelas tujuan:</b> <select id="mergeTujuanRR" class="filter-select">' + opts + '</select>'
+      + '<button class="btn btn-primary" onclick="prosesMergeRR()">🔀 Gabungkan Sekarang</button></div>';
+  } else {
+    html += '<div style="color:#9ca3af;font-size:13px">Pilih minimal 2 kelas untuk lanjut.</div>';
+  }
+  box.innerHTML = html;
+}
+
+function pilihMergeRR(id, on) {
+  if (on) rrMergePilih[id] = true; else delete rrMergePilih[id];
+  renderMergeRR();
+}
+
+async function prosesMergeRR() {
+  var ids = Object.keys(rrMergePilih);
+  var tujuanId = document.getElementById('mergeTujuanRR').value;
+  var tujuan = allKelasRR.find(function(k){ return k.id === tujuanId; });
+  var sumber = ids.filter(function(id){ return id !== tujuanId; }).map(function(id){ return allKelasRR.find(function(k){ return k.id === id; }); });
+  if (!tujuan || !sumber.length) { alert('Pilih kelas tujuan.'); return; }
+
+  var total = 0;
+  sumber.forEach(function(k){ total += muridAktifKelasRR(k).length; });
+  var pesan = 'GABUNG KELAS\n\nKelas tujuan: ' + tujuan.kode_kelas + ' (guru: ' + (tujuan.guru ? tujuan.guru.nama_lengkap : '-') + ')\n'
+    + 'Kelas digabung (akan dinonaktifkan): ' + sumber.map(function(k){ return k.kode_kelas; }).join(', ') + '\n'
+    + 'Murid yang dipindah: ' + total + '\n\n'
+    + 'Catatan: jumlah kelas aktif guru kelas lama berkurang (berpengaruh ke slip gaji berikutnya). Lanjutkan?';
+  if (!confirm(pesan)) return;
+
+  try {
+    for (var i = 0; i < sumber.length; i++) {
+      var src = sumber[i];
+      var enr = muridAktifKelasRR(src);
+      var sidAll = enr.map(function(e){ return e.siswa_id; });
+      if (sidAll.length) {
+        // Murid yang sudah aktif di kelas tujuan: cukup nonaktifkan enrollment di kelas lama
+        var sudah = muridAktifKelasRR(tujuan).map(function(e){ return e.siswa_id; });
+        var dobel = enr.filter(function(e){ return sudah.indexOf(e.siswa_id) >= 0; });
+        var pindah = enr.filter(function(e){ return sudah.indexOf(e.siswa_id) < 0; });
+        var sid = pindah.map(function(e){ return e.siswa_id; });
+
+        if (sid.length) {
+          // 1) data nilai/perilaku/absensi ikut pindah supaya raport kelas tujuan lengkap
+          var tabel = ['nilai_detail', 'penilaian_perilaku', 'absensi'];
+          for (var t = 0; t < tabel.length; t++) {
+            var r = await db.from(tabel[t]).update({ kelas_id: tujuanId }).eq('kelas_id', src.id).in('siswa_id', sid);
+            if (r.error) throw new Error('Pindah data ' + tabel[t] + ' dari ' + src.kode_kelas + ' gagal: ' + r.error.message + '\n(Murid belum dipindah. Cek dulu, lalu ulangi.)');
+          }
+          // 2) pindahkan enrollment
+          var ids2 = pindah.map(function(e){ return e.id; });
+          var up = await db.from('enrollment').update({ kelas_id: tujuanId }).in('id', ids2);
+          if (up.error) throw new Error('Pindah enrollment gagal: ' + up.error.message);
+        }
+        if (dobel.length) {
+          var off = await db.from('enrollment').update({ is_active: false }).in('id', dobel.map(function(e){ return e.id; }));
+          if (off.error) throw new Error('Nonaktifkan enrollment ganda gagal: ' + off.error.message);
+        }
+      }
+      // 3) nonaktifkan kelas lama
+      var kk = await db.from('kelas').update({ is_active: false }).eq('id', src.id);
+      if (kk.error) throw new Error('Nonaktifkan kelas ' + src.kode_kelas + ' gagal: ' + kk.error.message);
+    }
+    alert('✅ Kelas berhasil digabung ke ' + tujuan.kode_kelas + '. ' + total + ' murid dipindahkan.');
+    rrMergePilih = {};
+    await loadRR();
+    if (typeof loadKelas === 'function') await loadKelas();
+    if (typeof loadStats === 'function') await loadStats();
+    renderMergeRR();
+  } catch (e) {
+    alert('Error: ' + e.message);
+    await loadRR();
+    renderMergeRR();
+  }
+}
 
 async function openPenempatan(siswaId, nama, currentJilid, tipe) {
   var targets=[];
