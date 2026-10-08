@@ -115,6 +115,12 @@
     <div id="tab-reregister" class="tab-content">
       <div class="page-title">Pendaftaran Ulang</div>
       <div class="page-sub">Murid <b>tinggal kelas (留班)</b> diarahkan manual ke kelas. Murid <b>naik (升班)</b> tidak perlu dipindah satu-satu: cukup ubah detail kelasnya (jilid, nama, dll) di Data Kelas.</div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap">
+        <button class="btn btn-secondary" id="btnToggleMergeRR" onclick="toggleMergeRR()">🔀 MERGE KELAS: OFF</button>
+        <span style="font-size:12px;color:#6b7280">Gabungkan dua kelas dengan jilid yang sama (mis. anggota tinggal sedikit)</span>
+      </div>
+      <div id="rrMergeBox" style="display:none"></div>
+      <div id="rrMainBox">
       <div id="rrSummary" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
       <div class="toolbar">
           <input class="search-input" id="searchRR" placeholder="🔍 Cari nama murid..." oninput="filterRR()">
@@ -134,6 +140,7 @@
           <thead><tr><th>No. Induk</th><th>Nama</th><th>Kelas Saat Ini</th><th>Status</th><th id="thPenentuanRR">Penentuan 升/留</th><th>Kelas Baru</th></tr></thead>
           <tbody id="tableRR"><tr class="loading-row"><td colspan="6">⏳ Memuat...</td></tr></tbody>
         </table>
+      </div>
       </div>
     </div>
 
