@@ -793,7 +793,7 @@ async function loadRR() {
       if (!hanteiMap[h.siswa_id]) hanteiMap[h.siswa_id] = h.hantei;
     });
 
-    renderRR(allSiswaRR);
+    filterRR();
 
     // Populate filter kelas
     var kelasSet = {};
@@ -816,7 +816,7 @@ function renderRR(list) {
   var showPenentuan = isMandarinActive();
   var thP = document.getElementById('thPenentuanRR');
   if (thP) thP.style.display = showPenentuan ? '' : 'none';
-  if (!list.length) { tbody.innerHTML='<tr><td colspan="'+(showPenentuan?6:5)+'" style="text-align:center;padding:40px;color:#6b7280">Belum ada murid aktif</td></tr>'; return; }
+  if (!list.length) { tbody.innerHTML='<tr><td colspan="'+(showPenentuan?6:5)+'" style="text-align:center;padding:40px;color:#6b7280">Tidak ada murid pada filter ini</td></tr>'; return; }
   var html='';
   for (var i=0;i<list.length;i++) {
     var s=list[i];
@@ -850,11 +850,17 @@ function renderRR(list) {
 
     var kelasOpts = '<option value="">-- Pilih Kelas --</option>';
     filteredKelas.forEach(function(k){
+      if (hantei === '\u7559\u73ED' && kelas && k.id === kelas.id) return;
       var cnt = k.enrollment ? k.enrollment.filter(function(e){return e.is_active && e.siswa && e.siswa.status !== false;}).length : 0;
       kelasOpts += '<option value="'+k.id+'">'+k.kode_kelas+' ('+cnt+' murid)</option>';
     });
 
-    var kelasDropdown = '<select onchange="assignKelasInline(\'' + s.id + '\',this)" style="font-size:12px;padding:4px 8px;border:1px solid #e5e7eb;border-radius:6px;min-width:140px">' + kelasOpts + '</select>';
+    var kelasDropdown;
+    if (hantei === '\u5347\u73ED' && showPenentuan && kelas) {
+      kelasDropdown = '<span style="font-size:12px;color:#16a34a">Naik bersama kelas</span> <button class="btn btn-secondary btn-sm" onclick="editKelasDariRR(\''+kelas.id+'\')">\u270F\uFE0F Edit Kelas</button>';
+    } else {
+      kelasDropdown = '<select onchange="assignKelasInline(\'' + s.id + '\',this)" style="font-size:12px;padding:4px 8px;border:1px solid #e5e7eb;border-radius:6px;min-width:140px">' + kelasOpts + '</select>';
+    }
 
     html += '<tr>'
       +'<td style="font-family:monospace">'+s.nomor_induk+'</td>'
@@ -903,19 +909,101 @@ async function assignKelasInline(siswaId, selectEl) {
   } catch(e) { alert('Error: '+e.message); selectEl.value=''; }
 }
 
+function getAktifEnrollmentRR(s) {
+  if (s.enrollment) { for (var ei=0; ei<s.enrollment.length; ei++) { if (s.enrollment[ei].is_active) return s.enrollment[ei]; } }
+  return null;
+}
+
+function hanteiTipeRR(s) {
+  var h = hanteiMap ? (hanteiMap[s.id] || '') : '';
+  if (h === '升班') return 'naik';
+  if (h === '留班') return 'tinggal';
+  return 'belum';
+}
+
+function renderRRSummary() {
+  var box = document.getElementById('rrSummary');
+  if (!box) return;
+  if (!isMandarinActive()) { box.innerHTML = ''; return; }
+  var c = {naik:0, tinggal:0, belum:0}, kelasNaik = {};
+  allSiswaRR.forEach(function(s){
+    var t = hanteiTipeRR(s); c[t]++;
+    if (t === 'naik') { var ae = getAktifEnrollmentRR(s); if (ae && ae.kelas) kelasNaik[ae.kelas.id] = true; }
+  });
+  function card(bg, fg, num, label) {
+    return '<div style="background:'+bg+';color:'+fg+';border-radius:10px;padding:10px 16px;min-width:150px"><div style="font-size:22px;font-weight:700">'+num+'</div><div style="font-size:12px">'+label+'</div></div>';
+  }
+  box.innerHTML = card('#dcfce7','#16a34a',c.naik,'Naik 升班 · '+Object.keys(kelasNaik).length+' kelas')
+    + card('#fee2e2','#dc2626',c.tinggal,'Tinggal 留班 · perlu diarahkan')
+    + card('#f3f4f6','#6b7280',c.belum,'Belum ditentukan guru');
+}
+
 function filterRR() {
   var q=document.getElementById('searchRR').value.toLowerCase();
-  var st=document.getElementById('filterStatusRR').value;
+  var mode=document.getElementById('filterStatusRR').value || 'tinggal';
   var kl=document.getElementById('filterKelasRR').value;
-  renderRR(allSiswaRR.filter(function(s){
+  var mandarin = isMandarinActive();
+  renderRRSummary();
+
+  var wrap = document.getElementById('rrTableWrap'), naikBox = document.getElementById('rrNaikBox');
+  var base = allSiswaRR.filter(function(s){
     var mq=s.nama_lengkap.toLowerCase().indexOf(q)>=0||(s.nama_mandarin||'').toLowerCase().indexOf(q)>=0;
-    var ms=st===''||String(s.status)===st;
-    var ae=null;
-    if(s.enrollment){for(var ei=0;ei<s.enrollment.length;ei++){if(s.enrollment[ei].is_active){ae=s.enrollment[ei];break;}}}
+    var ae=getAktifEnrollmentRR(s);
     var mk=kl===''||(ae&&ae.kelas&&ae.kelas.kode_kelas===kl);
-    return mq&&ms&&mk;
-  }));
+    return mq&&mk;
+  });
+
+  // Program non-Mandarin tidak punya penentuan 升/留 -> tampilkan semua seperti biasa
+  if (!mandarin) { wrap.style.display=''; naikBox.style.display='none'; renderRR(base); return; }
+
+  if (mode === 'naik') {
+    wrap.style.display = 'none'; naikBox.style.display = '';
+    renderRRNaik(base.filter(function(s){ return hanteiTipeRR(s)==='naik'; }));
+    return;
+  }
+  wrap.style.display = ''; naikBox.style.display = 'none';
+  renderRR(base.filter(function(s){ return mode==='all' || hanteiTipeRR(s)===mode; }));
 }
+
+// Murid naik: diringkas per KELAS (admin cukup edit detail kelas, bukan memindahkan murid satu-satu)
+function renderRRNaik(list) {
+  var box = document.getElementById('rrNaikBox');
+  var per = {};
+  list.forEach(function(s){
+    var ae = getAktifEnrollmentRR(s);
+    if (!ae || !ae.kelas) return;
+    var k = ae.kelas;
+    if (!per[k.id]) per[k.id] = {kelas:k, naik:0};
+    per[k.id].naik++;
+  });
+  var tinggalDi = {};
+  allSiswaRR.forEach(function(s){
+    if (hanteiTipeRR(s)==='tinggal') { var ae=getAktifEnrollmentRR(s); if (ae&&ae.kelas) tinggalDi[ae.kelas.id]=(tinggalDi[ae.kelas.id]||0)+1; }
+  });
+  var ids = Object.keys(per);
+  if (!ids.length) { box.innerHTML = '<div style="text-align:center;padding:40px;color:#6b7280">Belum ada murid yang ditandai naik oleh guru</div>'; return; }
+  ids.sort(function(a,b){ return per[a].kelas.kode_kelas < per[b].kelas.kode_kelas ? -1 : 1; });
+  var html = '<div class="table-wrap"><table class="table"><thead><tr><th>Kelas</th><th>Jilid Sekarang</th><th>Murid Naik</th><th>Murid Tinggal Masih di Kelas</th><th>Aksi</th></tr></thead><tbody>';
+  ids.forEach(function(id){
+    var p = per[id], t = tinggalDi[id] || 0;
+    html += '<tr><td style="font-family:monospace;font-weight:700">'+p.kelas.kode_kelas+'</td>'
+      +'<td>'+jilidLabel(p.kelas.jilid)+'</td>'
+      +'<td><span class="badge badge-green">'+p.naik+' murid</span></td>'
+      +'<td>'+(t ? '<span class="badge badge-red">'+t+' murid — arahkan dulu</span>' : '<span style="color:#9ca3af">—</span>')+'</td>'
+      +'<td><button class="btn btn-primary btn-sm" onclick="editKelasDariRR(\''+id+'\')">✏️ Edit Kelas</button></td></tr>';
+  });
+  html += '</tbody></table></div><div style="font-size:12px;color:#6b7280;margin-top:8px">Urutan: arahkan dulu murid <b>tinggal kelas</b> ke kelas lain, baru ubah detail kelasnya (jilid/nama) supaya murid naik ikut terbawa.</div>';
+  box.innerHTML = html;
+}
+
+async function editKelasDariRR(kelasId) {
+  try {
+    if (!allKelas.some(function(k){return k.id===kelasId;})) await loadKelas();
+    if (!allKelas.some(function(k){return k.id===kelasId;})) { alert('Kelas tidak ditemukan.'); return; }
+    await openEditKelas(kelasId);
+  } catch(e) { alert('Error: '+e.message); }
+}
+
 
 async function openPenempatan(siswaId, nama, currentJilid, tipe) {
   var targets=[];
@@ -1197,8 +1285,18 @@ async function simpanKelas() {
   }
   try {
     if (editingKelasId) {
-      var er=(await db.from('kelas').update({guru_id:guruId,jilid:jilidDB,nama_level:namaLevel,hari_belajar:hari,sesi:sesi,jam_mulai:jamMulai,jam_selesai:jamSelesai,program_id:programId}).eq('id',editingKelasId)).error;
-      if(er){alert('Error: '+er.message);return;} alert('✅ Kelas diupdate!');
+      var oldK = (typeof allKelas!=='undefined' ? allKelas : []).find(function(k){return k.id===editingKelasId;});
+      var jilidBerubah = isMandarin && oldK && oldK.jilid !== jilidDB;
+      if (jilidBerubah && !confirm('Jilid kelas berubah ('+oldK.jilid+' → '+jilidDB+').\n\nPastikan:\n• Raport tahun ini sudah dicetak/disimpan\n• Murid TINGGAL KELAS sudah diarahkan ke kelas lain\n\nNilai tahun ini tetap tersimpan (dipisah per tahun ajaran), jadi tahun depan mulai dari kosong. Lanjutkan?')) return;
+      var er=(await db.from('kelas').update({kode_kelas:kodeKelas,guru_id:guruId,jilid:jilidDB,nama_level:namaLevel,hari_belajar:hari,sesi:sesi,jam_mulai:jamMulai,jam_selesai:jamSelesai,program_id:programId}).eq('id',editingKelasId)).error;
+      if(er){alert('Error: '+er.message);return;}
+      if (jilidBerubah) {
+        // bersihkan penentuan 升班 murid di kelas ini (sudah naik)
+        var en=await db.from('enrollment').select('siswa_id').eq('kelas_id',editingKelasId).eq('is_active',true);
+        var ids=(en.data||[]).map(function(x){return x.siswa_id;}).filter(function(id){return hanteiMap && hanteiMap[id]==='\u5347\u73ED';});
+        if (ids.length) await db.from('penilaian_perilaku').update({hantei:null}).in('siswa_id',ids);
+      }
+      alert('✅ Kelas diupdate!');
     } else {
       var er2=(await db.from('kelas').insert({kode_kelas:kodeKelas,guru_id:guruId,jilid:jilidDB,nama_level:namaLevel,hari_belajar:hari,sesi:sesi,jam_mulai:jamMulai,jam_selesai:jamSelesai,tahun_ajaran_id:tahunAjaranId,program_id:programId})).error;
       if(er2){alert('Error: '+er2.message);return;} alert('✅ Kelas '+kodeKelas+' ditambahkan!');
