@@ -855,6 +855,10 @@ async function loadIuran() {
   }
   const iuranMap = {};
   iuranData.forEach(i => { iuranMap[i.siswa_id+'_'+i.kelas_id] = i; });
+  // Cadangan: murid yang sudah pindah kelas (mis. tinggal kelas) tetap menampilkan iuran bulan lama
+  // yang tercatat di kelas sebelumnya, supaya status 'Lunas' tidak berubah jadi 'Belum Bayar'.
+  const iuranBySiswa = {};
+  iuranData.forEach(i => { if (!iuranBySiswa[i.siswa_id] || i.status === 'lunas') iuranBySiswa[i.siswa_id] = i; });
 
   // Gabungkan: semua murid aktif + status iuran (default 'belum_bayar' kalau belum ada baris)
   let rows = [];
@@ -863,7 +867,7 @@ async function loadIuran() {
     const jumlahDefault = isTK ? biayaTKVal : (biayaMap[k.jilid] || 0);
     (k.enrollment||[]).forEach(e => {
       if (!e.is_active || !e.siswa?.status) return;
-      const existing = iuranMap[e.siswa.id+'_'+k.id];
+      const existing = iuranMap[e.siswa.id+'_'+k.id] || iuranBySiswa[e.siswa.id];
       rows.push({
         nomor_induk:  e.siswa.nomor_induk,
         nama_lengkap: e.siswa.nama_lengkap,
