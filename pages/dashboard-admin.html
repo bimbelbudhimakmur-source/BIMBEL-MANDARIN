@@ -130,6 +130,7 @@
           <span>Semester <select id="duSemester" style="padding:5px 8px;border:1px solid #e5e7eb;border-radius:6px"><option value="1">1</option><option value="2">2</option></select></span>
           <span style="display:flex;align-items:center;gap:8px"><label class="toggle"><input type="checkbox" id="duGuruBoleh"><span class="toggle-slider"></span></label> <span style="font-size:13px">Izinkan guru mengakses tab Pendaftaran Ulang</span></span>
           <button class="btn btn-primary btn-sm" onclick="simpanPengaturanDU()">💾 Simpan Pengaturan</button>
+          <button class="btn btn-secondary btn-sm" onclick="terbitkanTagihanDU()" title="Murid aktif otomatis punya tagihan di akun Bendahara">🧾 Terbitkan Tagihan ke Bendahara</button>
         </div>
         <div class="toolbar">
           <input class="search-input" id="duSearch" placeholder="🔍 Cari nama murid..." oninput="renderDU()">
@@ -546,6 +547,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../assets/supabase-client.js"></script>
 <script src="../assets/kelengkapan.js"></script>
+<script src="../assets/tagihan.js"></script>
 <script src="../assets/admin.js"></script>
 </body>
 </html>

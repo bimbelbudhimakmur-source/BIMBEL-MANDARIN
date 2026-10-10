@@ -42,6 +42,9 @@
     <div class="sidebar-item finance-menu-item" data-tab="iuran">
       <span class="sidebar-icon">💳</span><span>Status Iuran</span>
     </div>
+    <div class="sidebar-item finance-menu-item" data-tab="tagihan">
+      <span class="sidebar-icon">🧾</span><span>Tagihan Murid</span><span id="badgeTagihan" class="badge badge-red" style="margin-left:auto;display:none"></span>
+    </div>
     <div class="sidebar-item finance-menu-item" data-tab="biaya">
       <span class="sidebar-icon">⚙️</span><span>Setting Biaya</span>
     </div>
@@ -153,6 +156,30 @@
     </div>
 
     <!-- TAB: STATUS IURAN -->
+    <!-- ===== TAGIHAN MURID (pendaftaran & pendaftaran ulang, otomatis dari Admin) ===== -->
+    <div id="tab-tagihan" class="tab-content">
+      <div class="page-title">Tagihan Murid</div>
+      <div class="page-sub">Tagihan pendaftaran baru dan pendaftaran ulang otomatis muncul di sini setelah disetujui Admin. Tarif mengikuti Setting Biaya.</div>
+      <div id="tgSummary" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
+      <div class="toolbar">
+        <input class="search-input" id="tgSearch" placeholder="🔍 Cari nama / no. induk..." oninput="renderTagihan()">
+        <select class="filter-select" id="tgJenis" onchange="loadTagihan()">
+          <option value="">Semua Jenis</option><option value="pendaftaran">Pendaftaran Baru</option><option value="daftar_ulang">Pendaftaran Ulang</option>
+        </select>
+        <input type="number" class="filter-select" id="tgTahun" style="width:96px" onchange="loadTagihan()" title="Tahun">
+        <select class="filter-select" id="tgSemester" onchange="loadTagihan()"><option value="1">Semester 1</option><option value="2">Semester 2</option></select>
+        <select class="filter-select" id="tgStatus" onchange="renderTagihan()">
+          <option value="belum">Belum Lunas</option><option value="lapor">Guru lapor lunas (perlu konfirmasi)</option><option value="lunas">Lunas</option><option value="">Semua</option>
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>No. Induk</th><th>Nama Murid</th><th>Kelas</th><th>Jenis</th><th>Rincian</th><th>Total</th><th>Status</th><th>Aksi</th></tr></thead>
+          <tbody id="tableTagihan"><tr class="loading-row"><td colspan="8">⏳ Memuat...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
     <div id="tab-iuran" class="tab-content">
       <div class="page-title">Status Iuran Murid</div>
       <div class="page-sub">Monitor status pelunasan iuran per murid</div>
@@ -581,6 +608,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../assets/supabase-client.js"></script>
+<script src="../assets/tagihan.js"></script>
 <script>
 let currentUserId = null;
 let currentSlipId = null;
@@ -632,7 +660,169 @@ async function loadSysSettingsB() {
   });
 
   await loadDashboard();
+  updateBadgeTagihan();
 })();
+
+// ============================================
+// TAGIHAN MURID (pendaftaran & pendaftaran ulang)
+// ============================================
+let allTagihan = [], tgGuruLapor = {};
+
+function rpT(v) { return 'Rp ' + Number(v || 0).toLocaleString('id-ID'); }
+function escT(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
+
+function initTagihan() {
+  const th = document.getElementById('tgTahun');
+  if (!th.value) { const p = Tagihan.periodeSekarang(); th.value = p.tahun; document.getElementById('tgSemester').value = String(p.semester); }
+  loadTagihan();
+}
+
+async function loadTagihan() {
+  const tbody = document.getElementById('tableTagihan');
+  tbody.innerHTML = '<tr class="loading-row"><td colspan="8">⏳ Memuat...</td></tr>';
+  const tahun = parseInt(document.getElementById('tgTahun').value);
+  const sem = parseInt(document.getElementById('tgSemester').value);
+  const jenis = document.getElementById('tgJenis').value;
+  let q = db.from('tagihan')
+    .select('*, siswa:siswa_id(nomor_induk,nama_lengkap,status), kelas:kelas_id(kode_kelas)')
+    .eq('tahun', tahun).eq('semester', sem).order('created_at', { ascending: false });
+  if (jenis) q = q.eq('jenis', jenis);
+  if (activeProgramId) q = q.eq('program_id', activeProgramId);
+  const { data, error } = await q;
+  if (error) { tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:30px;color:#dc2626">Gagal memuat: ${escT(error.message)}<br><small>Sudah menjalankan fitur_tagihan.sql?</small></td></tr>`; return; }
+  allTagihan = data || [];
+
+  // laporan guru (centang Biaya di tab Pendaftaran Ulang)
+  tgGuruLapor = {};
+  const duIds = allTagihan.filter(t => t.jenis === 'daftar_ulang').map(t => t.siswa_id);
+  try {
+    for (let i = 0; i < duIds.length; i += 100) {
+      const r = await db.from('daftar_ulang').select('siswa_id,biaya').eq('tahun', tahun).eq('semester', sem).eq('biaya', true).in('siswa_id', duIds.slice(i, i + 100));
+      (r.data || []).forEach(x => { tgGuruLapor[x.siswa_id] = true; });
+    }
+  } catch (e) { console.warn('laporan guru:', e); }
+  renderTagihan();
+  updateBadgeTagihan();
+}
+
+function statusTagihan(t) {
+  if (t.status === 'lunas') return 'lunas';
+  return (t.jenis === 'daftar_ulang' && tgGuruLapor[t.siswa_id]) ? 'lapor' : 'belum';
+}
+
+function renderTagihan() {
+  const tbody = document.getElementById('tableTagihan');
+  const q = (document.getElementById('tgSearch').value || '').toLowerCase();
+  const stf = document.getElementById('tgStatus').value;
+  const semua = allTagihan.filter(t => t.siswa && t.siswa.status !== false);
+
+  // ringkasan dari semua tagihan periode ini
+  const tot = semua.reduce((s, t) => s + Number(t.total), 0);
+  const lunas = semua.filter(t => t.status === 'lunas').reduce((s, t) => s + Number(t.total), 0);
+  const card = (bg, fg, n, l) => `<div style="background:${bg};color:${fg};border-radius:10px;padding:10px 16px;min-width:170px"><div style="font-size:18px;font-weight:700">${n}</div><div style="font-size:12px">${l}</div></div>`;
+  document.getElementById('tgSummary').innerHTML =
+    card('#f3f4f6', '#374151', rpT(tot), `Total tagihan · ${semua.length} murid`) +
+    card('#dcfce7', '#16a34a', rpT(lunas), 'Sudah lunas (terkonfirmasi)') +
+    card('#fee2e2', '#dc2626', rpT(tot - lunas), 'Belum tertagih') +
+    card('#fef3c7', '#b45309', semua.filter(t => statusTagihan(t) === 'lapor').length + ' murid', 'Guru lapor lunas, tunggu konfirmasi');
+
+  const rows = semua.filter(t => {
+    if (q && !t.siswa.nama_lengkap.toLowerCase().includes(q) && !String(t.siswa.nomor_induk).toLowerCase().includes(q)) return false;
+    return !stf || statusTagihan(t) === stf;
+  });
+  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:#6b7280">Tidak ada tagihan pada filter ini</td></tr>'; return; }
+
+  tbody.innerHTML = rows.map(t => {
+    const st = statusTagihan(t);
+    const badge = st === 'lunas' ? `<span class="badge badge-green">Lunas ✓</span><br><small style="color:#9ca3af">${t.tanggal_bayar || ''}</small>`
+      : st === 'lapor' ? '<span class="badge badge-yellow">📣 Guru lapor lunas</span>'
+      : '<span class="badge badge-red">Belum Bayar</span>';
+    const rinci = (t.rincian || []).filter(r => Number(r.jumlah) > 0).map(r => `${escT(r.label)}: ${rpT(r.jumlah)}`).join('<br>') || '<span style="color:#9ca3af">—</span>';
+    const jenisLbl = t.jenis === 'pendaftaran' ? '🆕 Pendaftaran' : '🔄 Daftar Ulang';
+    let aksi = '';
+    if (t.status === 'lunas') aksi = `<button class="btn btn-secondary btn-sm" onclick="batalLunasTagihan('${t.id}')">↩ Batalkan</button>`;
+    else aksi = `<button class="btn btn-primary btn-sm" onclick="konfirmasiLunasTagihan('${t.id}')">✔ Konfirmasi Lunas</button> `
+      + `<button class="btn btn-secondary btn-sm" onclick="hitungUlangTagihan('${t.id}')" title="Hitung ulang dengan tarif terbaru">🔄</button> `
+      + `<button class="btn btn-danger btn-sm" onclick="hapusTagihan('${t.id}')" title="Hapus tagihan">🗑️</button>`;
+    return `<tr>
+      <td style="font-family:monospace">${escT(t.siswa.nomor_induk)}</td>
+      <td><strong>${escT(t.siswa.nama_lengkap)}</strong></td>
+      <td style="font-family:monospace">${escT(t.kelas?.kode_kelas || '—')}<br><small style="color:#9ca3af">${escT(t.level_label || '')}</small></td>
+      <td>${jenisLbl}</td>
+      <td style="font-size:12px;line-height:1.5">${rinci}${t.catatan ? `<div style="color:#b45309;margin-top:4px">⚠️ ${escT(t.catatan)}</div>` : ''}</td>
+      <td><strong>${rpT(t.total)}</strong></td>
+      <td>${badge}</td>
+      <td style="white-space:nowrap">${aksi}</td></tr>`;
+  }).join('');
+}
+
+async function updateBadgeTagihan() {
+  try {
+    let q = db.from('tagihan').select('id', { count: 'exact', head: true }).eq('status', 'belum');
+    if (activeProgramId) q = q.eq('program_id', activeProgramId);
+    const { count } = await q;
+    const el = document.getElementById('badgeTagihan');
+    if (el) { el.textContent = count || 0; el.style.display = count ? '' : 'none'; }
+  } catch (e) {}
+}
+
+async function konfirmasiLunasTagihan(id) {
+  const t = allTagihan.find(x => x.id === id); if (!t) return;
+  if (!Number(t.total)) { alert('Total tagihan Rp 0. Atur tarif di Setting Biaya lalu klik 🔄 Hitung ulang.'); return; }
+  const jenisLbl = t.jenis === 'pendaftaran' ? 'Pendaftaran' : 'Pendaftaran Ulang';
+  if (!confirm(`Konfirmasi LUNAS?\n\n${t.siswa.nama_lengkap} — ${jenisLbl}\nTotal: ${rpT(t.total)}\n\nTercatat sebagai pemasukan (menunggu persetujuan Leader).`)) return;
+  const tanggal = new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 10);
+  try {
+    const rinci = (t.rincian || []).filter(r => Number(r.jumlah) > 0).map(r => r.label).join(', ');
+    const trx = await db.from('transaksi').insert({
+      jenis: 'masuk', kategori: jenisLbl, jumlah: Number(t.total), tanggal,
+      keterangan: `${t.siswa.nama_lengkap} (${t.siswa.nomor_induk}) — ${rinci}`,
+      dibuat_oleh: currentUserId, status: 'pending_approval', program_id: t.program_id || activeProgramId
+    }).select('id').single();
+    if (trx.error) throw new Error('Transaksi: ' + trx.error.message);
+    const up = await db.from('tagihan').update({ status: 'lunas', tanggal_bayar: tanggal, transaksi_id: trx.data.id, updated_at: new Date().toISOString() }).eq('id', id);
+    if (up.error) { await db.from('transaksi').delete().eq('id', trx.data.id); throw new Error(up.error.message); }
+    await loadTagihan();
+  } catch (e) { alert('Gagal: ' + e.message); }
+}
+
+async function batalLunasTagihan(id) {
+  const t = allTagihan.find(x => x.id === id); if (!t) return;
+  try {
+    if (t.transaksi_id) {
+      const tr = await db.from('transaksi').select('id,status').eq('id', t.transaksi_id).maybeSingle();
+      if (tr.data && tr.data.status !== 'pending_approval') { alert('Pemasukan ini sudah diproses Leader, jadi tidak bisa dibatalkan dari sini. Hubungi Leader.'); return; }
+    }
+    if (!confirm(`Batalkan status lunas ${t.siswa.nama_lengkap}? Catatan pemasukan yang menunggu persetujuan ikut dihapus.`)) return;
+    if (t.transaksi_id) await db.from('transaksi').delete().eq('id', t.transaksi_id);
+    const up = await db.from('tagihan').update({ status: 'belum', tanggal_bayar: null, transaksi_id: null, updated_at: new Date().toISOString() }).eq('id', id);
+    if (up.error) throw new Error(up.error.message);
+    await loadTagihan();
+  } catch (e) { alert('Gagal: ' + e.message); }
+}
+
+async function hitungUlangTagihan(id) {
+  const t = allTagihan.find(x => x.id === id); if (!t) return;
+  const lbl = t.level_label || '';
+  let level;
+  if (lbl === 'TK') level = { jilid: 0, nama_level: null };
+  else if (/^Jilid\s+\d+/.test(lbl)) level = { jilid: parseInt(lbl.replace(/\D/g, '')), nama_level: null };
+  else level = { jilid: null, nama_level: lbl };
+  try {
+    const h = await Tagihan.hitungUlang(t, level);
+    if (h.catatan) alert('⚠️ ' + h.catatan);
+    await loadTagihan();
+  } catch (e) { alert('Gagal: ' + e.message); }
+}
+
+async function hapusTagihan(id) {
+  const t = allTagihan.find(x => x.id === id); if (!t) return;
+  if (!confirm(`Hapus tagihan ${t.siswa.nama_lengkap} (${rpT(t.total)})?\nBerguna untuk data testing atau murid yang batal daftar.`)) return;
+  const r = await db.from('tagihan').delete().eq('id', id).eq('status', 'belum');
+  if (r.error) { alert('Gagal: ' + r.error.message); return; }
+  await loadTagihan();
+}
+
 
 // ============================================
 // TAB
@@ -644,6 +834,7 @@ function switchTab(tab) {
   document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
   if (tab === 'setoran')    loadSetoran();
   if (tab === 'iuran')      loadIuran();
+  if (tab === 'tagihan')    initTagihan();
   if (tab === 'biaya')      { loadBiaya(); loadDaftarUlang(); }
   if (tab === 'penggajian') loadPenggajian();
   if (tab === 'transaksi')  loadTransaksi();
@@ -2099,6 +2290,7 @@ async function switchActiveProgramB(programId) {
   if (tabName === 'kelas')      await loadKelasB();
   if (tabName === 'setoran')    await loadSetoran();
   if (tabName === 'iuran')      await loadIuran();
+  if (tabName === 'tagihan')    await loadTagihan();
   if (tabName === 'biaya')      { await loadBiaya(); await loadDaftarUlang(); }
   if (tabName === 'penggajian') await loadPenggajian();
   if (tabName === 'transaksi')  await loadTransaksi();
