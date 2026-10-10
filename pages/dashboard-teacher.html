@@ -41,6 +41,9 @@
     <div class="sidebar-item" data-tab="nilai">
       <span class="sidebar-icon">📝</span><span>Penilaian</span>
     </div>
+    <div class="sidebar-item" data-tab="daftar-ulang" id="menuDaftarUlang" style="display:none">
+      <span class="sidebar-icon">📝</span><span>Pendaftaran Ulang</span>
+    </div>
     <div class="sidebar-item" data-tab="bank-soal">
       <span class="sidebar-icon">📄</span><span>Bank Soal</span>
     </div>
@@ -546,6 +549,27 @@
     </div>
 
     <!-- TAB: NOTULEN RAPAT & TO DO LIST (VIEW ONLY) -->
+    <!-- TAB: PENDAFTARAN ULANG (hanya jika diizinkan admin) -->
+    <div id="tab-daftar-ulang" class="tab-content">
+      <div class="page-title">Pendaftaran Ulang</div>
+      <div class="page-sub" id="duPeriodeInfo">Centang Biaya, Buku, dan Raport saat murid sudah melunasi biaya, menerima buku, dan mengembalikan raport</div>
+      <div id="duLocked" style="display:none;text-align:center;padding:30px;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;color:#9a3412">🔒 Fitur ini belum dibuka oleh Admin.</div>
+      <div id="duContent">
+        <div class="toolbar">
+          <input class="search-input" id="duSearch" placeholder="🔍 Cari nama murid..." oninput="renderDUGuru()">
+          <select class="filter-select" id="duJilid" onchange="onDuJilidGuru()"><option value="">-- Pilih Jilid --</option></select>
+          <select class="filter-select" id="duKelas" onchange="renderDUGuru()"><option value="">-- Pilih Kelas --</option></select>
+        </div>
+        <div id="duSummary" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>No. Induk</th><th>Nama</th><th>Nama Mandarin</th><th>Kelas</th><th>HP Orang Tua</th><th style="text-align:center">Biaya</th><th style="text-align:center">Buku</th><th style="text-align:center">Raport</th></tr></thead>
+            <tbody id="tableDU"><tr><td colspan="8" style="text-align:center;padding:40px;color:#6b7280">Pilih jilid dan kelas dulu</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
     <!-- TAB: BANK SOAL (GENERATE + CETAK) -->
     <div id="tab-bank-soal" class="tab-content">
       <div class="page-title">Bank Soal — Generate Ulangan/Ujian</div>
@@ -731,8 +755,145 @@ async function loadSysSettings() {
     await loadKelasSaya();
     await loadStats();
     await initProgramGuru();
+    cekAksesDaftarUlang();
   }
 })();
+
+
+// ============================================
+// PENDAFTARAN ULANG (diizinkan admin)
+// ============================================
+let duPengaturan = { guru_boleh: false, tahun: null, semester: null };
+let duMap = {}, duSeq = 0, duUserId = null, duList = [];
+
+async function ambilPengaturanDU() {
+  try {
+    const { data, error } = await db.from('daftar_ulang_pengaturan').select('*').eq('id', 1).maybeSingle();
+    if (error) throw error;
+    const wib = new Date(Date.now() + 7*3600*1000);
+    duPengaturan = {
+      guru_boleh: !!data?.guru_boleh,
+      tahun: data?.tahun || wib.getUTCFullYear(),
+      semester: data?.semester || (wib.getUTCMonth() + 1 >= 7 ? 2 : 1)
+    };
+  } catch (e) {
+    duPengaturan.guru_boleh = false;
+  }
+  return duPengaturan;
+}
+
+async function cekAksesDaftarUlang() {
+  const p = await ambilPengaturanDU();
+  const menu = document.getElementById('menuDaftarUlang');
+  if (menu) menu.style.display = p.guru_boleh ? '' : 'none';
+}
+
+function kunciJilidDU(k) {
+  return (k.jilid !== null && k.jilid !== undefined) ? 'J' + k.jilid : 'L' + (k.nama_level || '');
+}
+function labelJilidDU(k) {
+  return (k.jilid !== null && k.jilid !== undefined) ? ('Jilid ' + ((k.jilid === 0 || k.jilid === '0') ? 'TK' : k.jilid)) : (k.nama_level || 'Tanpa level');
+}
+
+async function initDaftarUlangGuru() {
+  const p = await ambilPengaturanDU();
+  const menu = document.getElementById('menuDaftarUlang');
+  if (menu) menu.style.display = p.guru_boleh ? '' : 'none';
+  document.getElementById('duLocked').style.display = p.guru_boleh ? 'none' : '';
+  document.getElementById('duContent').style.display = p.guru_boleh ? '' : 'none';
+  if (!p.guru_boleh) return;
+  document.getElementById('duPeriodeInfo').textContent =
+    'Periode ' + p.tahun + ' Semester ' + p.semester + ' — centang Biaya, Buku, dan Raport saat murid sudah melunasi biaya, menerima buku, dan mengembalikan raport';
+
+  const grup = {};
+  kelasSaya.forEach(k => { const key = kunciJilidDU(k); if (!grup[key]) grup[key] = k; });
+  const keys = Object.keys(grup).sort((a, b) => (grup[a].jilid ?? 0) - (grup[b].jilid ?? 0));
+  const cur = document.getElementById('duJilid').value;
+  document.getElementById('duJilid').innerHTML = '<option value="">-- Pilih Jilid --</option>' +
+    keys.map(k => `<option value="${k}"${k === cur ? ' selected' : ''}>${labelJilidDU(grup[k])}</option>`).join('');
+  onDuJilidGuru(true);
+}
+
+function onDuJilidGuru(keep) {
+  const key = document.getElementById('duJilid').value;
+  const sel = document.getElementById('duKelas');
+  const cur = keep === true ? sel.value : '';
+  if (!key) { sel.innerHTML = '<option value="">-- Pilih Kelas --</option>'; renderDUGuru(); return; }
+  const list = kelasSaya.filter(k => kunciJilidDU(k) === key);
+  sel.innerHTML = '<option value="">-- Pilih Kelas --</option><option value="__all__"' + (cur === '__all__' ? ' selected' : '') + '>Semua kelas di jilid ini</option>' +
+    list.map(k => `<option value="${k.id}"${k.id === cur ? ' selected' : ''}>${k.kode_kelas}</option>`).join('');
+  renderDUGuru();
+}
+
+async function renderDUGuru() {
+  const tbody = document.getElementById('tableDU');
+  const key = document.getElementById('duJilid').value;
+  const kelasVal = document.getElementById('duKelas').value;
+  const q = (document.getElementById('duSearch').value || '').toLowerCase();
+  if (!key || !kelasVal) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:#6b7280">Pilih jilid dan kelas dulu</td></tr>';
+    document.getElementById('duSummary').innerHTML = '';
+    return;
+  }
+  duList = [];
+  kelasSaya.forEach(k => {
+    if (kunciJilidDU(k) !== key || (kelasVal !== '__all__' && k.id !== kelasVal)) return;
+    (k.enrollment || []).filter(e => e.is_active && e.siswa?.status).forEach(e => {
+      const s = e.siswa;
+      if (q && !s.nama_lengkap.toLowerCase().includes(q) && !(s.nama_mandarin || '').toLowerCase().includes(q)) return;
+      duList.push({ ...s, kode_kelas: k.kode_kelas });
+    });
+  });
+  duList.sort((a, b) => a.kode_kelas === b.kode_kelas ? a.nama_lengkap.localeCompare(b.nama_lengkap) : (a.kode_kelas < b.kode_kelas ? -1 : 1));
+
+  const seq = ++duSeq;
+  duMap = {};
+  if (!duList.length) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:#6b7280">Tidak ada murid</td></tr>'; document.getElementById('duSummary').innerHTML = ''; return; }
+  const { data, error } = await db.from('daftar_ulang').select('siswa_id,biaya,buku,raport')
+    .eq('tahun', duPengaturan.tahun).eq('semester', duPengaturan.semester).in('siswa_id', duList.map(s => s.id));
+  if (seq !== duSeq) return;
+  if (error) { tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:30px;color:#dc2626">Gagal memuat: ${error.message}</td></tr>`; return; }
+  (data || []).forEach(x => { duMap[x.siswa_id] = x; });
+
+  const cb = (sid, f) => `<td style="text-align:center"><input type="checkbox" style="width:20px;height:20px;cursor:pointer" ${duMap[sid]?.[f] ? 'checked' : ''} onchange="toggleDUGuru('${sid}','${f}',this)"></td>`;
+  tbody.innerHTML = duList.map(s => `<tr>
+    <td style="font-family:monospace">${s.nomor_induk}</td>
+    <td><strong>${s.nama_lengkap}</strong></td>
+    <td style="color:var(--text-2)">${s.nama_mandarin || '—'}</td>
+    <td style="font-family:monospace">${s.kode_kelas}</td>
+    <td>${s.telepon_ortu || s.telepon || '—'}</td>
+    ${cb(s.id, 'biaya')}${cb(s.id, 'buku')}${cb(s.id, 'raport')}</tr>`).join('');
+  updateDUSummaryGuru();
+}
+
+function updateDUSummaryGuru() {
+  const c = { biaya: 0, buku: 0, raport: 0 };
+  duList.forEach(s => { const x = duMap[s.id]; if (x) { if (x.biaya) c.biaya++; if (x.buku) c.buku++; if (x.raport) c.raport++; } });
+  const card = (label, n) => {
+    const done = duList.length && n === duList.length;
+    return `<div style="background:${done ? '#dcfce7' : '#f3f4f6'};color:${done ? '#16a34a' : '#374151'};border-radius:10px;padding:8px 16px;min-width:120px"><div style="font-size:18px;font-weight:700">${n} / ${duList.length}</div><div style="font-size:12px">${label}</div></div>`;
+  };
+  document.getElementById('duSummary').innerHTML = card('Biaya lunas', c.biaya) + card('Buku diterima', c.buku) + card('Raport dikembalikan', c.raport);
+}
+
+async function toggleDUGuru(siswaId, field, el) {
+  const val = el.checked;
+  try {
+    const p = await ambilPengaturanDU();
+    if (!p.guru_boleh) { el.checked = !val; alert('Akses Pendaftaran Ulang sudah ditutup oleh Admin.'); initDaftarUlangGuru(); return; }
+    if (!duUserId) { const { data: { user } } = await db.auth.getUser(); duUserId = user?.id || null; }
+    const row = { siswa_id: siswaId, tahun: p.tahun, semester: p.semester, updated_by: duUserId, updated_at: new Date().toISOString() };
+    row[field] = val;
+    const { error } = await db.from('daftar_ulang').upsert(row, { onConflict: 'siswa_id,tahun,semester' });
+    if (error) throw new Error(error.message);
+    duMap[siswaId] = duMap[siswaId] || { biaya: false, buku: false, raport: false };
+    duMap[siswaId][field] = val;
+    updateDUSummaryGuru();
+  } catch (e) {
+    el.checked = !val;
+    alert('Gagal menyimpan: ' + e.message);
+  }
+}
 
 // ============================================
 // TAB
@@ -748,6 +909,7 @@ function switchTab(tab) {
   if (tab === 'notulen-todo') { loadNotulenTodo(); }
   if (tab === 'bank-soal')    { initBankSoalGuru(); }
   if (tab === 'program')      { loadProgramGuru(); }
+  if (tab === 'daftar-ulang') { initDaftarUlangGuru(); }
 }
 
 function toggleNilaiSection() {
@@ -874,7 +1036,7 @@ async function loadStats() {
 // ============================================
 async function loadKelasSaya() {
   const { data } = await db.from('kelas')
-    .select('*, enrollment(is_active, has_determination, siswa:siswa_id(id, nomor_induk, nama_lengkap, nama_mandarin, status))')
+    .select('*, enrollment(is_active, has_determination, siswa:siswa_id(id, nomor_induk, nama_lengkap, nama_mandarin, telepon, telepon_ortu, status))')
     .eq('guru_id', guruData.id)
     .eq('is_active', true);
 

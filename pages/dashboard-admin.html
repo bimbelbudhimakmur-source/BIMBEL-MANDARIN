@@ -114,13 +114,42 @@
     <!-- ===== PENDAFTARAN ULANG ===== -->
     <div id="tab-reregister" class="tab-content">
       <div class="page-title">Pendaftaran Ulang</div>
-      <div class="page-sub">Murid <b>tinggal kelas (留班)</b> diarahkan manual ke kelas. Murid <b>naik (升班)</b> tidak perlu dipindah satu-satu: cukup ubah detail kelasnya (jilid, nama, dll) di Data Kelas.</div>
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap">
-        <button class="btn btn-secondary" id="btnToggleMergeRR" onclick="toggleMergeRR()">🔀 MERGE KELAS: OFF</button>
-        <span style="font-size:12px;color:#6b7280">Gabungkan dua kelas dengan jilid yang sama (mis. anggota tinggal sedikit)</span>
+      <div class="page-sub">Checklist daftar ulang murid, gabung kelas, dan pengarahan murid tinggal kelas</div>
+      <div style="display:flex;gap:6px;margin:12px 0 16px;border-bottom:2px solid #f3d6e0;flex-wrap:wrap">
+        <button class="btn btn-primary" id="rrTabBtn_du" onclick="showRRTab('du')" style="border-radius:8px 8px 0 0">📝 Pendaftaran Ulang</button>
+        <button class="btn btn-secondary" id="rrTabBtn_merge" onclick="showRRTab('merge')" style="border-radius:8px 8px 0 0">🔀 Merge Kelas</button>
+        <button class="btn btn-secondary" id="rrTabBtn_tinggal" onclick="showRRTab('tinggal')" style="border-radius:8px 8px 0 0">🧭 Pengarahan Murid Tinggal Kelas</button>
       </div>
-      <div id="rrMergeBox" style="display:none"></div>
-      <div id="rrMainBox">
+
+      <!-- TAB 1: PENDAFTARAN ULANG (checklist) -->
+      <div id="rrPane_du">
+        <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;margin-bottom:12px;display:flex;gap:14px;flex-wrap:wrap;align-items:center">
+          <b>Periode:</b>
+          <span>Tahun <input type="number" id="duTahun" style="width:90px;padding:5px 8px;border:1px solid #e5e7eb;border-radius:6px"></span>
+          <span>Semester <select id="duSemester" style="padding:5px 8px;border:1px solid #e5e7eb;border-radius:6px"><option value="1">1</option><option value="2">2</option></select></span>
+          <span style="display:flex;align-items:center;gap:8px"><label class="toggle"><input type="checkbox" id="duGuruBoleh"><span class="toggle-slider"></span></label> <span style="font-size:13px">Izinkan guru mengakses tab Pendaftaran Ulang</span></span>
+          <button class="btn btn-primary btn-sm" onclick="simpanPengaturanDU()">💾 Simpan Pengaturan</button>
+        </div>
+        <div class="toolbar">
+          <input class="search-input" id="duSearch" placeholder="🔍 Cari nama murid..." oninput="renderDU()">
+          <select class="filter-select" id="duJilid" onchange="onDuJilidChange()"><option value="">-- Pilih Jilid --</option></select>
+          <select class="filter-select" id="duKelas" onchange="renderDU()"><option value="">-- Pilih Kelas --</option></select>
+        </div>
+        <div id="duSummary" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>No. Induk</th><th>Nama</th><th>Nama Mandarin</th><th>Kelas</th><th>HP Orang Tua</th><th style="text-align:center">Biaya</th><th style="text-align:center">Buku</th><th style="text-align:center">Raport</th></tr></thead>
+            <tbody id="tableDU"><tr><td colspan="8" style="text-align:center;padding:40px;color:#6b7280">Pilih jilid dan kelas dulu</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB 2: MERGE KELAS -->
+      <div id="rrPane_merge" style="display:none"><div id="rrMergeBox"></div></div>
+
+      <!-- TAB 3: PENGARAHAN MURID TINGGAL KELAS -->
+      <div id="rrPane_tinggal" style="display:none">
+      <div class="page-sub">Murid <b>tinggal kelas (留班)</b> diarahkan manual ke kelas. Murid <b>naik (升班)</b> tidak perlu dipindah satu-satu: cukup ubah detail kelasnya (jilid, nama, dll) di Data Kelas.</div>
       <div id="rrSummary" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
       <div class="toolbar">
           <input class="search-input" id="searchRR" placeholder="🔍 Cari nama murid..." oninput="filterRR()">
