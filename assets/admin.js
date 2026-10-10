@@ -208,7 +208,7 @@ function switchTab(tab) {
   document.getElementById('tab-'+tab).classList.add('active');
   document.querySelector('[data-tab="'+tab+'"]').classList.add('active');
   if (tab==='register')   loadPendaftaran();
-  if (tab==='reregister') loadRR();
+  if (tab==='reregister') loadRR().then(function(){ initDU(); });
   if (tab==='placement')  loadPlacement();
   if (tab==='kelas')      loadKelas();
   if (tab==='murid')      loadMurid();
@@ -939,7 +939,6 @@ function renderRRSummary() {
 }
 
 function filterRR() {
-  if (rrMergeOn) return;
   var q=document.getElementById('searchRR').value.toLowerCase();
   var mode=document.getElementById('filterStatusRR').value || 'tinggal';
   var kl=document.getElementById('filterKelasRR').value;
@@ -1010,17 +1009,166 @@ async function editKelasDariRR(kelasId) {
 // ============================================
 // MERGE KELAS (gabung 2+ kelas dengan jilid sama)
 // ============================================
-var rrMergeOn = false, rrMergePilih = {};
+var rrMergePilih = {};
 
-function toggleMergeRR() {
-  rrMergeOn = !rrMergeOn;
-  rrMergePilih = {};
-  var btn = document.getElementById('btnToggleMergeRR');
-  btn.textContent = '🔀 MERGE KELAS: ' + (rrMergeOn ? 'ON' : 'OFF');
-  btn.className = 'btn ' + (rrMergeOn ? 'btn-primary' : 'btn-secondary');
-  document.getElementById('rrMainBox').style.display = rrMergeOn ? 'none' : '';
-  document.getElementById('rrMergeBox').style.display = rrMergeOn ? '' : 'none';
-  if (rrMergeOn) renderMergeRR(); else filterRR();
+function showRRTab(name) {
+  ['du','merge','tinggal'].forEach(function(n){
+    var pane = document.getElementById('rrPane_'+n), btn = document.getElementById('rrTabBtn_'+n);
+    if (pane) pane.style.display = (n === name) ? '' : 'none';
+    if (btn) btn.className = 'btn ' + (n === name ? 'btn-primary' : 'btn-secondary');
+  });
+  if (name === 'merge') { rrMergePilih = {}; renderMergeRR(); }
+  if (name === 'tinggal') filterRR();
+  if (name === 'du') renderDU();
+}
+
+// ============================================
+// PENDAFTARAN ULANG (checklist Biaya / Buku / Raport)
+// ============================================
+var duPeriode = { tahun: null, semester: null }, duMap = {}, duUserId = null, duSeq = 0;
+
+async function initDU() {
+  var note = '';
+  try {
+    var r = await db.from('daftar_ulang_pengaturan').select('*').eq('id', 1).maybeSingle();
+    if (r.error) throw new Error(r.error.message);
+    var p = r.data || {};
+    var now = new Date(Date.now() + 7*3600*1000);
+    duPeriode.tahun = p.tahun || now.getUTCFullYear();
+    duPeriode.semester = p.semester || (now.getUTCMonth() + 1 >= 7 ? 2 : 1);
+    document.getElementById('duGuruBoleh').checked = !!p.guru_boleh;
+  } catch (e) {
+    var now2 = new Date(Date.now() + 7*3600*1000);
+    duPeriode.tahun = duPeriode.tahun || now2.getUTCFullYear();
+    duPeriode.semester = duPeriode.semester || (now2.getUTCMonth() + 1 >= 7 ? 2 : 1);
+    console.warn('initDU:', e.message);
+  }
+  document.getElementById('duTahun').value = duPeriode.tahun;
+  document.getElementById('duSemester').value = String(duPeriode.semester);
+
+  // Dropdown jilid dari kelas aktif
+  var grup = {};
+  (allKelasRR || []).forEach(function(k){ var key = kunciLevelRR(k); if (!grup[key]) grup[key] = k; });
+  var keys = Object.keys(grup).sort(function(a, b){
+    var ka = grup[a], kb = grup[b];
+    return isMandarinActive() ? (ka.jilid - kb.jilid) : (a < b ? -1 : 1);
+  });
+  var cur = document.getElementById('duJilid').value;
+  document.getElementById('duJilid').innerHTML = '<option value="">-- Pilih Jilid --</option>'
+    + keys.map(function(k){ return '<option value="'+k+'"'+(k===cur?' selected':'')+'>'+labelLevelRR(grup[k])+'</option>'; }).join('');
+  onDuJilidChange(true);
+}
+
+function onDuJilidChange(keepKelas) {
+  var key = document.getElementById('duJilid').value;
+  var sel = document.getElementById('duKelas');
+  var cur = keepKelas === true ? sel.value : '';
+  if (!key) { sel.innerHTML = '<option value="">-- Pilih Kelas --</option>'; renderDU(); return; }
+  var list = (allKelasRR || []).filter(function(k){ return kunciLevelRR(k) === key; });
+  sel.innerHTML = '<option value="">-- Pilih Kelas --</option><option value="__all__"'+(cur==='__all__'?' selected':'')+'>Semua kelas di jilid ini</option>'
+    + list.map(function(k){ return '<option value="'+k.id+'"'+(k.id===cur?' selected':'')+'>'+k.kode_kelas+'</option>'; }).join('');
+  renderDU();
+}
+
+async function simpanPengaturanDU() {
+  var tahun = parseInt(document.getElementById('duTahun').value);
+  var sem = parseInt(document.getElementById('duSemester').value);
+  if (!tahun || tahun < 2000) { alert('Isi tahun dengan benar.'); return; }
+  var boleh = document.getElementById('duGuruBoleh').checked;
+  var r = await db.from('daftar_ulang_pengaturan').upsert({ id: 1, tahun: tahun, semester: sem, guru_boleh: boleh, updated_at: new Date().toISOString() });
+  if (r.error) { alert('Gagal simpan: ' + r.error.message + '\n\n(Sudah menjalankan fitur_daftar_ulang.sql?)'); return; }
+  duPeriode.tahun = tahun; duPeriode.semester = sem;
+  alert('✅ Tersimpan. Periode ' + tahun + ' Semester ' + sem + (boleh ? ' — guru BOLEH mengakses.' : ' — guru TIDAK bisa mengakses.'));
+  renderDU();
+}
+
+async function renderDU() {
+  var tbody = document.getElementById('tableDU');
+  if (!tbody) return;
+  var key = document.getElementById('duJilid').value;
+  var kelasVal = document.getElementById('duKelas').value;
+  var q = (document.getElementById('duSearch').value || '').toLowerCase();
+  if (!key || !kelasVal) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:#6b7280">Pilih jilid dan kelas dulu</td></tr>';
+    document.getElementById('duSummary').innerHTML = '';
+    return;
+  }
+  var kelasIds = {};
+  (allKelasRR || []).forEach(function(k){
+    if (kunciLevelRR(k) === key && (kelasVal === '__all__' || k.id === kelasVal)) kelasIds[k.id] = k;
+  });
+  var list = (allSiswaRR || []).filter(function(s){
+    var ae = getAktifEnrollmentRR(s);
+    if (!ae || !ae.kelas || !kelasIds[ae.kelas.id]) return false;
+    return !q || s.nama_lengkap.toLowerCase().indexOf(q) >= 0 || (s.nama_mandarin || '').toLowerCase().indexOf(q) >= 0;
+  });
+  list.sort(function(a, b){
+    var ka = getAktifEnrollmentRR(a).kelas.kode_kelas, kb = getAktifEnrollmentRR(b).kelas.kode_kelas;
+    return ka === kb ? a.nama_lengkap.localeCompare(b.nama_lengkap) : (ka < kb ? -1 : 1);
+  });
+
+  var seq = ++duSeq;
+  tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px;color:#6b7280">⏳ Memuat...</td></tr>';
+  duMap = {};
+  try {
+    for (var i = 0; i < list.length; i += 100) {
+      var ids = list.slice(i, i + 100).map(function(s){ return s.id; });
+      var r = await db.from('daftar_ulang').select('siswa_id,biaya,buku,raport')
+        .eq('tahun', duPeriode.tahun).eq('semester', duPeriode.semester).in('siswa_id', ids);
+      if (r.error) throw new Error(r.error.message);
+      (r.data || []).forEach(function(x){ duMap[x.siswa_id] = x; });
+    }
+  } catch (e) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px;color:#dc2626">Gagal memuat: ' + e.message + '<br><small>Sudah menjalankan fitur_daftar_ulang.sql?</small></td></tr>';
+    return;
+  }
+  if (seq !== duSeq) return;
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:#6b7280">Tidak ada murid</td></tr>'; document.getElementById('duSummary').innerHTML = ''; return; }
+
+  function cb(sid, f) {
+    var v = duMap[sid] && duMap[sid][f];
+    return '<td style="text-align:center"><input type="checkbox" style="width:18px;height:18px;cursor:pointer" '+(v?'checked':'')+' onchange="toggleDU(\''+sid+'\',\''+f+'\',this)"></td>';
+  }
+  var html = '';
+  list.forEach(function(s){
+    var k = getAktifEnrollmentRR(s).kelas;
+    html += '<tr><td style="font-family:monospace">'+s.nomor_induk+'</td>'
+      + '<td><strong>'+s.nama_lengkap+'</strong></td>'
+      + '<td style="color:#6b7280">'+(s.nama_mandarin||'—')+'</td>'
+      + '<td style="font-family:monospace">'+k.kode_kelas+'</td>'
+      + '<td>'+(s.telepon_ortu||s.telepon||'—')+'</td>'
+      + cb(s.id,'biaya') + cb(s.id,'buku') + cb(s.id,'raport') + '</tr>';
+  });
+  tbody.innerHTML = html;
+  window._duList = list;
+  updateDUSummary();
+}
+
+function updateDUSummary() {
+  var list = window._duList || [], c = { biaya: 0, buku: 0, raport: 0 };
+  list.forEach(function(s){ var x = duMap[s.id]; if (x) { if (x.biaya) c.biaya++; if (x.buku) c.buku++; if (x.raport) c.raport++; } });
+  function card(label, n) {
+    var done = list.length && n === list.length;
+    return '<div style="background:'+(done?'#dcfce7':'#f3f4f6')+';color:'+(done?'#16a34a':'#374151')+';border-radius:10px;padding:8px 16px;min-width:120px"><div style="font-size:18px;font-weight:700">'+n+' / '+list.length+'</div><div style="font-size:12px">'+label+'</div></div>';
+  }
+  document.getElementById('duSummary').innerHTML = card('Biaya lunas', c.biaya) + card('Buku diterima', c.buku) + card('Raport dikembalikan', c.raport);
+}
+
+async function toggleDU(siswaId, field, el) {
+  var val = el.checked;
+  try {
+    if (!duUserId) { var u = await db.auth.getUser(); duUserId = u.data && u.data.user ? u.data.user.id : null; }
+    var row = { siswa_id: siswaId, tahun: duPeriode.tahun, semester: duPeriode.semester, updated_by: duUserId, updated_at: new Date().toISOString() };
+    row[field] = val;
+    var r = await db.from('daftar_ulang').upsert(row, { onConflict: 'siswa_id,tahun,semester' });
+    if (r.error) throw new Error(r.error.message);
+    duMap[siswaId] = duMap[siswaId] || { biaya: false, buku: false, raport: false };
+    duMap[siswaId][field] = val;
+    updateDUSummary();
+  } catch (e) {
+    el.checked = !val;
+    alert('Gagal menyimpan: ' + e.message);
+  }
 }
 
 function muridAktifKelasRR(k) {
