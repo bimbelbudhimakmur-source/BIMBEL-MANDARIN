@@ -542,6 +542,21 @@ async function showDetailDaftar(id) {
   } catch(e) { console.error('showDetailDaftar:',e); }
 }
 
+// Terbitkan tagihan pendaftaran ke Bendahara begitu murid resmi masuk kelas
+async function terbitkanTagihanPendaftaran(siswaId, kelasId) {
+  try {
+    var k = (await db.from('kelas').select('id,jilid,nama_level,program_id').eq('id', kelasId).single()).data;
+    if (!k) return '';
+    var r = await Tagihan.terbitkanPendaftaran(siswaId, k);
+    if (r.status === 'dilewati') return '\n\nTagihan pendaftaran sudah Lunas, tidak diubah.';
+    var tot = 'Rp ' + Number(r.hasil.total).toLocaleString('id-ID');
+    return '\n\n🧾 Tagihan pendaftaran masuk ke Bendahara: ' + tot + (r.hasil.catatan ? '\n⚠️ ' + r.hasil.catatan : '');
+  } catch (e) {
+    console.error('tagihan pendaftaran:', e);
+    return '\n\n⚠️ Murid tersimpan, tapi tagihan ke Bendahara gagal dibuat: ' + e.message + '\n(Sudah menjalankan fitur_tagihan.sql?)';
+  }
+}
+
 async function proseskan(id, status) {
   if (!confirm('Yakin '+(status==='approved'?'menyetujui':'menolak')+' pendaftaran ini?')) return;
   try {
@@ -567,10 +582,12 @@ async function proseskan(id, status) {
         if (plRes.error) { alert('⚠️ Murid tersimpan tapi gagal masuk PLACEMENT: '+plRes.error.message); }
         else { alert('✅ Murid didaftarkan ke PLACEMENT! No. Induk: '+noInduk+'\nArahkan ke kelas lewat menu PLACEMENT.'); }
       } else {
+        var infoTagihan = '';
         if (sr.data&&regData.kelas_dipilih) {
-          await db.from('enrollment').insert({siswa_id:sr.data.id,kelas_id:regData.kelas_dipilih,tahun_ajaran_id:tahunAjaranId,is_active:true});
+          var enrP = await db.from('enrollment').insert({siswa_id:sr.data.id,kelas_id:regData.kelas_dipilih,tahun_ajaran_id:tahunAjaranId,is_active:true});
+          if (!enrP.error) infoTagihan = await terbitkanTagihanPendaftaran(sr.data.id, regData.kelas_dipilih);
         }
-        alert('✅ Murid didaftarkan! No. Induk: '+noInduk);
+        alert('✅ Murid didaftarkan! No. Induk: '+noInduk+infoTagihan);
       }
     }
     await loadPendaftaran(); await loadStats(); await updateBadgePlacement();
@@ -622,7 +639,7 @@ async function simpanDaftarAdmin() {
       status:true
     }).select().single();
     if (sr.error) { alert('Error: '+sr.error.message); return; }
-    var erEnr = null;
+    var erEnr = null, infoTagihanDA = '';
     var isPlacement = (kelasId==='__PLACEMENT__');
     if (sr.data && isPlacement) {
       var plRes = await db.from('placement').insert({siswa_id:sr.data.id,program_id:activeProgramId||null,level_diinginkan:document.getElementById('da_level').value.trim()||null});
@@ -630,12 +647,13 @@ async function simpanDaftarAdmin() {
     } else if (sr.data) {
       var enrRes = await db.from('enrollment').insert({siswa_id:sr.data.id,kelas_id:kelasId,tahun_ajaran_id:tahunAjaranId,is_active:true});
       erEnr = enrRes.error;
+      if (!erEnr) infoTagihanDA = await terbitkanTagihanPendaftaran(sr.data.id, kelasId);
     }
     closeModal('modalDaftarAdmin');
     if (erEnr) {
       alert('⚠️ Murid "'+namaIndo+'" tersimpan (No. Induk: '+noInduk+'), TAPI gagal didaftarkan ke '+(isPlacement?'PLACEMENT':'kelas')+'!\nError: '+erEnr.message+'\n\nMurid ini tidak akan muncul di Data Murid sampai didaftarkan ulang ke kelas via tab Pendaftaran Ulang.');
     } else {
-      alert('✅ Murid didaftarkan'+(isPlacement?' ke PLACEMENT':'')+'! No. Induk: '+noInduk);
+      alert('✅ Murid didaftarkan'+(isPlacement?' ke PLACEMENT':'')+'! No. Induk: '+noInduk+infoTagihanDA);
     }
     await loadStats();
     await loadMurid();
@@ -768,7 +786,8 @@ async function arahkanPlacement(plId) {
     if (ins.error) throw new Error('Enrollment: '+ins.error.message);
     var up = await db.from('placement').update({status:'selesai',kelas_tujuan:kelasId,selesai_at:new Date().toISOString()}).eq('id',plId);
     if (up.error) throw new Error('Placement: '+up.error.message);
-    alert('✅ '+p.siswa.nama_lengkap+' sudah masuk kelas. Murid kini tampil di Data Murid dan dashboard guru.');
+    var infoTg = await terbitkanTagihanPendaftaran(p.siswa_id, kelasId);
+    alert('✅ '+p.siswa.nama_lengkap+' sudah masuk kelas. Murid kini tampil di Data Murid dan dashboard guru.'+infoTg);
     await loadPlacement(); await loadStats();
   } catch(e) { console.error('arahkanPlacement:',e); alert('Error: '+e.message); }
 }
@@ -1088,6 +1107,42 @@ function onDuJilidChange(keepKelas) {
     + list.map(function(k){ return '<option value="'+k.id+'"'+(k.id===cur?' selected':'')+'>'+k.kode_kelas+'</option>'; }).join('');
   renderDU();
 }
+
+// Terbitkan tagihan pendaftaran ulang untuk periode aktif -> otomatis muncul di Bendahara
+async function terbitkanTagihanDU() {
+  if (!allSiswaRR || !allSiswaRR.length) { alert('Belum ada murid aktif.'); return; }
+  var items = [], c = { naik: 0, tinggal: 0, belum: 0, lain: 0 };
+  allSiswaRR.forEach(function(s){
+    var ae = getAktifEnrollmentRR(s);
+    if (!ae || !ae.kelas) return;
+    var k = ae.kelas, jilid = k.jilid, catatan = null;
+    if (jilid !== null && jilid !== undefined) {
+      var t = hanteiTipeRR(s);
+      if (t === 'naik') { jilid = Math.min(12, Number(jilid) + 1); c.naik++; catatan = '升班 → jilid tujuan'; }
+      else if (t === 'tinggal') { c.tinggal++; catatan = '留班 → jilid sama'; }
+      else { c.belum++; catatan = 'Penentuan 升/留 belum ada, dihitung jilid saat ini'; }
+    } else { c.lain++; }
+    items.push({ siswa_id: s.id, kelas: { id: k.id, program_id: k.program_id }, level: { jilid: jilid, nama_level: k.nama_level }, catatan: catatan });
+  });
+  // nama_level tidak ikut di select loadRR untuk murid: ambil dari allKelasRR
+  items.forEach(function(it){
+    var kk = (allKelasRR || []).find(function(x){ return x.id === it.kelas.id; });
+    if (kk) it.level.nama_level = kk.nama_level;
+  });
+  var p = duPeriode;
+  var pesan = 'TERBITKAN TAGIHAN PENDAFTARAN ULANG\nPeriode: ' + p.tahun + ' Semester ' + p.semester + '\n\nMurid: ' + items.length
+    + (c.naik + c.tinggal + c.belum ? '\n• Naik (升班): ' + c.naik + ' → tarif jilid +1\n• Tinggal (留班): ' + c.tinggal + ' → tarif jilid sama\n• Belum ditentukan guru: ' + c.belum + ' → tarif jilid saat ini' : '')
+    + '\n\nTagihan langsung muncul di akun Bendahara. Tagihan yang sudah Lunas tidak diubah; yang belum lunas dihitung ulang. Lanjutkan?';
+  if (!confirm(pesan)) return;
+  try {
+    var r = await Tagihan.terbitkanDaftarUlang(items, p);
+    alert('✅ Tagihan terbit.\n• Baru: ' + r.baru + '\n• Diperbarui: ' + r.diperbarui + '\n• Sudah lunas (dilewati): ' + r.lunas
+      + (r.tanpaTarif.length ? '\n\n⚠️ Tarif belum diatur Bendahara untuk: ' + r.tanpaTarif.join(', ') : ''));
+  } catch (e) {
+    alert('Gagal menerbitkan tagihan: ' + e.message + '\n\n(Sudah menjalankan fitur_tagihan.sql?)');
+  }
+}
+
 
 async function simpanPengaturanDU() {
   var tahun = parseInt(document.getElementById('duTahun').value);
