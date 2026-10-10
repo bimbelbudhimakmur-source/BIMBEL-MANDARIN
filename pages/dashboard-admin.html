@@ -53,6 +53,7 @@
     <div class="sidebar-item" data-tab="murid"><span class="sidebar-icon">👨‍🎓</span><span>Data Murid</span></div>
     <div class="sidebar-item" data-tab="approval-status"><span class="sidebar-icon">✅</span><span>Approval Status Murid</span></div>
     <div class="sidebar-item" data-tab="guru"><span class="sidebar-icon">👩‍🏫</span><span>Data Guru</span></div>
+    <div class="sidebar-item" data-tab="kelengkapan"><span class="sidebar-icon">🧾</span><span>Kelengkapan Data</span><span id="badgeKelengkapan" class="badge badge-red" style="margin-left:auto;display:none"></span></div>
     <div class="sidebar-item" data-tab="kaldik"><span class="sidebar-icon">📅</span><span>Kaldik Semester</span></div>
     <div class="sidebar-item" data-tab="pengaturan-wa"><span class="sidebar-icon">💬</span><span>Link Grup WhatsApp</span></div>
     <div class="sidebar-item" data-tab="notulen-todo"><span class="sidebar-icon">📌</span><span>Notulen & To Do List</span></div>
@@ -171,6 +172,13 @@
         </table>
       </div>
       </div>
+    </div>
+
+    <!-- ===== KELENGKAPAN DATA ===== -->
+    <div id="tab-kelengkapan" class="tab-content">
+      <div class="page-title">Kelengkapan Data</div>
+      <div class="page-sub">Pantau data murid dan guru yang belum lengkap supaya tidak ada yang terlewat</div>
+      <div id="kelengkapanRoot"></div>
     </div>
 
     <!-- ===== PLACEMENT ===== -->
@@ -537,6 +545,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../assets/supabase-client.js"></script>
+<script src="../assets/kelengkapan.js"></script>
 <script src="../assets/admin.js"></script>
 </body>
 </html>

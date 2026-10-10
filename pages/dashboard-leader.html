@@ -51,6 +51,9 @@
     <div class="sidebar-item" data-tab="data-guru">
       <span class="sidebar-icon">👩‍🏫</span><span>Data Guru</span>
     </div>
+    <div class="sidebar-item" data-tab="kelengkapan">
+      <span class="sidebar-icon">🧾</span><span>Kelengkapan Data</span><span id="badgeKelengkapan" class="badge badge-red" style="margin-left:auto;display:none"></span>
+    </div>
     <div class="sidebar-section">Keuangan</div>
     <div class="sidebar-item" data-tab="approve-setoran">
       <span class="sidebar-icon">📋</span><span>Approve Setoran</span>
@@ -242,6 +245,12 @@
     </div>
 
     <!-- TAB: DATA GURU -->
+    <div id="tab-kelengkapan" class="tab-content">
+      <div class="page-title">Kelengkapan Data</div>
+      <div class="page-sub">Pantau data murid dan guru yang belum lengkap supaya tidak ada yang terlewat</div>
+      <div id="kelengkapanRoot"></div>
+    </div>
+
     <div id="tab-data-guru" class="tab-content">
       <div class="page-title">Data Guru</div>
       <div class="page-sub">Kelola seluruh data pengajar bimbel</div>
@@ -986,6 +995,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <script src="../assets/supabase-client.js"></script>
+<script src="../assets/kelengkapan.js"></script>
 <script>
 let currentUserId = null;
 let editingGuruId = null;
@@ -1027,6 +1037,7 @@ const thisMonth = new Date().toISOString().slice(0, 7);
   });
 
   await loadDashboard();
+  updateBadgeKelengkapan();
   } catch(initErr) {
     console.error('Init error:', initErr);
   }
@@ -1043,6 +1054,7 @@ function switchTab(tab) {
   if (tab === 'data-kelas')       loadKelasLeader();
   if (tab === 'data-murid')       loadMuridLeader();
   if (tab === 'data-guru')        loadGuruLeader();
+  if (tab === 'kelengkapan')      loadKelengkapan();
   if (tab === 'approve-keuangan') loadApproveKeuangan();
   if (tab === 'approve-setoran')  loadApproveSetoran();
   if (tab === 'penggajian')       loadPenggajianLeader();
@@ -1894,12 +1906,28 @@ function toggleProgramSwitcherMenu() {
   menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
 }
 
+// ============================================
+// KELENGKAPAN DATA (murid & guru)
+// ============================================
+function opsKelengkapan() {
+  return {
+    programId: activeProgramId, isMandarin: isMandarinActive(), badgeId: 'badgeKelengkapan',
+    onEditMurid: null,
+    onEditGuru: async (id) => { switchTab('data-guru'); await loadGuruLeader(); openEditGuruL(id); },
+    catatanMurid: 'Data murid dilengkapi oleh Admin'
+  };
+}
+async function loadKelengkapan() { await Kelengkapan.render('kelengkapanRoot', opsKelengkapan()); }
+function updateBadgeKelengkapan() { if (window.Kelengkapan) Kelengkapan.perbaruiBadge(opsKelengkapan()); }
+
+
 async function switchActiveProgram(programId) {
   if (programId === activeProgramId) { document.getElementById('programSwitcherMenu').style.display = 'none'; return; }
   activeProgramId = programId;
   localStorage.setItem(PROGRAM_FILTER_KEY, programId);
   document.getElementById('programSwitcherMenu').style.display = 'none';
   await initProgramSwitcher();
+  updateBadgeKelengkapan();
   await refreshCurrentTabForProgram();
 }
 
@@ -1912,6 +1940,7 @@ async function refreshCurrentTabForProgram() {
   if (tabName === 'data-kelas') await loadKelasLeader();
   if (tabName === 'data-murid') await loadMuridLeader();
   if (tabName === 'data-guru')  await loadGuruLeader();
+  if (tabName === 'kelengkapan') await loadKelengkapan();
   if (tabName === 'pengaturan-gaji') await loadSettingGaji();
   if (tabName === 'kaldik') await loadKaldikReadOnly();
 }
