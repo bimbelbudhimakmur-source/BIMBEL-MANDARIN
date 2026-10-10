@@ -94,6 +94,9 @@
     <div class="sidebar-item" data-tab="statistik-bimbel">
       <span class="sidebar-icon">📊</span><span>Statistik Bimbel</span>
     </div>
+    <div class="sidebar-item" data-tab="program-khusus">
+      <span class="sidebar-icon">🎤</span><span>Program</span>
+    </div>
     <div class="sidebar-section">Kolaborasi</div>
     <div class="sidebar-item" data-tab="notulen-todo">
       <span class="sidebar-icon">📌</span><span>Notulen & To Do List</span>
@@ -508,23 +511,6 @@
         </div>
       </div>
 
-      <!-- PROGRAM KHUSUS: SPEAKING & HSK MOCK TEST -->
-      <div class="form-section" style="margin-top:20px">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:6px">
-          <div>
-            <div class="form-title" style="margin-bottom:2px">🎤 Program Khusus: Speaking &amp; HSK Mock Test</div>
-            <div style="font-size:12px;color:#6b7280">Buat event, pilih kelas pesertanya, lalu tunjuk guru sebagai juri. Sidebar <strong>Program</strong> di akun guru yang ditunjuk otomatis aktif untuk input nilai.</div>
-          </div>
-          <button class="btn btn-primary btn-sm" onclick="openModalEvent()">➕ Buat Event</button>
-        </div>
-        <div class="table-wrap" style="margin-top:12px">
-          <table class="table">
-            <thead><tr><th>Program</th><th>Judul</th><th>Tanggal</th><th>Kelas Peserta</th><th>Juri</th><th>Status</th><th>Aksi</th></tr></thead>
-            <tbody id="tableProgramEvent"><tr class="loading-row"><td colspan="7">⏳ Memuat...</td></tr></tbody>
-          </table>
-        </div>
-      </div>
-
       <!-- AUTO TIME-LOCK INFO -->
       <div class="form-section" style="margin-top:20px">
         <div class="form-title">🗓️ Fitur Terkunci Otomatis (Berdasarkan Bulan)</div>
@@ -822,6 +808,29 @@
       </div>
     </div>
 
+    <!-- ===== PROGRAM KHUSUS: SPEAKING & HSK MOCK TEST ===== -->
+    <div id="tab-program-khusus" class="tab-content">
+      <div class="page-title">Program</div>
+      <div class="page-sub">Speaking &amp; HSK Mock Test — buat event, pilih kelas peserta, dan tunjuk juri</div>
+      <!-- PROGRAM KHUSUS: SPEAKING & HSK MOCK TEST -->
+      <div class="form-section">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:6px">
+          <div>
+            <div class="form-title" style="margin-bottom:2px">🎤 Program Khusus: Speaking &amp; HSK Mock Test</div>
+            <div style="font-size:12px;color:#6b7280">Buat event, pilih kelas pesertanya, lalu tunjuk guru sebagai juri. Sidebar <strong>Program</strong> di akun guru yang ditunjuk otomatis aktif untuk input nilai.</div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="openModalEvent()">➕ Buat Event</button>
+        </div>
+        <div class="table-wrap" style="margin-top:12px">
+          <table class="table">
+            <thead><tr><th>Program</th><th>Judul</th><th>Tanggal</th><th>Kelas Peserta</th><th>Juri</th><th>Status</th><th>Aksi</th></tr></thead>
+            <tbody id="tableProgramEvent"><tr class="loading-row"><td colspan="7">⏳ Memuat...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
     <div id="tab-notulen-todo" class="tab-content">
       <div class="page-title">Notulen Rapat & To Do List</div>
       <div class="page-sub">Catatan rapat dan daftar tugas tim — sesuai program yang aktif</div>
@@ -1042,7 +1051,8 @@ function switchTab(tab) {
   if (tab === 'pengaturan-gaji')  loadSettingGaji();
   if (tab === 'pengaturan-biaya') loadSettingBiaya();
   if (tab === 'kaldik')           loadKaldikReadOnly();
-  if (tab === 'pengaturan-sistem') { loadPengaturanSistem(); loadProgramEvents(); }
+  if (tab === 'pengaturan-sistem') { loadPengaturanSistem(); }
+  if (tab === 'program-khusus')    { loadProgramEvents(); }
   if (tab === 'kelola-user')      loadUsers();
   if (tab === 'kelola-program')   loadProgram();
   if (tab === 'notulen-todo')     loadNotulenTodo();
