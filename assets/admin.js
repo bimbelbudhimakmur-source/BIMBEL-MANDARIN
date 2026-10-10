@@ -141,7 +141,7 @@ async function switchActiveProgramAdmin(programId) {
   if (tabName === 'murid')   await loadMurid();
   if (tabName === 'guru')    await loadGuruAdmin();
   if (tabName === 'register') await loadPendaftaran();
-  if (tabName === 'reregister') await loadRR();
+  if (tabName === 'reregister') { await loadRR(); initDU(); }
   if (tabName === 'kaldik') await loadKaldik();
   if (tabName === 'approval-status') await loadApprovalStatus();
 }
