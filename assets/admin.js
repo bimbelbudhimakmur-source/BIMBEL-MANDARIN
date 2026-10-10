@@ -71,6 +71,7 @@ async function generateNomorInduk(prefix) {
     await initProgramSwitcherAdmin();
     await loadStats();
     updateBadgePlacement();
+    updateBadgeKelengkapan();
     await loadKelasHariIni();
     setupStatCardClicks();
     await loadAndApplySysSettings();
@@ -133,6 +134,7 @@ async function switchActiveProgramAdmin(programId) {
   await populateGuruDropdowns();
   await loadStats();
   updateBadgePlacement();
+  updateBadgeKelengkapan();
   await loadKelasHariIni();
   var activeTab = document.querySelector('.tab-content.active');
   if (!activeTab) return;
@@ -144,7 +146,23 @@ async function switchActiveProgramAdmin(programId) {
   if (tabName === 'reregister') { await loadRR(); initDU(); }
   if (tabName === 'kaldik') await loadKaldik();
   if (tabName === 'approval-status') await loadApprovalStatus();
+  if (tabName === 'kelengkapan') await loadKelengkapan();
 }
+
+// ============================================
+// KELENGKAPAN DATA (murid & guru)
+// ============================================
+function opsKelengkapan() {
+  return {
+    programId: activeProgramId, isMandarin: isMandarinActive(), badgeId: 'badgeKelengkapan',
+    onEditMurid: async function(id) { switchTab('murid'); await loadMurid(); openEditMurid(id); },
+    onEditGuru: null,
+    catatanGuru: 'Data guru dilengkapi oleh Leader'
+  };
+}
+async function loadKelengkapan() { await Kelengkapan.render('kelengkapanRoot', opsKelengkapan()); }
+function updateBadgeKelengkapan() { if (window.Kelengkapan) Kelengkapan.perbaruiBadge(opsKelengkapan()); }
+
 
 // ============================================
 // SYSTEM SETTINGS CHECK
@@ -209,6 +227,7 @@ function switchTab(tab) {
   document.querySelector('[data-tab="'+tab+'"]').classList.add('active');
   if (tab==='register')   loadPendaftaran();
   if (tab==='reregister') loadRR().then(function(){ initDU(); });
+  if (tab==='kelengkapan') loadKelengkapan();
   if (tab==='placement')  loadPlacement();
   if (tab==='kelas')      loadKelas();
   if (tab==='murid')      loadMurid();
