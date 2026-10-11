@@ -6,6 +6,58 @@
   var state = { murid: [], guru: [], totalMurid: 0, totalGuru: 0, tab: 'murid', opts: null };
 
   function kosong(v) { return v === null || v === undefined || String(v).trim() === '' || String(v).trim() === '-'; }
+  var SAMPAH = ['-','--','---','.','..','...','x','xx','xxx','xxxx','n/a','na','null','undefined','test','tes','testing','asd','asdf','qwe','abc','abcd','belum ada','belum','kosong','tidak ada','tdk ada','gak ada','unknown','nama','alamat','isi','aaa','aaaa','0','00','000'];
+  function sampah(v) {
+    var t = String(v).trim().toLowerCase();
+    if (SAMPAH.indexOf(t) >= 0) return true;
+    return /^(.)\1{2,}$/.test(t.replace(/\s+/g, ''));
+  }
+  // hasil: null = ok, atau teks alasan
+  function cekTelepon(v) {
+    var t = String(v).trim();
+    if (kosong(t)) return null;
+    if (sampah(t)) return 'isinya "' + t + '"';
+    if (/[a-z]/i.test(t)) return 'mengandung huruf';
+    var d = t.replace(/[\s+\-().]/g, '');
+    if (!/^\d+$/.test(d)) return 'format tidak wajar';
+    if (!/^(0|62)/.test(d)) return 'harus diawali 0 atau 62';
+    if (d.length < 9) return 'terlalu pendek (' + d.length + ' digit)';
+    if (d.length > 15) return 'terlalu panjang (' + d.length + ' digit)';
+    if (/^(\d)\1+$/.test(d)) return 'angka berulang';
+    return null;
+  }
+  function cekNama(v) {
+    var t = String(v).trim();
+    if (kosong(t)) return null;
+    if (sampah(t)) return 'isinya "' + t + '"';
+    if ((t.match(/[a-zÀ-ɏ一-鿿]/gi) || []).length < 2) return 'terlalu pendek / bukan nama';
+    return null;
+  }
+  function cekTeks(v, min) {
+    var t = String(v).trim();
+    if (kosong(t)) return null;
+    if (sampah(t)) return 'isinya "' + t + '"';
+    if ((t.match(/[a-zÀ-ɏ一-鿿]/gi) || []).length < min) return 'terlalu pendek';
+    return null;
+  }
+  function cekTanggal(v, jenis) {
+    if (kosong(v)) return null;
+    var d = new Date(v);
+    if (isNaN(d.getTime())) return 'format tanggal tidak valid';
+    var now = new Date(), umur = (now - d) / 31557600000;
+    if (jenis === 'lahir') {
+      if (d > now) return 'tanggal di masa depan';
+      if (umur < 2) return 'umur < 2 tahun (' + umur.toFixed(1) + ' th)';
+      if (umur > 70) return 'umur tidak wajar (' + Math.floor(umur) + ' th)';
+    } else if (jenis === 'lahir_guru') {
+      if (d > now) return 'tanggal di masa depan';
+      if (umur < 15 || umur > 80) return 'umur tidak wajar (' + Math.floor(umur) + ' th)';
+    } else {
+      if (d.getFullYear() < 2000) return 'tahun ' + d.getFullYear() + ' tidak wajar';
+      if ((d - now) / 86400000 > 90) return 'terlalu jauh di masa depan';
+    }
+    return null;
+  }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function aktifEnr(s) { var l = s.enrollment || []; for (var i = 0; i < l.length; i++) if (l[i].is_active) return l[i]; return null; }
   function gajiAda(g) { var p = g.pengaturan_gaji; if (Array.isArray(p)) p = p[0]; return !!p && p.gaji_per_kelas !== null && p.gaji_per_kelas !== undefined; }
@@ -32,15 +84,22 @@
     });
     semuaMurid.forEach(function (s) {
       var ae = aktifEnr(s), wajib = [], saran = [];
-      if (kosong(s.telepon_ortu)) wajib.push('HP Orang Tua');
-      if (kosong(s.tanggal_lahir)) wajib.push('Tanggal Lahir');
-      if (kosong(s.tempat_lahir)) wajib.push('Tempat Lahir');
-      if (kosong(s.alamat)) wajib.push('Alamat');
-      if (kosong(s.tanggal_join)) wajib.push('Tanggal Join');
+      var det = {};
+      function f(label, v, cek, list) {
+        if (kosong(v)) { (list || wajib).push(label); return; }
+        var m = cek ? cek(v) : null;
+        if (m) { (list || wajib).push(label); det[label] = m; }
+      }
+      f('Nama Murid', s.nama_lengkap, cekNama);
+      f('HP Orang Tua', s.telepon_ortu, cekTelepon);
+      f('Tanggal Lahir', s.tanggal_lahir, function (v) { return cekTanggal(v, 'lahir'); });
+      f('Tempat Lahir', s.tempat_lahir, function (v) { return cekTeks(v, 3); });
+      f('Alamat', s.alamat, function (v) { return cekTeks(v, 5); });
+      f('Tanggal Join', s.tanggal_join, function (v) { return cekTanggal(v, 'join'); });
       if (!ae) wajib.push('Belum punya kelas');
-      if (kosong(s.telepon)) saran.push('HP Murid');
-      if (isMandarin && kosong(s.nama_mandarin)) saran.push('Nama Mandarin');
-      murid.push({ id: s.id, nomor_induk: s.nomor_induk, nama: s.nama_lengkap, kelas: ae && ae.kelas ? ae.kelas.kode_kelas : '—', wajib: wajib, saran: saran });
+      f('HP Murid', s.telepon, cekTelepon, saran);
+      if (isMandarin) f('Nama Mandarin', s.nama_mandarin, null, saran);
+      murid.push({ id: s.id, nomor_induk: s.nomor_induk, nama: s.nama_lengkap, kelas: ae && ae.kelas ? ae.kelas.kode_kelas : '—', wajib: wajib, saran: saran, detail: det });
     });
 
     var gq = db.from('guru').select('*, pengaturan_gaji(gaji_per_kelas,persentase_bagi_hasil), kelas(id,is_active)').eq('is_active', true).order('nomor_induk');
@@ -49,14 +108,23 @@
     if (gr.error) throw new Error(gr.error.message);
     var guru = (gr.data || []).map(function (g) {
       var wajib = [], saran = [];
-      if (kosong(g.nomor_induk)) wajib.push('No. Induk');
-      if (kosong(g.telepon)) wajib.push('HP');
-      if (kosong(g.tanggal_join)) wajib.push('Tanggal Join');
+      var det = {};
+      function f(label, v, cek, list) {
+        if (kosong(v)) { (list || wajib).push(label); return; }
+        var m = cek ? cek(v) : null;
+        if (m) { (list || wajib).push(label); det[label] = m; }
+      }
+      f('Nama Guru', g.nama_lengkap, cekNama);
+      f('No. Induk', g.nomor_induk, function (v) { return sampah(v) ? 'isinya "' + String(v).trim() + '"' : null; });
+      f('Kode Guru', g.kode_guru, function (v) { return sampah(v) ? 'isinya "' + String(v).trim() + '"' : null; }, saran);
+      f('HP', g.telepon, cekTelepon);
+      f('Tanggal Join', g.tanggal_join, function (v) { return cekTanggal(v, 'join'); });
       if (!g.profile_id) wajib.push('Akun login');
       if (!gajiAda(g)) wajib.push('Pengaturan gaji');
+      else { var pg = Array.isArray(g.pengaturan_gaji) ? g.pengaturan_gaji[0] : g.pengaturan_gaji; if (Number(pg.gaji_per_kelas) === 0) { saran.push('Gaji bernilai 0'); } }
       var jml = (g.kelas || []).filter(function (k) { return k.is_active; }).length;
       if (!jml) saran.push('Belum punya kelas aktif');
-      return { id: g.id, nomor_induk: g.nomor_induk || '—', nama: g.nama_lengkap, kelas: g.kode_guru || '—', wajib: wajib, saran: saran };
+      return { id: g.id, nomor_induk: g.nomor_induk || '—', nama: g.nama_lengkap, kelas: g.kode_guru || '—', wajib: wajib, saran: saran, detail: det };
     });
 
     state.murid = murid; state.guru = guru;
@@ -95,7 +163,7 @@
       + '<select class="filter-select" id="klField" onchange="Kelengkapan.tabel()"><option value="">Semua kekurangan</option></select>'
       + '<button class="btn btn-secondary" onclick="Kelengkapan.csv()">📥 Unduh CSV</button></div>'
       + '<div class="table-wrap"><table class="table"><thead><tr><th>No. Induk</th><th>Nama</th><th id="klThKelas">Kelas</th><th>Yang kurang</th><th>Aksi</th></tr></thead><tbody id="klBody"></tbody></table></div>'
-      + '<div style="font-size:12px;color:#6b7280;margin-top:8px"><span style="color:#dc2626">■ Merah</span> = wajib dilengkapi. <span style="color:#b45309">■ Kuning</span> = disarankan. Murid yang masih menunggu PLACEMENT tidak ikut dihitung.</div>';
+      + '<div style="font-size:12px;color:#6b7280;margin-top:8px"><span style="color:#dc2626">■ Merah</span> = wajib dilengkapi. <span style="color:#b45309">■ Kuning</span> = disarankan. <b>⚠️</b> = terisi tetapi isinya tidak sesuai (mis. "-", "xxx", nomor HP tidak wajar, tanggal lahir mustahil). Murid yang masih menunggu PLACEMENT tidak ikut dihitung.</div>';
     tab(state.tab);
   }
 
@@ -139,8 +207,9 @@
     if (!rows.length) { body.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:40px;color:#16a34a">✅ Tidak ada data yang kurang pada filter ini</td></tr>'; return; }
     var edit = state.tab === 'murid' ? state.opts.onEditMurid : state.opts.onEditGuru;
     body.innerHTML = rows.map(function (x) {
-      var chips = x.wajib.map(function (f) { return '<span style="display:inline-block;margin:2px;padding:2px 8px;border-radius:10px;background:#fee2e2;color:#dc2626;font-size:12px">' + esc(f) + '</span>'; }).join('')
-        + x.saran.map(function (f) { return '<span style="display:inline-block;margin:2px;padding:2px 8px;border-radius:10px;background:#fef3c7;color:#b45309;font-size:12px">' + esc(f) + '</span>'; }).join('');
+      function lbl(f) { return x.detail && x.detail[f] ? '⚠️ ' + esc(f) + ' — ' + esc(x.detail[f]) : esc(f); }
+      var chips = x.wajib.map(function (f) { return '<span style="display:inline-block;margin:2px;padding:2px 8px;border-radius:10px;background:#fee2e2;color:#dc2626;font-size:12px">' + lbl(f) + '</span>'; }).join('')
+        + x.saran.map(function (f) { return '<span style="display:inline-block;margin:2px;padding:2px 8px;border-radius:10px;background:#fef3c7;color:#b45309;font-size:12px">' + lbl(f) + '</span>'; }).join('');
       if (!chips) chips = '<span style="color:#16a34a">✅ Lengkap</span>';
       var aksi = edit ? '<button class="btn btn-secondary btn-sm" onclick="Kelengkapan.edit(\'' + x.id + '\')">✏️ Lengkapi</button>'
         : '<span style="font-size:12px;color:#9ca3af">' + esc(state.tab === 'murid' ? state.opts.catatanMurid || '' : state.opts.catatanGuru || '') + '</span>';
@@ -153,7 +222,8 @@
   function csv() {
     var rows = terfilter();
     var lines = [['No. Induk', 'Nama', state.tab === 'murid' ? 'Kelas' : 'Kode Guru', 'Kurang (wajib)', 'Kurang (disarankan)']];
-    rows.forEach(function (x) { lines.push([x.nomor_induk, x.nama, x.kelas, x.wajib.join('; '), x.saran.join('; ')]); });
+    function dt(x, l) { return l.map(function (f) { return x.detail && x.detail[f] ? f + ' (' + x.detail[f] + ')' : f; }).join('; '); }
+    rows.forEach(function (x) { lines.push([x.nomor_induk, x.nama, x.kelas, dt(x, x.wajib), dt(x, x.saran)]); });
     var txt = lines.map(function (r) { return r.map(function (c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(','); }).join('\r\n');
     var a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob(['﻿' + txt], { type: 'text/csv;charset=utf-8' }));
