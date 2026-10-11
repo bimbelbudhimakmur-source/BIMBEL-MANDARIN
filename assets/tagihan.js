@@ -8,6 +8,14 @@
     var w = new Date(Date.now() + 7 * 3600 * 1000);
     return { tahun: w.getUTCFullYear(), semester: (w.getUTCMonth() + 1) >= 7 ? 2 : 1 };
   }
+  // Periode aktif = pengaturan di tab Pendaftaran Ulang admin (tahun & semester); kalau belum ada, ikut tanggal sekarang
+  async function periodeAktif() {
+    try {
+      var r = await db.from('daftar_ulang_pengaturan').select('tahun,semester').eq('id', 1).maybeSingle();
+      if (r.data && r.data.tahun && r.data.semester) return { tahun: r.data.tahun, semester: r.data.semester };
+    } catch (e) {}
+    return periodeSekarang();
+  }
   function tingkatDari(namaLevel) { return String(namaLevel || '').replace(/\s*\d+\s*$/, '').trim(); }
 
   async function muatTarif() {
@@ -66,9 +74,10 @@
   }
 
   // Terbitkan 1 tagihan pendaftaran saat murid resmi masuk kelas. Tidak menimpa tagihan yang sudah Lunas.
-  async function terbitkanPendaftaran(siswaId, kelas) {
-    var tarif = await muatTarif();
-    var p = periodeSekarang();
+  async function terbitkanPendaftaran(siswaId, kelas, ctx) {
+    ctx = ctx || {};
+    var tarif = ctx.tarif || await muatTarif();
+    var p = ctx.periode || await periodeAktif();
     var h = hitung(tarif, 'pendaftaran', { jilid: kelas.jilid, nama_level: kelas.nama_level });
     var user = (await db.auth.getUser()).data.user;
     var ada = await db.from('tagihan').select('id,status').eq('siswa_id', siswaId).eq('jenis', 'pendaftaran').eq('tahun', p.tahun).eq('semester', p.semester).maybeSingle();
@@ -123,5 +132,5 @@
     return h;
   }
 
-  window.Tagihan = { periodeSekarang: periodeSekarang, muatTarif: muatTarif, hitung: hitung, terbitkanPendaftaran: terbitkanPendaftaran, terbitkanDaftarUlang: terbitkanDaftarUlang, hitungUlang: hitungUlang };
+  window.Tagihan = { periodeSekarang: periodeSekarang, periodeAktif: periodeAktif, muatTarif: muatTarif, hitung: hitung, terbitkanPendaftaran: terbitkanPendaftaran, terbitkanDaftarUlang: terbitkanDaftarUlang, hitungUlang: hitungUlang };
 })();
