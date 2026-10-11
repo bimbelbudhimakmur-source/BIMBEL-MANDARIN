@@ -1252,7 +1252,7 @@ async function loadHistorical() {
   let qSetoranHist = db.from('setoran_spp').select('*, guru:guru_id!inner(nama_lengkap,kode_guru,program_id), kelas:kelas_id(kode_kelas)')
     .gte('tanggal_setor',tglMulai).lte('tanggal_setor',tglAkhir).in('status',['disetujui_leader','tercairkan']);
   let qGajiHist = db.from('penggajian').select('*, guru:guru_id!inner(nama_lengkap,kode_guru,program_id)')
-    .gte('created_at',tglMulai+'T00:00:00').lte('created_at',tglAkhir+'T23:59:59').in('status',['disetujui_leader','dibayar']);
+    .gte('bulan',tglMulai.slice(0,7)).lte('bulan',tglAkhir.slice(0,7)).in('status',['disetujui_leader','dibayar']);
   if (activeProgramId) {
     qTrxHist = qTrxHist.eq('program_id', activeProgramId);
     qSetoranHist = qSetoranHist.eq('guru.program_id', activeProgramId);
@@ -1463,6 +1463,12 @@ async function approveGaji(btnOrId) {
   alert('✅ Gaji disetujui!'); await loadPenggajianLeader(); await loadDashboard();
 }
 
+// Tanggal pembukuan gaji = akhir bulan GAJI (bukan tanggal pencairan), supaya masuk ke laporan bulan gaji tersebut
+function tglAkhirBulan(bulan) {
+  const [y, m] = String(bulan).split('-').map(Number);
+  return bulan + '-' + String(new Date(y, m, 0).getDate()).padStart(2, '0');
+}
+
 async function cairkanGaji(btnOrId, _n, _g) {
   var id = (btnOrId && btnOrId.dataset) ? btnOrId.dataset.id : btnOrId;
   var namaGuru = (btnOrId && btnOrId.dataset) ? btnOrId.dataset.nama : _n;
@@ -1472,7 +1478,7 @@ async function cairkanGaji(btnOrId, _n, _g) {
   const { data: p } = await db.from('penggajian').select('guru_id, bulan, guru:guru_id(program_id)').eq('id', id).single();
   if (p) {
     await db.from('setoran_spp').update({ status:'tercairkan' }).eq('guru_id', p.guru_id).eq('bulan', p.bulan).eq('status','disetujui_leader');
-    await db.from('transaksi').insert({ jenis:'keluar', kategori:'Gaji Guru', jumlah:totalGaji, tanggal:new Date().toISOString().split('T')[0], keterangan:`Gaji ${namaGuru} bulan ${p.bulan}`, dibuat_oleh:currentUserId, status:'approved', auto_generated:true, program_id: p.guru?.program_id || null });
+    await db.from('transaksi').insert({ jenis:'keluar', kategori:'Gaji Guru', jumlah:totalGaji, tanggal:tglAkhirBulan(p.bulan), keterangan:`Gaji ${namaGuru} bulan ${p.bulan} (dicairkan ${new Date(Date.now()+7*3600*1000).toISOString().split('T')[0]})`, dibuat_oleh:currentUserId, status:'approved', auto_generated:true, program_id: p.guru?.program_id || null });
   }
   alert(`✅ Gaji ${namaGuru} berhasil dicairkan!`); await loadPenggajianLeader(); await loadDashboard();
 }
