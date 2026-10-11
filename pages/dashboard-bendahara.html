@@ -159,7 +159,7 @@
     <!-- ===== TAGIHAN MURID (pendaftaran & pendaftaran ulang, otomatis dari Admin) ===== -->
     <div id="tab-tagihan" class="tab-content">
       <div class="page-title">Tagihan Murid</div>
-      <div class="page-sub">Tagihan pendaftaran baru dan pendaftaran ulang otomatis muncul di sini setelah disetujui Admin. Tarif mengikuti Setting Biaya.</div>
+      <div class="page-sub">Tagihan pendaftaran baru dan pendaftaran ulang otomatis muncul di sini setelah disetujui Admin, dan langsung tercatat lunas sebagai pemasukan (menunggu persetujuan Leader). Tarif mengikuti Setting Biaya.</div>
       <div id="tgSyncInfo" style="font-size:13px;color:#b45309;margin-bottom:8px"></div>
       <div id="tgSummary" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
       <div class="toolbar">
@@ -170,7 +170,7 @@
         <input type="number" class="filter-select" id="tgTahun" style="width:96px" placeholder="Tahun" onchange="loadTagihan()" title="Kosongkan = semua tahun">
         <select class="filter-select" id="tgSemester" onchange="loadTagihan()"><option value="">Semua Semester</option><option value="1">Semester 1</option><option value="2">Semester 2</option></select>
         <select class="filter-select" id="tgStatus" onchange="renderTagihan()">
-          <option value="belum">Belum Lunas</option><option value="lapor">Guru lapor lunas (perlu konfirmasi)</option><option value="lunas">Lunas</option><option value="">Semua</option>
+          <option value="belum">Belum Lunas</option><option value="lunas">Lunas</option><option value="">Semua</option>
         </select>
       </div>
       <div class="table-wrap">
@@ -714,10 +714,54 @@ async function syncTagihanPendaftaranBaru() {
   }
 }
 
+// Tagihan otomatis LUNAS & masuk pemasukan begitu Admin sudah menyetujui:
+//  - Pendaftaran baru: tagihan ada = admin sudah menyetujui pendaftaran
+//  - Daftar ulang: kolom "Biaya" sudah dicentang (admin/guru) di tab Pendaftaran Ulang
+async function autoLunasTagihan() {
+  try {
+    const tg = await db.from('tagihan').select('id,siswa_id,jenis,tahun,semester,total,rincian,program_id,siswa:siswa_id(nomor_induk,nama_lengkap,status)').eq('status', 'belum').gt('total', 0);
+    if (tg.error) throw new Error(tg.error.message);
+    let kandidat = (tg.data || []).filter(t => t.siswa && t.siswa.status !== false);
+    const duIds = kandidat.filter(t => t.jenis === 'daftar_ulang').map(t => t.siswa_id);
+    const biayaOk = {};
+    for (let i = 0; i < duIds.length; i += 100) {
+      const r = await db.from('daftar_ulang').select('siswa_id,tahun,semester').eq('biaya', true).in('siswa_id', duIds.slice(i, i + 100));
+      (r.data || []).forEach(x => { biayaOk[x.siswa_id + '_' + x.tahun + '_' + x.semester] = true; });
+    }
+    kandidat = kandidat.filter(t => t.jenis === 'pendaftaran' || biayaOk[t.siswa_id + '_' + t.tahun + '_' + t.semester]);
+    if (!kandidat.length) return;
+    const tanggal = new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 10);
+    let n = 0;
+    for (const t of kandidat) {
+      // klaim atomik: hanya satu halaman yang berhasil mengubah belum -> lunas
+      const klaim = await db.from('tagihan').update({ status: 'lunas', tanggal_bayar: tanggal, updated_at: new Date().toISOString() }).eq('id', t.id).eq('status', 'belum').select('id');
+      if (klaim.error || !klaim.data || !klaim.data.length) continue;
+      const jenisLbl = t.jenis === 'pendaftaran' ? 'Pendaftaran' : 'Pendaftaran Ulang';
+      const rinci = (t.rincian || []).filter(r => Number(r.jumlah) > 0).map(r => r.label).join(', ');
+      const trx = await db.from('transaksi').insert({
+        jenis: 'masuk', kategori: jenisLbl, jumlah: Number(t.total), tanggal,
+        keterangan: `${t.siswa.nama_lengkap} (${t.siswa.nomor_induk}) — ${rinci}`,
+        dibuat_oleh: currentUserId, status: 'pending_approval', program_id: t.program_id || activeProgramId
+      }).select('id').single();
+      if (trx.error) {
+        await db.from('tagihan').update({ status: 'belum', tanggal_bayar: null }).eq('id', t.id);
+        throw new Error('Transaksi: ' + trx.error.message);
+      }
+      await db.from('tagihan').update({ transaksi_id: trx.data.id }).eq('id', t.id);
+      n++;
+    }
+    if (n) tgSyncInfo = (tgSyncInfo ? tgSyncInfo + ' ' : '') + n + ' tagihan otomatis tercatat lunas & masuk pemasukan.';
+  } catch (e) {
+    console.error('auto lunas:', e);
+    tgSyncInfo = (tgSyncInfo ? tgSyncInfo + ' ' : '') + 'Auto-lunas gagal: ' + e.message;
+  }
+}
+
 async function loadTagihan() {
   const tbody = document.getElementById('tableTagihan');
   tbody.innerHTML = '<tr class="loading-row"><td colspan="8">⏳ Memuat...</td></tr>';
   await syncTagihanPendaftaranBaru();
+  await autoLunasTagihan();
   const tahun = parseInt(document.getElementById('tgTahun').value) || null;
   const sem = parseInt(document.getElementById('tgSemester').value) || null;
   const jenis = document.getElementById('tgJenis').value;
@@ -763,9 +807,9 @@ function renderTagihan() {
   const card = (bg, fg, n, l) => `<div style="background:${bg};color:${fg};border-radius:10px;padding:10px 16px;min-width:170px"><div style="font-size:18px;font-weight:700">${n}</div><div style="font-size:12px">${l}</div></div>`;
   document.getElementById('tgSummary').innerHTML =
     card('#f3f4f6', '#374151', rpT(tot), `Total tagihan · ${semua.length} murid`) +
-    card('#dcfce7', '#16a34a', rpT(lunas), 'Sudah lunas (terkonfirmasi)') +
+    card('#dcfce7', '#16a34a', rpT(lunas), 'Sudah lunas') +
     card('#fee2e2', '#dc2626', rpT(tot - lunas), 'Belum tertagih') +
-    card('#fef3c7', '#b45309', semua.filter(t => statusTagihan(t) === 'lapor').length + ' murid', 'Guru lapor lunas, tunggu konfirmasi');
+    card('#dbeafe', '#1d4ed8', semua.filter(t => t.status === 'lunas').length + ' murid', 'Sudah lunas otomatis');
 
   const rows = semua.filter(t => {
     if (q && !t.siswa.nama_lengkap.toLowerCase().includes(q) && !String(t.siswa.nomor_induk).toLowerCase().includes(q)) return false;
@@ -781,9 +825,8 @@ function renderTagihan() {
     const rinci = (t.rincian || []).filter(r => Number(r.jumlah) > 0).map(r => `${escT(r.label)}: ${rpT(r.jumlah)}`).join('<br>') || '<span style="color:#9ca3af">—</span>';
     const jenisLbl = t.jenis === 'pendaftaran' ? '🆕 Pendaftaran' : '🔄 Daftar Ulang';
     let aksi = '';
-    if (t.status === 'lunas') aksi = `<button class="btn btn-secondary btn-sm" onclick="batalLunasTagihan('${t.id}')">↩ Batalkan</button>`;
-    else aksi = `<button class="btn btn-primary btn-sm" onclick="konfirmasiLunasTagihan('${t.id}')">✔ Konfirmasi Lunas</button> `
-      + `<button class="btn btn-secondary btn-sm" onclick="hitungUlangTagihan('${t.id}')" title="Hitung ulang dengan tarif terbaru">🔄</button> `
+    if (t.status === 'lunas') aksi = t.jenis === 'daftar_ulang' ? `<button class="btn btn-secondary btn-sm" onclick="batalLunasTagihan('${t.id}')" title="Batalkan (hilangkan centang Biaya di Pendaftaran Ulang dulu)">↩ Batalkan</button>` : '<span style="font-size:12px;color:#9ca3af">Otomatis</span>';
+    else aksi = `<button class="btn btn-secondary btn-sm" onclick="hitungUlangTagihan('${t.id}')" title="Hitung ulang dengan tarif terbaru">🔄</button> `
       + `<button class="btn btn-danger btn-sm" onclick="hapusTagihan('${t.id}')" title="Hapus tagihan">🗑️</button>`;
     return `<tr>
       <td style="font-family:monospace">${escT(t.siswa.nomor_induk)}</td>
