@@ -160,6 +160,7 @@
     <div id="tab-tagihan" class="tab-content">
       <div class="page-title">Tagihan Murid</div>
       <div class="page-sub">Tagihan pendaftaran baru dan pendaftaran ulang otomatis muncul di sini setelah disetujui Admin. Tarif mengikuti Setting Biaya.</div>
+      <div id="tgSyncInfo" style="font-size:13px;color:#b45309;margin-bottom:8px"></div>
       <div id="tgSummary" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
       <div class="toolbar">
         <input class="search-input" id="tgSearch" placeholder="🔍 Cari nama / no. induk..." oninput="renderTagihan()">
@@ -675,9 +676,48 @@ function initTagihan() {
   loadTagihan();
 }
 
+// Otomatis terbitkan tagihan pendaftaran untuk murid baru (Tanggal Join ≤45 hari lalu atau di masa depan) yang belum punya tagihan
+let tgSyncInfo = '';
+async function syncTagihanPendaftaranBaru() {
+  tgSyncInfo = '';
+  try {
+    const batas = new Date(Date.now() + 7*3600*1000 - 45*86400000).toISOString().slice(0,10);
+    let q = db.from('siswa').select('id,nama_lengkap,tanggal_join,enrollment(is_active,kelas:kelas_id(id,jilid,nama_level,program_id))')
+      .eq('status', true).gte('tanggal_join', batas);
+    const sr = await q;
+    if (sr.error) throw new Error(sr.error.message);
+    const kand = (sr.data || []).filter(s => {
+      const ae = (s.enrollment || []).find(e => e.is_active);
+      return ae && ae.kelas;
+    });
+    if (!kand.length) return;
+    const ids = kand.map(s => s.id), sudah = {};
+    for (let i = 0; i < ids.length; i += 100) {
+      const tg = await db.from('tagihan').select('siswa_id').eq('jenis','pendaftaran').in('siswa_id', ids.slice(i, i + 100));
+      if (tg.error) throw new Error(tg.error.message);
+      (tg.data || []).forEach(x => { sudah[x.siswa_id] = true; });
+    }
+    const baru = kand.filter(s => !sudah[s.id]);
+    if (!baru.length) return;
+    const tarif = await Tagihan.muatTarif();
+    let ok = 0;
+    for (const s of baru) {
+      const ae = s.enrollment.find(e => e.is_active);
+      await Tagihan.terbitkanPendaftaran(s.id, ae.kelas, { tarif, tanggal_join: s.tanggal_join });
+      ok++;
+    }
+    tgSyncInfo = ok + ' tagihan pendaftaran baru otomatis dibuat dari data murid.';
+    console.log(tgSyncInfo);
+  } catch (e) {
+    console.error('sync tagihan:', e);
+    tgSyncInfo = 'Sinkron otomatis gagal: ' + e.message;
+  }
+}
+
 async function loadTagihan() {
   const tbody = document.getElementById('tableTagihan');
   tbody.innerHTML = '<tr class="loading-row"><td colspan="8">⏳ Memuat...</td></tr>';
+  await syncTagihanPendaftaranBaru();
   const tahun = parseInt(document.getElementById('tgTahun').value) || null;
   const sem = parseInt(document.getElementById('tgSemester').value) || null;
   const jenis = document.getElementById('tgJenis').value;
@@ -691,6 +731,7 @@ async function loadTagihan() {
   const { data, error } = await q;
   if (error) { tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:30px;color:#dc2626">Gagal memuat: ${escT(error.message)}<br><small>Sudah menjalankan fitur_tagihan.sql?</small></td></tr>`; return; }
   allTagihan = data || [];
+  if (tgSyncInfo) { const el = document.getElementById('tgSyncInfo'); if (el) el.textContent = tgSyncInfo; }
 
   // laporan guru (centang Biaya di tab Pendaftaran Ulang)
   tgGuruLapor = {};
