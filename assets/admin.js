@@ -550,7 +550,7 @@ async function terbitkanTagihanPendaftaran(siswaId, kelasId) {
     var r = await Tagihan.terbitkanPendaftaran(siswaId, k);
     if (r.status === 'dilewati') return '\n\nTagihan pendaftaran sudah Lunas, tidak diubah.';
     var tot = 'Rp ' + Number(r.hasil.total).toLocaleString('id-ID');
-    return '\n\n🧾 Tagihan pendaftaran masuk ke Bendahara: ' + tot + (r.hasil.catatan ? '\n⚠️ ' + r.hasil.catatan : '');
+    return '\n\n🧾 Tagihan pendaftaran masuk ke Bendahara (' + r.periode.tahun + ' Sem ' + r.periode.semester + '): ' + tot + (r.hasil.catatan ? '\n⚠️ ' + r.hasil.catatan : '');
   } catch (e) {
     console.error('tagihan pendaftaran:', e);
     return '\n\n⚠️ Murid tersimpan, tapi tagihan ke Bendahara gagal dibuat: ' + e.message + '\n(Sudah menjalankan fitur_tagihan.sql?)';
@@ -1151,8 +1151,8 @@ async function susulkanTagihanPendaftaran() {
   if (!since) return;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(since)) { alert('Format tanggal harus YYYY-MM-DD.'); return; }
   try {
-    var sr = await db.from('siswa').select('id,nomor_induk,nama_lengkap,created_at,enrollment(is_active,kelas:kelas_id(id,jilid,nama_level,program_id))')
-      .eq('status', true).gte('created_at', since + 'T00:00:00').order('created_at');
+    var sr = await db.from('siswa').select('id,nomor_induk,nama_lengkap,created_at,tanggal_join,enrollment(is_active,kelas:kelas_id(id,jilid,nama_level,program_id))')
+      .eq('status', true).or('created_at.gte.' + since + 'T00:00:00,tanggal_join.gte.' + since).order('created_at');
     if (sr.error) throw new Error(sr.error.message);
     var kandidat = (sr.data || []).filter(function(s){
       var ae = (s.enrollment || []).find(function(e){ return e.is_active; });
@@ -1168,16 +1168,17 @@ async function susulkanTagihanPendaftaran() {
     }
     var baru = kandidat.filter(function(s){ return !sudah[s.id]; });
     if (!baru.length) { alert('Semua ' + kandidat.length + ' murid sejak ' + since + ' sudah punya tagihan pendaftaran.'); return; }
-    var per = await Tagihan.periodeAktif();
-    var daftar = baru.slice(0, 15).map(function(s){ return '• ' + s.nama_lengkap; }).join('\n') + (baru.length > 15 ? '\n… dan ' + (baru.length - 15) + ' lainnya' : '');
-    if (!confirm('Terbitkan tagihan pendaftaran untuk ' + baru.length + ' murid?\nPeriode: ' + per.tahun + ' Semester ' + per.semester + '\n\n' + daftar)) return;
-    var ctx = { tarif: await Tagihan.muatTarif(), periode: per }, ok = 0, nol = 0;
+    var perDef = await Tagihan.periodeAktif();
+    function perS(s){ return Tagihan.periodeDariTanggal(s.tanggal_join) || perDef; }
+    var daftar = baru.slice(0, 15).map(function(s){ var p = perS(s); return '• ' + s.nama_lengkap + ' → ' + p.tahun + ' Sem ' + p.semester; }).join('\n') + (baru.length > 15 ? '\n… dan ' + (baru.length - 15) + ' lainnya' : '');
+    if (!confirm('Terbitkan tagihan pendaftaran untuk ' + baru.length + ' murid?\n(Periode mengikuti Tanggal Join murid)\n\n' + daftar)) return;
+    var ctx = { tarif: await Tagihan.muatTarif() }, ok = 0, nol = 0;
     for (var j = 0; j < baru.length; j++) {
       var ae = baru[j].enrollment.find(function(e){ return e.is_active; });
-      var r = await Tagihan.terbitkanPendaftaran(baru[j].id, ae.kelas, ctx);
+      var r = await Tagihan.terbitkanPendaftaran(baru[j].id, ae.kelas, { tarif: ctx.tarif, tanggal_join: baru[j].tanggal_join || null });
       ok++; if (!r.hasil.total) nol++;
     }
-    alert('✅ ' + ok + ' tagihan pendaftaran terbit di Bendahara (periode ' + per.tahun + ' Semester ' + per.semester + ').' + (nol ? '\n⚠️ ' + nol + ' bernilai Rp 0 karena tarif belum diatur di Setting Biaya.' : ''));
+    alert('✅ ' + ok + ' tagihan pendaftaran terbit di Bendahara (periode mengikuti Tanggal Join murid).' + (nol ? '\n⚠️ ' + nol + ' bernilai Rp 0 karena tarif belum diatur di Setting Biaya.' : ''));
   } catch (e) {
     alert('Gagal: ' + e.message + '\n\n(Sudah menjalankan fitur_tagihan.sql?)');
   }

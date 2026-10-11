@@ -16,6 +16,12 @@
     } catch (e) {}
     return periodeSekarang();
   }
+  // Periode tagihan pendaftaran baru mengikuti TANGGAL JOIN murid (Jan-Jun = Sem 1, Jul-Des = Sem 2)
+  function periodeDariTanggal(tgl) {
+    var m = /^(\d{4})-(\d{2})/.exec(String(tgl || ''));
+    if (!m) return null;
+    return { tahun: parseInt(m[1], 10), semester: parseInt(m[2], 10) >= 7 ? 2 : 1 };
+  }
   function tingkatDari(namaLevel) { return String(namaLevel || '').replace(/\s*\d+\s*$/, '').trim(); }
 
   async function muatTarif() {
@@ -77,7 +83,12 @@
   async function terbitkanPendaftaran(siswaId, kelas, ctx) {
     ctx = ctx || {};
     var tarif = ctx.tarif || await muatTarif();
-    var p = ctx.periode || await periodeAktif();
+    var p = ctx.periode;
+    if (!p) {
+      var tj = ctx.tanggal_join;
+      if (tj === undefined) { var sj = await db.from('siswa').select('tanggal_join').eq('id', siswaId).maybeSingle(); tj = sj.data ? sj.data.tanggal_join : null; }
+      p = periodeDariTanggal(tj) || await periodeAktif();
+    }
     var h = hitung(tarif, 'pendaftaran', { jilid: kelas.jilid, nama_level: kelas.nama_level });
     var user = (await db.auth.getUser()).data.user;
     var ada = await db.from('tagihan').select('id,status').eq('siswa_id', siswaId).eq('jenis', 'pendaftaran').eq('tahun', p.tahun).eq('semester', p.semester).maybeSingle();
@@ -89,7 +100,7 @@
     };
     var r = await db.from('tagihan').upsert(row, { onConflict: 'siswa_id,jenis,tahun,semester' });
     if (r.error) throw new Error(r.error.message);
-    return { status: 'ok', hasil: h };
+    return { status: 'ok', hasil: h, periode: p };
   }
 
   // items: [{siswa_id, kelas:{id,program_id}, level:{jilid,nama_level}, catatan}]
@@ -132,5 +143,5 @@
     return h;
   }
 
-  window.Tagihan = { periodeSekarang: periodeSekarang, periodeAktif: periodeAktif, muatTarif: muatTarif, hitung: hitung, terbitkanPendaftaran: terbitkanPendaftaran, terbitkanDaftarUlang: terbitkanDaftarUlang, hitungUlang: hitungUlang };
+  window.Tagihan = { periodeSekarang: periodeSekarang, periodeAktif: periodeAktif, periodeDariTanggal: periodeDariTanggal, muatTarif: muatTarif, hitung: hitung, terbitkanPendaftaran: terbitkanPendaftaran, terbitkanDaftarUlang: terbitkanDaftarUlang, hitungUlang: hitungUlang };
 })();
