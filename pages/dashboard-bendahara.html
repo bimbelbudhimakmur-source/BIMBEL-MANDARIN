@@ -662,6 +662,7 @@ async function loadSysSettingsB() {
 
   await loadDashboard();
   updateBadgeTagihan();
+  mulaiSyncTagihanOnline();
 })();
 
 // ============================================
@@ -755,6 +756,31 @@ async function autoLunasTagihan() {
     console.error('auto lunas:', e);
     tgSyncInfo = (tgSyncInfo ? tgSyncInfo + ' ' : '') + 'Auto-lunas gagal: ' + e.message;
   }
+}
+
+// Sinkron ONLINE: tagihan pendaftaran baru muncul & lunas otomatis tanpa admin menerbitkan / tanpa refresh
+let tgBusy = false;
+async function tickTagihanOnline() {
+  if (tgBusy || document.hidden) return;
+  tgBusy = true;
+  try {
+    const aktif = document.getElementById('tab-tagihan').classList.contains('active');
+    if (aktif) await loadTagihan();
+    else { await syncTagihanPendaftaranBaru(); await autoLunasTagihan(); await updateBadgeTagihan(); }
+  } catch (e) { console.warn('tick tagihan:', e); }
+  tgBusy = false;
+}
+function mulaiSyncTagihanOnline() {
+  tickTagihanOnline();
+  setInterval(tickTagihanOnline, 20000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) tickTagihanOnline(); });
+  try { // realtime (aktif bila Realtime tabel ini dinyalakan di Supabase); polling 20 dtk tetap jadi cadangan
+    db.channel('tagihan-online')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'enrollment' }, tickTagihanOnline)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'daftar_ulang' }, tickTagihanOnline)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tagihan' }, tickTagihanOnline)
+      .subscribe();
+  } catch (e) {}
 }
 
 async function loadTagihan() {
