@@ -159,7 +159,7 @@
     <!-- ===== TAGIHAN MURID (pendaftaran & pendaftaran ulang, otomatis dari Admin) ===== -->
     <div id="tab-tagihan" class="tab-content">
       <div class="page-title">Tagihan Murid</div>
-      <div class="page-sub">Tagihan pendaftaran baru dan pendaftaran ulang otomatis muncul di sini setelah disetujui Admin, dan langsung tercatat lunas sebagai pemasukan (menunggu persetujuan Leader). Tarif mengikuti Setting Biaya.</div>
+      <div class="page-sub">Tagihan pendaftaran baru dan pendaftaran ulang otomatis muncul di sini setelah disetujui Admin, dan langsung tercatat lunas sebagai pemasukan di laporan keuangan. Tarif mengikuti Setting Biaya.</div>
       <div id="tgSyncInfo" style="font-size:13px;color:#b45309;margin-bottom:8px"></div>
       <div id="tgSummary" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
       <div class="toolbar">
@@ -739,11 +739,17 @@ async function autoLunasTagihan() {
       if (klaim.error || !klaim.data || !klaim.data.length) continue;
       const jenisLbl = t.jenis === 'pendaftaran' ? 'Pendaftaran' : 'Pendaftaran Ulang';
       const rinci = (t.rincian || []).filter(r => Number(r.jumlah) > 0).map(r => r.label).join(', ');
-      const trx = await db.from('transaksi').insert({
+      // Biaya pendaftaran / daftar ulang sudah dikonfirmasi Admin -> langsung 'approved' (masuk laporan keuangan tanpa approval Leader)
+      const dataTrx = {
         jenis: 'masuk', kategori: jenisLbl, jumlah: Number(t.total), tanggal,
         keterangan: `${t.siswa.nama_lengkap} (${t.siswa.nomor_induk}) — ${rinci}`,
-        dibuat_oleh: currentUserId, status: 'pending_approval', program_id: t.program_id || activeProgramId
-      }).select('id').single();
+        dibuat_oleh: currentUserId, status: 'approved', auto_generated: true, program_id: t.program_id || activeProgramId
+      };
+      let trx = await db.from('transaksi').insert(dataTrx).select('id').single();
+      if (trx.error) { // cadangan bila izin/kolom menolak: coba tanpa auto_generated
+        delete dataTrx.auto_generated;
+        trx = await db.from('transaksi').insert(dataTrx).select('id').single();
+      }
       if (trx.error) {
         await db.from('tagihan').update({ status: 'belum', tanggal_bayar: null }).eq('id', t.id);
         throw new Error('Transaksi: ' + trx.error.message);
@@ -901,7 +907,7 @@ async function batalLunasTagihan(id) {
   try {
     if (t.transaksi_id) {
       const tr = await db.from('transaksi').select('id,status').eq('id', t.transaksi_id).maybeSingle();
-      if (tr.data && tr.data.status !== 'pending_approval') { alert('Pemasukan ini sudah diproses Leader, jadi tidak bisa dibatalkan dari sini. Hubungi Leader.'); return; }
+      if (tr.data && !['pending_approval','approved'].includes(tr.data.status)) { alert('Pemasukan ini sudah diproses Leader, jadi tidak bisa dibatalkan dari sini. Hubungi Leader.'); return; }
     }
     if (!confirm(`Batalkan status lunas ${t.siswa.nama_lengkap}? Catatan pemasukan yang menunggu persetujuan ikut dihapus.`)) return;
     if (t.transaksi_id) await db.from('transaksi').delete().eq('id', t.transaksi_id);
