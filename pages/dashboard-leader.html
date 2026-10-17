@@ -1132,6 +1132,36 @@ async function approveSetoran(btnOrId) {
 // ============================================
 // STAT CARD — DETAIL POPUP
 // ============================================
+// Pendaftaran baru pada rentang tanggal = form pendaftaran (termasuk yang pilih PLACEMENT)
+// + murid PLACEMENT yang ditambah manual oleh admin (hanya ada di tabel placement)
+async function daftarBaruRange(startISO, endISO) {
+  let qP = db.from('pendaftaran').select('*, kelas:kelas_dipilih(kode_kelas,jilid,nama_level)')
+    .gte('created_at', startISO).lte('created_at', endISO).order('created_at', { ascending: false });
+  if (activeProgramId) qP = qP.eq('program_id', activeProgramId);
+  const rp = await qP;
+  if (rp.error) throw new Error(rp.error.message);
+  const hasil = (rp.data || []).map(p => ({
+    nama: p.nama_lengkap, mandarin: p.nama_mandarin, kelas: p.kelas, placement: !!p.placement,
+    level: p.level_diinginkan, status: p.status, tanggal: p.created_at, hitung: p.status === 'approved'
+  }));
+  const kunci = new Set(hasil.map(x => String(x.nama || '').trim().toLowerCase()));
+  try {
+    let qPl = db.from('placement').select('created_at, status, level_diinginkan, program_id, siswa:siswa_id(nama_lengkap,nama_mandarin)')
+      .gte('created_at', startISO).lte('created_at', endISO);
+    if (activeProgramId) qPl = qPl.eq('program_id', activeProgramId);
+    const rpl = await qPl;
+    (rpl.data || []).forEach(pl => {
+      const nm = String(pl.siswa?.nama_lengkap || '').trim().toLowerCase();
+      if (!nm || kunci.has(nm)) return; // sudah tercatat dari form pendaftaran
+      kunci.add(nm);
+      hasil.push({ nama: pl.siswa.nama_lengkap, mandarin: pl.siswa.nama_mandarin, kelas: null, placement: true,
+        level: pl.level_diinginkan, status: pl.status === 'selesai' ? 'approved' : 'placement', tanggal: pl.created_at, hitung: true });
+    });
+  } catch (e) { console.warn('placement pendaftaran baru:', e); }
+  hasil.sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal));
+  return hasil;
+}
+
 async function bukaDetailStat(tipe) {
   const modal = document.getElementById('modalDetailStat');
   const title = document.getElementById('modalDetailStatTitle');
@@ -1145,24 +1175,20 @@ async function bukaDetailStat(tipe) {
     const now = new Date(), y = now.getFullYear(), m = String(now.getMonth()+1).padStart(2,'0');
     const lastD = new Date(y, now.getMonth()+1, 0).getDate();
     const isMandarin = isMandarinActive();
-    let qDaftar = db.from('pendaftaran')
-      .select('*, kelas:kelas_dipilih(kode_kelas,jilid,nama_level)')
-      .gte('created_at', y+'-'+m+'-01T00:00:00').lte('created_at', y+'-'+m+'-'+lastD+'T23:59:59')
-      .order('created_at', { ascending: false });
-    if (activeProgramId) qDaftar = qDaftar.eq('program_id', activeProgramId);
-    const { data, error } = await qDaftar;
-    if (error) { body.innerHTML = '<div style="color:red;padding:16px">Error: '+error.message+'</div>'; return; }
+    let data;
+    try { data = await daftarBaruRange(y+'-'+m+'-01T00:00:00', y+'-'+m+'-'+lastD+'T23:59:59'); }
+    catch (e) { body.innerHTML = '<div style="color:red;padding:16px">Error: '+e.message+'</div>'; return; }
     if (!data?.length) { body.innerHTML = '<div style="text-align:center;padding:32px;color:#9ca3af">Belum ada pendaftaran bulan ini</div>'; return; }
     body.innerHTML = '<table class="table"><thead><tr><th>Nama</th>'+(isMandarin?'<th>Nama Mandarin</th>':'')+'<th>Kelas Dipilih</th><th>'+(isMandarin?'Jilid':'Tingkat')+'</th><th>Status</th><th>Tanggal</th></tr></thead><tbody>'
       + data.map(function(p) {
-        var jlbl = p.kelas ? kelasLevelLabel(p.kelas) : '—';
+        var jlbl = p.kelas ? kelasLevelLabel(p.kelas) : (p.placement ? (p.level || '—') : '—');
         return '<tr>'
-          + '<td><strong>' + (p.nama_lengkap||'—') + '</strong></td>'
-          + (isMandarin ? '<td style="color:#b01020">' + (p.nama_mandarin||'—') + '</td>' : '')
-          + '<td style="font-family:monospace">' + (p.kelas?.kode_kelas||'—') + '</td>'
+          + '<td><strong>' + (p.nama||'—') + '</strong></td>'
+          + (isMandarin ? '<td style="color:#b01020">' + (p.mandarin||'—') + '</td>' : '')
+          + '<td style="font-family:monospace">' + (p.placement ? '🧭 PLACEMENT' : (p.kelas?.kode_kelas||'—')) + '</td>'
           + '<td>' + jlbl + '</td>'
-          + '<td><span class="badge ' + (p.status==='pending'?'badge-yellow':p.status==='approved'?'badge-green':'badge-red') + '">' + (p.status||'—') + '</span></td>'
-          + '<td style="font-size:12px;color:#6b7280">' + new Date(p.created_at).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}) + '</td>'
+          + '<td><span class="badge ' + (p.status==='pending'||p.status==='placement'?'badge-yellow':p.status==='approved'?'badge-green':'badge-red') + '">' + (p.status==='placement'?'menunggu placement':(p.status||'—')) + '</span></td>'
+          + '<td style="font-size:12px;color:#6b7280">' + new Date(p.tanggal).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}) + '</td>'
           + '</tr>';
       }).join('') + '</tbody></table>';
   }
@@ -1205,34 +1231,64 @@ async function loadHistorical() {
     .select('id, nama_lengkap, enrollment(is_active, kelas:kelas_id(kode_kelas,jilid,program_id))')
     .gte('created_at', tglMulai+'T00:00:00').lte('created_at', tglAkhir+'T23:59:59');
 
+  // murid PLACEMENT (belum punya kelas) tetap dihitung sebagai murid baru
+  let plProgIds = [];
+  try {
+    let qPlH = db.from('placement').select('siswa_id,program_id');
+    if (activeProgramId) qPlH = qPlH.eq('program_id', activeProgramId);
+    plProgIds = ((await qPlH).data || []).map(x => x.siswa_id);
+  } catch (e) {}
   const muridBaru = activeProgramId
-    ? (muridBaruRaw||[]).filter(s => (s.enrollment||[]).some(e => e.kelas?.program_id === activeProgramId))
-    : (muridBaruRaw||[]).filter(s => !(window._plIdsAdm||[]).includes(s.id));
+    ? (muridBaruRaw||[]).filter(s => plProgIds.includes(s.id) || (s.enrollment||[]).some(e => e.kelas?.program_id === activeProgramId))
+    : (muridBaruRaw||[]);
 
   const pendFilt   = muridBaru || [];
   const totalMurid = pendFilt.filter(s => s.status !== false).length;
 
-  // Kelas aktif yang dibuat pada periode ini
-  let qKelasAktifHist = db.from('kelas').select('*',{count:'exact',head:true})
-    .eq('is_active',true)
-    .gte('created_at', tglMulai+'T00:00:00').lte('created_at', tglAkhir+'T23:59:59');
-  if (activeProgramId) qKelasAktifHist = qKelasAktifHist.eq('program_id', activeProgramId);
-  const { count: kelasAktif } = await qKelasAktifHist;
+  // Kelas yang AKTIF pada periode ini (berdasarkan Periode Aktif Kelas: mulai s/d selesai; selesai kosong = masih berjalan)
+  let qKelasHist = db.from('kelas').select('id,kode_kelas,jilid,nama_level,is_active,program_id,hari_belajar,sesi,created_at,periode_mulai_tahun,periode_mulai_semester,periode_selesai_tahun,periode_selesai_semester,guru:guru_id(nama_lengkap)').order('kode_kelas');
+  if (activeProgramId) qKelasHist = qKelasHist.eq('program_id', activeProgramId);
+  const { data: kelasSemua } = await qKelasHist;
+  const ordLo = Number(y) * 2 + (sem === '2' ? 2 : 1);
+  const ordHi = Number(y) * 2 + (sem === '1' ? 1 : 2);
+  const kelasPeriode = (kelasSemua || []).filter(function(k) {
+    let mulai;
+    if (k.periode_mulai_tahun) mulai = k.periode_mulai_tahun * 2 + k.periode_mulai_semester;
+    else { const d = new Date(k.created_at); mulai = d.getFullYear() * 2 + (d.getMonth() >= 6 ? 2 : 1); }
+    const selesai = k.periode_selesai_tahun ? k.periode_selesai_tahun * 2 + k.periode_selesai_semester : (k.is_active === false && !k.periode_mulai_tahun ? mulai : Infinity);
+    return mulai <= ordHi && selesai >= ordLo;
+  });
+  const kelasAktif = kelasPeriode.length;
 
   // Tabel murid per kelas dari enrollment murid baru ini
   const byKelas = {};
   pendFilt.forEach(function(s) {
     const ae = Array.isArray(s.enrollment) ? s.enrollment.find(e => e.is_active) : null;
-    const k  = ae?.kelas?.kode_kelas || '—';
+    const k  = ae?.kelas?.kode_kelas || (plProgIds.includes(s.id) ? '🧭 PLACEMENT' : '—');
     if (!byKelas[k]) byKelas[k] = { jilid: ae?.kelas?.jilid, list: [] };
     byKelas[k].list.push(s.nama_lengkap || '—');
   });
 
   var adminHTML = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px">'
     + '<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:12px;text-align:center"><div style="font-size:24px;font-weight:800;color:#16a34a">'+pendFilt.length+'</div><div style="font-size:11px;color:#6b7280">Murid Baru</div></div>'
-    + '<div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:12px;text-align:center"><div style="font-size:24px;font-weight:800;color:#2563eb">'+(kelasAktif||0)+'</div><div style="font-size:11px;color:#6b7280">Kelas Aktif Baru</div></div>'
+    + '<div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:12px;text-align:center"><div style="font-size:24px;font-weight:800;color:#2563eb">'+(kelasAktif||0)+'</div><div style="font-size:11px;color:#6b7280">Kelas Aktif Periode Ini</div></div>'
     + '<div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:12px;text-align:center"><div style="font-size:24px;font-weight:800;color:#d97706">'+totalMurid+'</div><div style="font-size:11px;color:#6b7280">Total Murid Periode Ini</div></div>'
     + '</div>';
+
+  // Daftar kelas aktif pada periode ini
+  if (kelasPeriode.length) {
+    const lp = function(k) {
+      const m = k.periode_mulai_tahun ? (k.periode_mulai_tahun + ' Sem ' + k.periode_mulai_semester) : '—';
+      const e = k.periode_selesai_tahun ? (k.periode_selesai_tahun + ' Sem ' + k.periode_selesai_semester) : 'Berjalan';
+      return m + ' s/d ' + e;
+    };
+    adminHTML += '<div style="font-size:12px;font-weight:700;margin:6px 0 4px">🏫 Kelas aktif pada ' + semLabel + '</div>'
+      + '<table class="table"><thead><tr><th>Kode Kelas</th><th>Guru</th><th>Jilid / Tingkat</th><th>Periode Aktif Kelas</th></tr></thead><tbody>'
+      + kelasPeriode.map(function(k){
+          const lv = (k.jilid === null || k.jilid === undefined) ? (k.nama_level || '—') : (k.jilid === 0 ? 'TK' : 'Jilid ' + k.jilid);
+          return '<tr><td style="font-family:monospace;font-weight:700">' + k.kode_kelas + '</td><td>' + (k.guru ? k.guru.nama_lengkap : '—') + '</td><td>' + lv + '</td><td style="font-size:12px">' + lp(k) + (k.is_active === false ? ' <span style="color:#dc2626">(nonaktif)</span>' : '') + '</td></tr>';
+        }).join('') + '</tbody></table><div style="height:12px"></div>';
+  }
 
   if (Object.keys(byKelas).length) {
     adminHTML += '<table class="table"><thead><tr><th>Kelas</th><th>Jilid</th><th>Jumlah</th><th>Nama Murid</th></tr></thead><tbody>';
@@ -1538,10 +1594,8 @@ async function loadDashboard() {
   // Pendaftaran baru bulan ini
   const nowD = new Date(), ym = nowD.getFullYear()+'-'+String(nowD.getMonth()+1).padStart(2,'0');
   const lastDayM = new Date(nowD.getFullYear(), nowD.getMonth()+1, 0).getDate();
-  let qDaftarCount = db.from('pendaftaran').select('*',{count:'exact',head:true}).eq('status','approved').eq('placement',false)
-    .gte('created_at', ym+'-01T00:00:00').lte('created_at', ym+'-'+lastDayM+'T23:59:59');
-  if (activeProgramId) qDaftarCount = qDaftarCount.eq('program_id', activeProgramId);
-  const { count: cDaftar } = await qDaftarCount;
+  let cDaftar = 0;
+  try { cDaftar = (await daftarBaruRange(ym+'-01T00:00:00', ym+'-'+lastDayM+'T23:59:59')).filter(x => x.hitung).length; } catch (e) { console.warn(e); }
   document.getElementById('statDaftar').textContent = cDaftar ?? 0;
   document.getElementById('sumMasuk').textContent      = 'Rp ' + masuk.toLocaleString('id-ID');
   document.getElementById('sumKeluar').textContent     = 'Rp ' + keluar.toLocaleString('id-ID');
@@ -2149,11 +2203,10 @@ async function generateLaporanLeader() {
   const endDate = bulan + '-' + String(lastDay).padStart(2,'0');
 
   let qTrx = db.from('transaksi').select('*').gte('tanggal', bulan+'-01').lte('tanggal', endDate).eq('status', 'approved').order('tanggal');
-  let qPendaftaran = db.from('pendaftaran').select('*',{count:'exact',head:true}).eq('status','approved').eq('placement',false).gte('created_at', bulan+'-01').lte('created_at', endDate+'T23:59:59');
+  let qPendaftaran = daftarBaruRange(bulan+'-01T00:00:00', endDate+'T23:59:59').then(l => ({ count: l.filter(x => x.hitung).length })).catch(() => ({ count: 0 }));
   let qGaji = db.from('penggajian').select('*, guru:guru_id!inner(nama_lengkap,kode_guru,program_id)').eq('bulan', bulan);
   if (activeProgramId) {
     qTrx = qTrx.eq('program_id', activeProgramId);
-    qPendaftaran = qPendaftaran.eq('program_id', activeProgramId);
     qGaji = qGaji.eq('guru.program_id', activeProgramId);
   }
 
