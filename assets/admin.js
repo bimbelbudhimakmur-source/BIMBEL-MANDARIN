@@ -708,7 +708,7 @@ async function updateBadgePlacement() {
 async function loadPlacement() {
   try {
     var st = document.getElementById('filterStatusPlacement').value || 'menunggu';
-    var q = db.from('placement').select('*, siswa:siswa_id(id,nomor_induk,nama_lengkap,nama_mandarin,status), kelas:kelas_tujuan(kode_kelas)').eq('status', st).order('created_at',{ascending:true});
+    var q = db.from('placement').select('*, siswa:siswa_id(id,nomor_induk,nama_lengkap,nama_mandarin,status,periode_daftar_tahun,periode_daftar_semester), kelas:kelas_tujuan(kode_kelas)').eq('status', st).order('created_at',{ascending:true});
     if (activeProgramId) q = q.eq('program_id', activeProgramId);
     var res = await q;
     if (res.error) throw new Error(res.error.message);
@@ -721,8 +721,19 @@ async function loadPlacement() {
     updateBadgePlacement();
   } catch(e) {
     console.error('loadPlacement:', e);
-    document.getElementById('tablePlacement').innerHTML = '<tr><td colspan="5" style="text-align:center;padding:30px;color:#b01020">Error: '+e.message+' (sudah jalankan fitur_placement.sql?)</td></tr>';
+    document.getElementById('tablePlacement').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:#b01020">Error: '+e.message+' (sudah jalankan fitur_placement.sql & fitur_periode_pendaftaran.sql?)</td></tr>';
   }
+}
+
+// Admin menentukan periode pendaftaran calon murid placement (tersimpan langsung di data murid)
+async function simpanPeriodePlacement(plId) {
+  var p = allPlacement.find(function(x){return x.id===plId;});
+  if (!p) return;
+  var t = parseInt(document.getElementById('plPdT_'+plId).value), sm = parseInt(document.getElementById('plPdS_'+plId).value);
+  if (!t || t < 2000 || t > 2100) { alert('Tahun tidak valid.'); return; }
+  var er = (await db.from('siswa').update({periode_daftar_tahun:t,periode_daftar_semester:sm}).eq('id',p.siswa_id)).error;
+  if (er) { alert('Gagal simpan periode: '+er.message+'\n(Sudah menjalankan fitur_periode_pendaftaran.sql?)'); return; }
+  p.siswa.periode_daftar_tahun = t; p.siswa.periode_daftar_semester = sm;
 }
 
 function renderPlacement() {
@@ -732,7 +743,7 @@ function renderPlacement() {
   var list = allPlacement.filter(function(p){
     return p.siswa && ((p.siswa.nama_lengkap||'').toLowerCase().indexOf(q)>=0 || (p.siswa.nama_mandarin||'').toLowerCase().indexOf(q)>=0);
   });
-  if (!list.length) { tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:40px;color:#6b7280">'+(st==='menunggu'?'Tidak ada calon murid yang menunggu penempatan':'Belum ada riwayat')+'</td></tr>'; return; }
+  if (!list.length) { tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:40px;color:#6b7280">'+(st==='menunggu'?'Tidak ada calon murid yang menunggu penempatan':'Belum ada riwayat')+'</td></tr>'; return; }
   var html = '';
   list.forEach(function(p){
     var s = p.siswa;
@@ -751,12 +762,19 @@ function renderPlacement() {
       aksi = '<select id="plKelas_'+p.id+'" style="font-size:12px;padding:4px 8px;border:1px solid #e5e7eb;border-radius:6px;min-width:200px">'+opts+'</select> '
         +'<button class="btn btn-success btn-sm" onclick="arahkanPlacement(\''+p.id+'\')">✓ Arahkan</button>';
     }
+    var pnPl = periodeNow();
+    var pdT = s.periode_daftar_tahun || pnPl.tahun, pdS = s.periode_daftar_semester || pnPl.semester;
+    var periodeCell = (p.status === 'selesai')
+      ? '<span style="font-size:12px">'+pdT+' Sem '+pdS+'</span>'
+      : '<div style="display:flex;gap:4px;white-space:nowrap"><input type="number" id="plPdT_'+p.id+'" value="'+pdT+'" style="width:72px;font-size:12px;padding:4px 6px;border:1px solid #e5e7eb;border-radius:6px" onchange="simpanPeriodePlacement(\''+p.id+'\')">'
+        +'<select id="plPdS_'+p.id+'" style="font-size:12px;padding:4px 6px;border:1px solid #e5e7eb;border-radius:6px" onchange="simpanPeriodePlacement(\''+p.id+'\')"><option value="1"'+(pdS==1?' selected':'')+'>Sem 1</option><option value="2"'+(pdS==2?' selected':'')+'>Sem 2</option></select></div>';
     aksi += ' <button class="btn btn-danger btn-sm" onclick="hapusPlacement(\''+p.id+'\')">🗑️</button>';
     html += '<tr>'
       +'<td style="font-family:monospace">'+s.nomor_induk+'</td>'
       +'<td><strong>'+s.nama_lengkap+'</strong>'+nm+'</td>'
       +'<td>'+(p.level_diinginkan||'<span style="color:#9ca3af">—</span>')+'</td>'
       +'<td>'+tgl+'</td>'
+      +'<td>'+periodeCell+'</td>'
       +'<td>'+aksi+'</td></tr>';
   });
   tbody.innerHTML = html;
@@ -807,6 +825,11 @@ async function arahkanPlacement(plId) {
   if (!kelasId) { alert('Pilih kelas tujuan dulu!'); return; }
   if (!confirm('Arahkan '+p.siswa.nama_lengkap+' ke kelas '+sel.options[sel.selectedIndex].text+'?')) return;
   try {
+    var inT = document.getElementById('plPdT_'+plId), inS = document.getElementById('plPdS_'+plId);
+    if (inT && inS && parseInt(inT.value)) {
+      var erP = (await db.from('siswa').update({periode_daftar_tahun:parseInt(inT.value),periode_daftar_semester:parseInt(inS.value)}).eq('id',p.siswa_id)).error;
+      if (erP) throw new Error('Periode: '+erP.message);
+    }
     var ins = await db.from('enrollment').insert({siswa_id:p.siswa_id,kelas_id:kelasId,tahun_ajaran_id:tahunAjaranId,is_active:true});
     if (ins.error) throw new Error('Enrollment: '+ins.error.message);
     var up = await db.from('placement').update({status:'selesai',kelas_tujuan:kelasId,selesai_at:new Date().toISOString()}).eq('id',plId);
