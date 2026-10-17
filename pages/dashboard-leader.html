@@ -1259,6 +1259,11 @@ async function loadHistorical() {
     return mulai <= ordHi && selesai >= ordLo;
   });
   const kelasAktif = kelasPeriode.length;
+  // Kelas BARU = periode mulai kelas jatuh di periode yang dipilih (kelas semester depan tidak ikut)
+  const kelasBaru = kelasPeriode.filter(function(k) {
+    const mulai = k.periode_mulai_tahun ? k.periode_mulai_tahun * 2 + k.periode_mulai_semester : null;
+    return mulai !== null && mulai >= ordLo && mulai <= ordHi;
+  }).length;
 
   // Tabel murid per kelas dari enrollment murid baru ini
   const byKelas = {};
@@ -1269,8 +1274,9 @@ async function loadHistorical() {
     byKelas[k].list.push(s.nama_lengkap || '—');
   });
 
-  var adminHTML = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px">'
+  var adminHTML = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px">'
     + '<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:12px;text-align:center"><div style="font-size:24px;font-weight:800;color:#16a34a">'+pendFilt.length+'</div><div style="font-size:11px;color:#6b7280">Murid Baru</div></div>'
+    + '<div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:12px;text-align:center"><div style="font-size:24px;font-weight:800;color:#7c3aed">'+(kelasBaru||0)+'</div><div style="font-size:11px;color:#6b7280">Kelas Baru</div></div>'
     + '<div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:12px;text-align:center"><div style="font-size:24px;font-weight:800;color:#2563eb">'+(kelasAktif||0)+'</div><div style="font-size:11px;color:#6b7280">Kelas Aktif Periode Ini</div></div>'
     + '<div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:12px;text-align:center"><div style="font-size:24px;font-weight:800;color:#d97706">'+totalMurid+'</div><div style="font-size:11px;color:#6b7280">Total Murid Periode Ini</div></div>'
     + '</div>';
@@ -1290,14 +1296,22 @@ async function loadHistorical() {
         }).join('') + '</tbody></table><div style="height:12px"></div>';
   }
 
+  // Nama murid: di layar berupa dropdown (details), di PDF otomatis terbuka semua
+  var adminPrintHTML = adminHTML;
   if (Object.keys(byKelas).length) {
-    adminHTML += '<table class="table"><thead><tr><th>Kelas</th><th>Jilid</th><th>Jumlah</th><th>Nama Murid</th></tr></thead><tbody>';
+    var head = '<table class="table"><thead><tr><th>Kelas</th><th>Jilid</th><th>Jumlah</th><th>Nama Murid</th></tr></thead><tbody>';
+    var rowsScreen = '', rowsPrint = '';
     Object.entries(byKelas).forEach(function([kk, val]) {
       var jlbl = val.jilid === 0 ? 'TK' : 'Jilid ' + (val.jilid || '—');
-      adminHTML += '<tr><td style="font-family:monospace;font-weight:700">' + kk + '</td><td>' + jlbl + '</td><td><strong>' + val.list.length + '</strong></td><td style="font-size:11px">' + val.list.join(', ') + '</td></tr>';
+      var pre = '<tr><td style="font-family:monospace;font-weight:700">' + kk + '</td><td>' + jlbl + '</td><td><strong>' + val.list.length + '</strong></td>';
+      rowsScreen += pre + '<td style="font-size:11px"><details><summary style="cursor:pointer;color:#2563eb;font-weight:600">Lihat ' + val.list.length + ' nama</summary><div style="margin-top:6px;line-height:1.6">' + val.list.join(', ') + '</div></details></td></tr>';
+      rowsPrint  += pre + '<td style="font-size:11px">' + val.list.join(', ') + '</td></tr>';
     });
-    adminHTML += '</tbody></table>';
-    adminHTML += '<div style="text-align:center;padding:16px;color:#9ca3af;font-size:12px">Tidak ada pendaftar pada periode ini</div>';
+    adminHTML      += head + rowsScreen + '</tbody></table>';
+    adminPrintHTML += head + rowsPrint  + '</tbody></table>';
+  } else {
+    adminHTML      += '<div style="text-align:center;padding:16px;color:#9ca3af;font-size:12px">Tidak ada pendaftar pada periode ini</div>';
+    adminPrintHTML  = adminHTML;
   }
 
   document.getElementById('histAdminContent').innerHTML = adminHTML;
@@ -1356,7 +1370,7 @@ async function loadHistorical() {
     keuHTML += '</tbody></table>';
   }
 
-  window._histLabel = semLabel; window._histAdminHTML = adminHTML; window._histKeuHTML = keuHTML;
+  window._histLabel = semLabel; window._histAdminHTML = adminPrintHTML; window._histKeuHTML = keuHTML;
   document.getElementById('histKeuContent').innerHTML = keuHTML;
   document.getElementById('histKeuSection').style.display = 'block';
 }
