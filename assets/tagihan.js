@@ -85,9 +85,11 @@
     var tarif = ctx.tarif || await muatTarif();
     var p = ctx.periode;
     if (!p) {
-      var tj = ctx.tanggal_join;
-      if (tj === undefined) { var sj = await db.from('siswa').select('tanggal_join').eq('id', siswaId).maybeSingle(); tj = sj.data ? sj.data.tanggal_join : null; }
-      p = periodeDariTanggal(tj) || await periodeAktif();
+      // periode pendaftaran murid (ditentukan admin) > tanggal join > periode aktif
+      var sj = await db.from('siswa').select('tanggal_join,periode_daftar_tahun,periode_daftar_semester').eq('id', siswaId).maybeSingle();
+      var d = sj.data || {};
+      if (d.periode_daftar_tahun && d.periode_daftar_semester) p = { tahun: d.periode_daftar_tahun, semester: d.periode_daftar_semester };
+      else p = periodeDariTanggal(ctx.tanggal_join !== undefined ? ctx.tanggal_join : d.tanggal_join) || await periodeAktif();
     }
     var h = hitung(tarif, 'pendaftaran', { jilid: kelas.jilid, nama_level: kelas.nama_level });
     var user = (await db.auth.getUser()).data.user;

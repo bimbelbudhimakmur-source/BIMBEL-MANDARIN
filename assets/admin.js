@@ -557,8 +557,28 @@ async function terbitkanTagihanPendaftaran(siswaId, kelasId) {
   }
 }
 
+var setujuiDaftarId = null;
 async function proseskan(id, status) {
-  if (!confirm('Yakin '+(status==='approved'?'menyetujui':'menolak')+' pendaftaran ini?')) return;
+  if (status === 'approved') {
+    // pendaftar mandiri: admin menentukan sendiri periodenya sebelum menyetujui
+    var rd = (await db.from('pendaftaran').select('nama_lengkap,placement').eq('id', id).single()).data;
+    setujuiDaftarId = id;
+    var pn = periodeNow();
+    document.getElementById('sd_info').innerHTML = 'Pendaftar: <strong>' + (rd ? rd.nama_lengkap : '—') + '</strong>' + (rd && rd.placement ? ' <span style="color:#b45309">(PLACEMENT)</span>' : '');
+    document.getElementById('sd_tahun').value = pn.tahun; document.getElementById('sd_sem').value = pn.semester;
+    document.getElementById('modalSetujuiDaftar').classList.remove('hidden');
+    return;
+  }
+  return prosesPendaftaran(id, status, null);
+}
+async function konfirmasiSetujuiDaftar() {
+  var t = parseInt(document.getElementById('sd_tahun').value), sm = parseInt(document.getElementById('sd_sem').value);
+  if (!t || t < 2000 || t > 2100) { alert('Isi tahun periode dengan benar.'); return; }
+  closeModal('modalSetujuiDaftar');
+  await prosesPendaftaran(setujuiDaftarId, 'approved', { tahun: t, semester: sm });
+}
+async function prosesPendaftaran(id, status, periode) {
+  if (status !== 'approved' && !confirm('Yakin menolak pendaftaran ini?')) return;
   try {
     var regData=(await db.from('pendaftaran').select('*').eq('id',id).single()).data;
     var userId=(await db.auth.getUser()).data.user.id;
@@ -575,8 +595,10 @@ async function proseskan(id, status) {
         nomor_induk:noInduk,nama_lengkap:regData.nama_lengkap,nama_mandarin:regData.nama_mandarin||null,
         tempat_lahir:regData.tempat_lahir,tanggal_lahir:regData.tanggal_lahir,alamat:regData.alamat,
         telepon:regData.telepon,telepon_ortu:regData.telepon_ortu,
-        tanggal_join:new Date().toISOString().split('T')[0],status:true
+        tanggal_join:new Date().toISOString().split('T')[0],status:true,
+        periode_daftar_tahun:periode?periode.tahun:null,periode_daftar_semester:periode?periode.semester:null
       }).select().single();
+      if (sr.error) { alert('Gagal menyimpan murid: '+sr.error.message+'\n(Sudah menjalankan fitur_periode_pendaftaran.sql?)'); return; }
       if (sr.data&&regData.placement) {
         var plRes=await db.from('placement').insert({siswa_id:sr.data.id,program_id:regData.program_id||activeProgramId||null,level_diinginkan:regData.level_diinginkan||null});
         if (plRes.error) { alert('⚠️ Murid tersimpan tapi gagal masuk PLACEMENT: '+plRes.error.message); }
@@ -598,6 +620,7 @@ function openModalDaftarAdmin(presetKelasId) {
   ['da_namaIndo','da_namaMandarin','da_hpMurid','da_hpOrtu','da_tempatLahir','da_alamat'].forEach(function(id){document.getElementById(id).value='';});
   ['da_tanggalLahir'].forEach(function(id){document.getElementById(id).value='';});
   document.getElementById('da_tanggalJoin').value=new Date().toISOString().split('T')[0];
+  var pnd = periodeNow(); document.getElementById('da_pdTahun').value = pnd.tahun; document.getElementById('da_pdSem').value = pnd.semester;
   document.getElementById('da_namaMandarinWrap').style.display = isMandarinActive() ? '' : 'none';
   document.getElementById('da_level').value='';
   document.getElementById('da_levelWrap').style.display='none';
@@ -636,6 +659,8 @@ async function simpanDaftarAdmin() {
       tanggal_lahir:document.getElementById('da_tanggalLahir').value||null,
       alamat:document.getElementById('da_alamat').value.trim()||null,
       tanggal_join:document.getElementById('da_tanggalJoin').value||new Date().toISOString().split('T')[0],
+      periode_daftar_tahun:parseInt(document.getElementById('da_pdTahun').value)||periodeNow().tahun,
+      periode_daftar_semester:parseInt(document.getElementById('da_pdSem').value)||periodeNow().semester,
       status:true
     }).select().single();
     if (sr.error) { alert('Error: '+sr.error.message); return; }
@@ -1395,7 +1420,8 @@ async function prosesMergeRR() {
         }
       }
       // 3) nonaktifkan kelas lama
-      var kk = await db.from('kelas').update({ is_active: false }).eq('id', src.id);
+      var pnM = periodeNow();
+      var kk = await db.from('kelas').update({ is_active: false, periode_selesai_tahun: pnM.tahun, periode_selesai_semester: pnM.semester }).eq('id', src.id);
       if (kk.error) throw new Error('Nonaktifkan kelas ' + src.kode_kelas + ' gagal: ' + kk.error.message);
     }
     alert('✅ Kelas berhasil digabung ke ' + tujuan.kode_kelas + '. ' + total + ' murid dipindahkan.');
@@ -1487,14 +1513,17 @@ async function loadKelas() {
   } catch(e) { console.error('loadKelas:',e); }
 }
 
+function periodeNow() {
+  var w = new Date(Date.now() + 7*3600*1000);
+  return { tahun: w.getUTCFullYear(), semester: (w.getUTCMonth()+1) >= 7 ? 2 : 1 };
+}
+function labelPeriodeKelas(k) {
+  if (!k.periode_mulai_tahun) return '<span style="color:#9ca3af">—</span>';
+  var m = k.periode_mulai_tahun + ' Sem ' + k.periode_mulai_semester;
+  var e = k.periode_selesai_tahun ? (k.periode_selesai_tahun + ' Sem ' + k.periode_selesai_semester) : '<span style="color:#16a34a;font-weight:600">Berjalan</span>';
+  return '<span style="font-size:12px;white-space:nowrap">' + m + '<br>s/d ' + e + '</span>' + (k.is_active === false ? '<br><small style="color:#dc2626">nonaktif</small>' : '');
+}
 function renderKelas(list) {
-  // Update thead to remove Status column
-  var thead = document.querySelector('#tableKelas').closest('table').querySelector('thead tr');
-  if (thead && thead.querySelectorAll('th').length === 8) {
-    // Remove the Status th (index 6)
-    thead.querySelectorAll('th')[6].remove();
-  }
-
   var thJilid = document.getElementById('thJilidKelas');
   if (thJilid) {
     var progNow = programListAdmin.find(function(p){ return p.id === activeProgramId; });
@@ -1502,7 +1531,7 @@ function renderKelas(list) {
   }
 
   var tbody=document.getElementById('tableKelas');
-  if (!list.length) { tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:40px;color:#6b7280">Belum ada kelas</td></tr>'; return; }
+  if (!list.length) { tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:40px;color:#6b7280">Belum ada kelas</td></tr>'; return; }
   var html='';
   for (var i=0;i<list.length;i++) {
     var k=list[i];
@@ -1521,6 +1550,7 @@ function renderKelas(list) {
       +'<td>'+(k.jilid===null||k.jilid===undefined ? (k.nama_level || '—') : ((k.jilid===0||k.jilid==='0') ? '幼儿 (TK)' : 'Jilid '+jilidLabel(k.jilid)))+'</td>'
       +'<td>'+hari+'<br><small style="color:#6b7280">'+jam+'</small></td>'
       +'<td>'+muridCell+'</td>'
+      +'<td>'+labelPeriodeKelas(k)+'</td>'
       +'<td style="display:flex;gap:4px">'
       +'<button class="btn btn-secondary btn-sm" onclick="viewKelasStudents(\''+k.id+'\',\''+k.kode_kelas+'\')">👥</button>'
       +'<button class="btn btn-secondary btn-sm" onclick="openEditKelas(\''+k.id+'\')">✏️</button>'
@@ -1543,6 +1573,9 @@ function openModalTambahKelas() {
   document.getElementById('mk_jilid_wrap').style.display='';
   document.getElementById('mk_guru_rekomendasi').style.display='none';
   document.getElementById('mk_kodePreview').textContent='Kode akan muncul otomatis';
+  var pn = periodeNow();
+  document.getElementById('mk_pm_tahun').value = pn.tahun; document.getElementById('mk_pm_sem').value = pn.semester;
+  document.getElementById('mk_ps_tahun').value = ''; document.getElementById('mk_ps_sem').value = 2;
   document.getElementById('modalKelas').classList.remove('hidden');
 }
 
@@ -1570,6 +1603,11 @@ async function openEditKelas(id) {
   }
   updateKodePreview();
   updateGuruRekomendasi();
+  var pn2 = periodeNow();
+  document.getElementById('mk_pm_tahun').value = k.periode_mulai_tahun || pn2.tahun;
+  document.getElementById('mk_pm_sem').value = k.periode_mulai_semester || pn2.semester;
+  document.getElementById('mk_ps_tahun').value = k.periode_selesai_tahun || '';
+  document.getElementById('mk_ps_sem').value = k.periode_selesai_semester || 2;
   document.getElementById('modalKelas').classList.remove('hidden');
 }
 
@@ -1689,12 +1727,18 @@ async function simpanKelas() {
   } else {
     kodeKelas = levelSegment ? (prefix+kg+'-'+levelSegment+'-'+sesi) : (prefix+kg+'-'+sesi);
   }
+  var pmT = parseInt(document.getElementById('mk_pm_tahun').value), pmS = parseInt(document.getElementById('mk_pm_sem').value);
+  var psTraw = document.getElementById('mk_ps_tahun').value.trim(), psT = psTraw ? parseInt(psTraw) : null, psS = psT ? parseInt(document.getElementById('mk_ps_sem').value) : null;
+  if (!pmT || pmT < 2000 || pmT > 2100) { alert('Isi tahun mulai periode kelas dengan benar.'); return; }
+  if (psT && (psT < 2000 || psT > 2100)) { alert('Tahun selesai periode tidak valid.'); return; }
+  if (psT && (psT * 2 + psS) < (pmT * 2 + pmS)) { alert('Periode selesai tidak boleh sebelum periode mulai.'); return; }
+  var periodeKelas = { periode_mulai_tahun: pmT, periode_mulai_semester: pmS, periode_selesai_tahun: psT, periode_selesai_semester: psS };
   try {
     if (editingKelasId) {
       var oldK = (typeof allKelas!=='undefined' ? allKelas : []).find(function(k){return k.id===editingKelasId;});
       var jilidBerubah = isMandarin && oldK && oldK.jilid !== jilidDB;
       if (jilidBerubah && !confirm('Jilid kelas berubah ('+oldK.jilid+' → '+jilidDB+').\n\nPastikan:\n• Raport tahun ini sudah dicetak/disimpan\n• Murid TINGGAL KELAS sudah diarahkan ke kelas lain\n\nNilai tahun ini tetap tersimpan (dipisah per tahun ajaran), jadi tahun depan mulai dari kosong. Lanjutkan?')) return;
-      var er=(await db.from('kelas').update({kode_kelas:kodeKelas,guru_id:guruId,jilid:jilidDB,nama_level:namaLevel,hari_belajar:hari,sesi:sesi,jam_mulai:jamMulai,jam_selesai:jamSelesai,program_id:programId}).eq('id',editingKelasId)).error;
+      var er=(await db.from('kelas').update({kode_kelas:kodeKelas,guru_id:guruId,jilid:jilidDB,nama_level:namaLevel,hari_belajar:hari,sesi:sesi,jam_mulai:jamMulai,jam_selesai:jamSelesai,program_id:programId,periode_mulai_tahun:pmT,periode_mulai_semester:pmS,periode_selesai_tahun:psT,periode_selesai_semester:psS}).eq('id',editingKelasId)).error;
       if(er){alert('Error: '+er.message);return;}
       if (jilidBerubah) {
         // bersihkan penentuan 升班 murid di kelas ini (sudah naik)
@@ -1704,7 +1748,7 @@ async function simpanKelas() {
       }
       alert('✅ Kelas diupdate!');
     } else {
-      var er2=(await db.from('kelas').insert({kode_kelas:kodeKelas,guru_id:guruId,jilid:jilidDB,nama_level:namaLevel,hari_belajar:hari,sesi:sesi,jam_mulai:jamMulai,jam_selesai:jamSelesai,tahun_ajaran_id:tahunAjaranId,program_id:programId})).error;
+      var er2=(await db.from('kelas').insert({kode_kelas:kodeKelas,guru_id:guruId,jilid:jilidDB,nama_level:namaLevel,hari_belajar:hari,sesi:sesi,jam_mulai:jamMulai,jam_selesai:jamSelesai,tahun_ajaran_id:tahunAjaranId,program_id:programId,periode_mulai_tahun:pmT,periode_mulai_semester:pmS,periode_selesai_tahun:psT,periode_selesai_semester:psS})).error;
       if(er2){alert('Error: '+er2.message);return;} alert('✅ Kelas '+kodeKelas+' ditambahkan!');
     }
     closeModal('modalKelas'); await loadKelas(); await loadStats();
@@ -1712,12 +1756,23 @@ async function simpanKelas() {
 }
 
 async function deleteKelas(id,kode) {
-  if(!confirm('Hapus kelas '+kode+'?')) return;
+  if(!confirm('Hapus / arsipkan kelas '+kode+'?')) return;
   try {
     // Cek apakah kelas ini masih ada murid aktif
     var enrollAktif=(await db.from('enrollment').select('id').eq('kelas_id',id).eq('is_active',true)).data||[];
     if (enrollAktif.length>0) {
       alert('⚠️ Kelas "'+kode+'" tidak bisa dihapus!\nMasih ada '+enrollAktif.length+' murid aktif di kelas ini.\n\nPindahkan murid-murid tersebut terlebih dahulu.');
+      return;
+    }
+    // Kelas yang pernah punya murid: ARSIPKAN (nonaktif + tanggal selesai) supaya data historis Leader tetap terbaca
+    var riwayat=(await db.from('enrollment').select('id',{count:'exact',head:true}).eq('kelas_id',id)).count||0;
+    if (riwayat>0) {
+      if (!confirm('Kelas "'+kode+'" pernah memiliki murid ('+riwayat+' riwayat).\n\nKelas akan DIARSIPKAN (nonaktif, periode selesai = sekarang), bukan dihapus, agar data historis & raport tetap aman.\n\nLanjutkan arsipkan?')) return;
+      var pnA = periodeNow();
+      var erA=(await db.from('kelas').update({is_active:false,periode_selesai_tahun:pnA.tahun,periode_selesai_semester:pnA.semester}).eq('id',id)).error;
+      if (erA) { alert('❌ Gagal mengarsipkan: '+erA.message); return; }
+      alert('✅ Kelas '+kode+' diarsipkan. Masih terlihat di daftar dengan label nonaktif; atur periodenya lewat Edit bila perlu.');
+      await loadKelas(); await loadStats();
       return;
     }
     // Cek riwayat pendaftaran yang mereferensikan kelas ini
@@ -1745,13 +1800,20 @@ function updateBulkKelas(){
 }
 function toggleAllKelas(cb){document.querySelectorAll('.chk-kelas').forEach(function(c){c.checked=cb.checked;cb.checked?selectedKelas.add(c.value):selectedKelas.delete(c.value);});updateBulkKelas();}
 async function bulkDeleteKelas(){
-  if(!confirm('Hapus '+selectedKelas.size+' kelas?')) return;
-  var gagal=[], berhasil=0;
+  if(!confirm('Hapus '+selectedKelas.size+' kelas?\n(Kelas yang pernah punya murid akan diarsipkan, bukan dihapus.)')) return;
+  var gagal=[], berhasil=0, arsip=0;
   for(var id of selectedKelas){
     var k=allKelas.find(function(x){return x.id===id;});
     var kode=k?k.kode_kelas:id;
     var enrollAktif=(await db.from('enrollment').select('id').eq('kelas_id',id).eq('is_active',true)).data||[];
     if (enrollAktif.length>0) { gagal.push(kode+' (masih ada murid aktif)'); continue; }
+    var riw=(await db.from('enrollment').select('id',{count:'exact',head:true}).eq('kelas_id',id)).count||0;
+    if (riw>0) { // punya riwayat murid: arsipkan, bukan hapus
+      var pnB=periodeNow();
+      var erB=(await db.from('kelas').update({is_active:false,periode_selesai_tahun:pnB.tahun,periode_selesai_semester:pnB.semester}).eq('id',id)).error;
+      if (erB) gagal.push(kode+' ('+erB.message+')'); else arsip++;
+      continue;
+    }
     var pendaftaranTerkait=(await db.from('pendaftaran').select('id').eq('kelas_dipilih',id)).data||[];
     if (pendaftaranTerkait.length>0) await db.from('pendaftaran').delete().eq('kelas_dipilih',id);
     await db.from('enrollment').delete().eq('kelas_id',id);
@@ -1759,7 +1821,7 @@ async function bulkDeleteKelas(){
     if (er) { gagal.push(kode+' ('+er.message+')'); continue; }
     berhasil++;
   }
-  if (gagal.length) alert('Berhasil hapus '+berhasil+' kelas.\n\nGagal:\n'+gagal.join('\n'));
+  if (arsip||gagal.length) alert('Dihapus: '+berhasil+' kelas. Diarsipkan (punya riwayat murid): '+arsip+' kelas.'+(gagal.length?'\n\nGagal:\n'+gagal.join('\n'):''));
   clearSelectKelas();await loadKelas();await loadStats();
 }
 function clearSelectKelas(){selectedKelas.clear();document.querySelectorAll('.chk-kelas').forEach(function(c){c.checked=false;});document.getElementById('checkAllKelas').checked=false;document.getElementById('bulkBarKelas').classList.remove('show');}
@@ -1896,6 +1958,7 @@ function openModalTambahMurid() {
   populateKelasDropdownMurid('');
   document.getElementById('mm_status').value='true';
   document.getElementById('mm_tanggalJoin').value=new Date().toISOString().split('T')[0];
+  var pnt = periodeNow(); document.getElementById('mm_pdTahun').value = pnt.tahun; document.getElementById('mm_pdSem').value = pnt.semester;
   document.getElementById('modalMurid').classList.remove('hidden');
 }
 
@@ -1913,6 +1976,8 @@ async function openEditMurid(id) {
   document.getElementById('mm_tanggalLahir').value=s.tanggal_lahir||'';
   document.getElementById('mm_alamat').value=s.alamat||'';
   document.getElementById('mm_tanggalJoin').value=s.tanggal_join||'';
+  var pne = periodeNow();
+  document.getElementById('mm_pdTahun').value = s.periode_daftar_tahun || pne.tahun; document.getElementById('mm_pdSem').value = s.periode_daftar_semester || pne.semester;
   // Cari kelas aktif murid ini dari enrollment
   var enr = (await db.from('enrollment').select('kelas_id').eq('siswa_id',id).eq('is_active',true).limit(1)).data || [];
   await populateKelasDropdownMurid(enr.length>0 ? enr[0].kelas_id : '');
@@ -1944,6 +2009,8 @@ async function simpanMurid() {
       tanggal_lahir:document.getElementById('mm_tanggalLahir').value||null,
       alamat:document.getElementById('mm_alamat').value.trim()||null,
       tanggal_join:document.getElementById('mm_tanggalJoin').value||null,
+      periode_daftar_tahun:parseInt(document.getElementById('mm_pdTahun').value)||null,
+      periode_daftar_semester:parseInt(document.getElementById('mm_pdSem').value)||null,
       tingkat_jilid:jilidTerpilih,
       status:document.getElementById('mm_status').value==='true'
     };
