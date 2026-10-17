@@ -1227,9 +1227,14 @@ async function loadHistorical() {
   // ===== ADMINISTRASI =====
   // Pendaftar baru = murid yang dibuat pada periode ini (dari semua jalur: form pendaftaran maupun tambah manual)
   window._plIdsAdm = await getPlacementWaitingIds();
+  // Murid baru = murid dengan Periode Pendaftaran di semester/tahun terpilih (ditentukan admin).
+  // Murid lama tanpa periode (belum diisi) memakai tanggal data dibuat.
+  let filterPeriode;
+  if (sem === '1' || sem === '2') filterPeriode = `and(periode_daftar_tahun.eq.${y},periode_daftar_semester.eq.${sem})`;
+  else filterPeriode = `periode_daftar_tahun.eq.${y}`;
   const { data: muridBaruRaw } = await db.from('siswa')
-    .select('id, nama_lengkap, enrollment(is_active, kelas:kelas_id(kode_kelas,jilid,program_id))')
-    .gte('created_at', tglMulai+'T00:00:00').lte('created_at', tglAkhir+'T23:59:59');
+    .select('id, status, nama_lengkap, enrollment(is_active, kelas:kelas_id(kode_kelas,jilid,program_id))')
+    .or(`${filterPeriode},and(periode_daftar_tahun.is.null,created_at.gte.${tglMulai}T00:00:00,created_at.lte.${tglAkhir}T23:59:59)`);
 
   // murid PLACEMENT (belum punya kelas) tetap dihitung sebagai murid baru
   let plProgIds = [];

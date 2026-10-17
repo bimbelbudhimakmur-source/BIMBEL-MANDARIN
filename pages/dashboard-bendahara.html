@@ -683,8 +683,11 @@ async function syncTagihanPendaftaranBaru() {
   tgSyncInfo = '';
   try {
     const batas = new Date(Date.now() + 7*3600*1000 - 45*86400000).toISOString().slice(0,10);
-    let q = db.from('siswa').select('id,nama_lengkap,tanggal_join,enrollment(is_active,kelas:kelas_id(id,jilid,nama_level,program_id))')
-      .eq('status', true).gte('tanggal_join', batas);
+    const wib = new Date(Date.now() + 7*3600*1000);
+    const yN = wib.getUTCFullYear(), sN = (wib.getUTCMonth()+1) >= 7 ? 2 : 1;
+    // pendaftar baru = Tanggal Join <=45 hari lalu / ke depan, ATAU periode pendaftaran lebih baru dari periode sekarang
+    let q = db.from('siswa').select('id,nama_lengkap,tanggal_join,periode_daftar_tahun,periode_daftar_semester,enrollment(is_active,kelas:kelas_id(id,jilid,nama_level,program_id))')
+      .eq('status', true).or(`tanggal_join.gte.${batas},periode_daftar_tahun.gt.${yN},and(periode_daftar_tahun.eq.${yN},periode_daftar_semester.gt.${sN})`);
     const sr = await q;
     if (sr.error) throw new Error(sr.error.message);
     const kand = (sr.data || []).filter(s => {
@@ -704,7 +707,7 @@ async function syncTagihanPendaftaranBaru() {
     let ok = 0;
     for (const s of baru) {
       const ae = s.enrollment.find(e => e.is_active);
-      await Tagihan.terbitkanPendaftaran(s.id, ae.kelas, { tarif, tanggal_join: s.tanggal_join });
+      await Tagihan.terbitkanPendaftaran(s.id, ae.kelas, { tarif, periode: (s.periode_daftar_tahun && s.periode_daftar_semester) ? { tahun: s.periode_daftar_tahun, semester: s.periode_daftar_semester } : undefined, tanggal_join: s.tanggal_join });
       ok++;
     }
     tgSyncInfo = ok + ' tagihan pendaftaran baru otomatis dibuat dari data murid.';

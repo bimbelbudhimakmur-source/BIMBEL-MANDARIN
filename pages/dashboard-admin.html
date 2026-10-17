@@ -229,7 +229,7 @@
       </div>
       <div class="table-wrap">
         <table class="table">
-          <thead><tr><th><input type="checkbox" id="checkAllKelas" onchange="toggleAllKelas(this)"></th><th>Kode Kelas</th><th>Guru</th><th id="thJilidKelas">Jilid</th><th>Jadwal</th><th>Murid</th><th>Status</th><th>Aksi</th></tr></thead>
+          <thead><tr><th><input type="checkbox" id="checkAllKelas" onchange="toggleAllKelas(this)"></th><th>Kode Kelas</th><th>Guru</th><th id="thJilidKelas">Jilid</th><th>Jadwal</th><th>Murid</th><th>Periode Aktif</th><th>Aksi</th></tr></thead>
           <tbody id="tableKelas"><tr class="loading-row"><td colspan="8">⏳ Memuat...</td></tr></tbody>
         </table>
       </div>
@@ -416,6 +416,9 @@
       <div class="form-group"><label>Tempat Lahir</label><input type="text" id="da_tempatLahir"></div>
       <div class="form-group"><label>Tanggal Lahir</label><input type="date" id="da_tanggalLahir"></div>
       <div class="form-group"><label>Tanggal Join *</label><input type="date" id="da_tanggalJoin"></div>
+      <div class="form-group"><label>Periode Pendaftaran *</label>
+        <div style="display:flex;gap:6px"><input type="number" id="da_pdTahun" style="width:90px" placeholder="Tahun"><select id="da_pdSem"><option value="1">Semester 1</option><option value="2">Semester 2</option></select></div>
+      </div>
       <div class="form-group"><label>Kelas *</label><select id="da_kelas" onchange="onDaKelasChange()"><option value="">-- Pilih Kelas --</option></select></div>
       <div class="form-group" id="da_levelWrap" style="display:none"><label>Level yang Diinginkan</label><input type="text" id="da_level" placeholder="cth: Jilid 3 / TK B / belum tahu"></div>
     </div>
@@ -480,6 +483,17 @@
       <div class="form-group" id="mk_sesi_text_wrap" style="display:none"><label>Sesi</label>
         <input type="text" id="mk_sesi_text" placeholder="Contoh: 08.00" onkeyup="updateKodePreview()">
       </div>
+      <div class="form-group" style="grid-column:1/-1"><label>📅 Periode Aktif Kelas</label>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px">
+          <span>Dari</span>
+          <input type="number" id="mk_pm_tahun" style="width:90px" placeholder="Tahun">
+          <select id="mk_pm_sem" style="width:110px"><option value="1">Semester 1</option><option value="2">Semester 2</option></select>
+          <span>s/d</span>
+          <input type="number" id="mk_ps_tahun" style="width:90px" placeholder="Tahun" title="Kosongkan = masih berjalan">
+          <select id="mk_ps_sem" style="width:110px"><option value="1">Semester 1</option><option value="2">Semester 2</option></select>
+        </div>
+        <div style="font-size:11.5px;color:#6b7280;margin-top:4px">Kosongkan tahun "s/d" = kelas masih berjalan. Dipakai Leader untuk data Historical.</div>
+      </div>
     </div>
     <div id="mk_note_manual" style="display:none;font-size:12px;color:#92400e;background:#fef3c7;padding:8px 12px;border-radius:8px;margin-top:8px">
       ℹ️ Program ini otomatis pakai jadwal Senin–Jumat. Isi kolom Sesi bebas sesuai keinginan (misal jam kelasnya).
@@ -501,6 +515,9 @@
       <div class="form-group"><label>Tempat Lahir</label><input type="text" id="mm_tempatLahir"></div>
       <div class="form-group"><label>Tanggal Lahir</label><input type="date" id="mm_tanggalLahir"></div>
       <div class="form-group"><label>Tanggal Join</label><input type="date" id="mm_tanggalJoin"></div>
+      <div class="form-group"><label>Periode Pendaftaran *</label>
+        <div style="display:flex;gap:6px"><input type="number" id="mm_pdTahun" style="width:90px" placeholder="Tahun"><select id="mm_pdSem"><option value="1">Semester 1</option><option value="2">Semester 2</option></select></div>
+      </div>
       <div class="form-group"><label>Pilih Kelas</label>
         <select id="mm_kelas">
           <option value="">-- Pilih --</option>
@@ -513,6 +530,19 @@
     <div class="form-group" style="margin-top:12px"><label>Alamat</label><textarea id="mm_alamat"></textarea></div>
     <input type="hidden" id="mm_id">
     <div class="form-actions"><button class="btn btn-primary" onclick="simpanMurid()">💾 Simpan</button><button class="btn btn-secondary" onclick="closeModal('modalMurid')">Batal</button></div>
+  </div>
+</div>
+
+<!-- Modal: Setujui pendaftaran + tentukan periode -->
+<div class="modal-overlay hidden" id="modalSetujuiDaftar">
+  <div class="modal-box" style="max-width:440px">
+    <div class="modal-header"><span class="modal-title">✅ Setujui Pendaftaran</span><button class="modal-close" onclick="closeModal('modalSetujuiDaftar')">✕</button></div>
+    <div id="sd_info" style="font-size:13px;margin-bottom:10px"></div>
+    <div class="form-group"><label>Periode Pendaftaran (pendaftar baru periode apa) *</label>
+      <div style="display:flex;gap:6px"><input type="number" id="sd_tahun" style="width:100px" placeholder="Tahun"><select id="sd_sem"><option value="1">Semester 1</option><option value="2">Semester 2</option></select></div>
+      <div style="font-size:11.5px;color:#6b7280;margin-top:4px">Menentukan periode tagihan di Bendahara dan data Historical Leader. Pendaftar untuk semester depan: pilih periode semester depan.</div>
+    </div>
+    <div class="form-actions"><button class="btn btn-primary" onclick="konfirmasiSetujuiDaftar()">✅ Setujui</button><button class="btn btn-secondary" onclick="closeModal('modalSetujuiDaftar')">Batal</button></div>
   </div>
 </div>
 
