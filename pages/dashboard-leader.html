@@ -704,6 +704,7 @@
           <option value="1">Semester 1</option>
           <option value="2">Semester 2</option>
         </select>
+        <input type="number" class="filter-select" id="rnTahun" style="width:96px" placeholder="Tahun" title="Tahun ajaran (tahun kalender)">
         <button class="btn btn-primary" onclick="loadRingkasanNilai()">🔍 Tampilkan</button>
       </div>
 
@@ -2584,6 +2585,14 @@ function switchSubtabRN(sub) {
 }
 
 function initRingkasanNilai() {
+  // default = semester & tahun berjalan (WIB); Sem 2 yang dilihat di Januari = tahun sebelumnya
+  const w = new Date(Date.now() + 7*3600*1000), bln = w.getUTCMonth() + 1;
+  const elS = document.getElementById('rnSemester'), elT = document.getElementById('rnTahun');
+  if (!elT.value) {
+    const sem = bln >= 7 ? 2 : 1;
+    elS.value = String(sem);
+    elT.value = (sem === 2 && bln === 1) ? w.getUTCFullYear() - 1 : w.getUTCFullYear();
+  }
   loadRingkasanNilai();
 }
 
@@ -2605,7 +2614,7 @@ async function loadRingkasanNilai() {
   let nilaiAll = [];
   if (kelasIds.length) {
     const { data } = await db.from('nilai_detail').select('siswa_id,kelas_id,nilai,created_at')
-      .in('kelas_id', kelasIds).eq('semester', parseInt(semester)).eq('tahun', (function(){var w=new Date(Date.now()+7*3600*1000);return (parseInt(semester)===2&&w.getUTCMonth()===0)?w.getUTCFullYear()-1:w.getUTCFullYear();})());
+      .in('kelas_id', kelasIds).eq('semester', parseInt(semester)).eq('tahun', parseInt(document.getElementById('rnTahun').value) || new Date().getFullYear());
     nilaiAll = data || [];
   }
 
