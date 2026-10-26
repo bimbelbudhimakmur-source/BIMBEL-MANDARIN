@@ -2613,9 +2613,16 @@ async function loadRingkasanNilai() {
   const kelasIds = (kelasList||[]).map(k => k.id);
   let nilaiAll = [];
   if (kelasIds.length) {
-    const { data } = await db.from('nilai_detail').select('siswa_id,kelas_id,nilai,created_at')
-      .in('kelas_id', kelasIds).eq('semester', parseInt(semester)).eq('tahun', parseInt(document.getElementById('rnTahun').value) || new Date().getFullYear());
-    nilaiAll = data || [];
+    // Supabase membatasi 1000 baris per permintaan -> ambil bertahap supaya tidak ada kelas yang terpotong (tampil 0)
+    const tahunRN = parseInt(document.getElementById('rnTahun').value) || new Date().getFullYear();
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await db.from('nilai_detail').select('id,siswa_id,kelas_id,nilai,created_at')
+        .in('kelas_id', kelasIds).eq('semester', parseInt(semester)).eq('tahun', tahunRN)
+        .order('id').range(from, from + 999);
+      if (error) { console.error('ringkasan nilai:', error); break; }
+      nilaiAll = nilaiAll.concat(data || []);
+      if (!data || data.length < 1000) break;
+    }
   }
 
   // Kelompokkan nilai per kelas & per siswa
