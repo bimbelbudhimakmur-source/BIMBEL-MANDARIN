@@ -675,6 +675,10 @@ async function loadSysSettings() {
   const { data } = await db.from('system_settings').select('key,value');
   sysSettings = {};
   (data || []).forEach(r => { sysSettings[r.key] = r.value === 'true'; });
+  if (sysSettings['bank_soal_aktif'] === false && (data || []).some(r => r.key === 'bank_soal_aktif')) {
+    const m = document.querySelector('.sidebar-item[data-tab="bank-soal"]');
+    if (m) m.style.display = 'none';
+  }
 }
 
 // ============================================
