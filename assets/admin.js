@@ -2207,7 +2207,7 @@ async function loadNotulenTodo() {
   document.getElementById('ntNotulenToolbar').innerHTML = NT_CAN_EDIT
     ? '<button class="btn btn-primary" onclick="openModalNotulen()">➕ Tambah Notulen</button>' : '';
   document.getElementById('ntTodoToolbar').innerHTML = NT_CAN_EDIT
-    ? '<button class="btn btn-primary" onclick="openModalTodo()">➕ Tambah Tugas</button>' : '';
+    ? '<button class="btn btn-primary" onclick="openModalTodo()">➕ Tambah Tugas</button> <button class="btn btn-secondary" onclick="Notif.openKirim()">🔔 Kirim Notifikasi</button>' : '';
   await loadNotulenList();
   await loadTodoList();
 }
