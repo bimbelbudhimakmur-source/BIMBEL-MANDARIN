@@ -1089,6 +1089,7 @@ async function loadSetoran() {
     <td>
       ${s.status === 'pending' ? `
         <button class="btn btn-success btn-sm" onclick="verifikasiSetoran('${s.id}')">✓ Verifikasi</button>
+        <button class="btn btn-sm" style="background:#dc2626;color:#fff;margin-top:4px" onclick="tolakSetoran('${s.id}')">✕ Tolak</button>
       ` : '—'}
     </td>
   </tr>`).join('');
@@ -1098,6 +1099,20 @@ async function lihatBuktiBendahara(path) {
   const { data, error } = await db.storage.from('bukti-setoran').createSignedUrl(path, 300);
   if (error || !data?.signedUrl) { alert('❌ Gagal membuka bukti: ' + (error?.message || 'URL tidak tersedia')); return; }
   window.open(data.signedUrl, '_blank');
+}
+
+async function tolakSetoran(id) {
+  if (!confirm('Tolak setoran ini?\n\nLaporan akan DIHAPUS dan guru bisa menginput ulang untuk kelas & bulan yang sama.')) return;
+  const { data: row } = await db.from('setoran_spp').select('id, bukti_url, status').eq('id', id).maybeSingle();
+  if (!row) { alert('Data setoran tidak ditemukan.'); await loadSetoran(); return; }
+  if (row.status !== 'pending') { alert('Setoran ini sudah diproses, tidak bisa ditolak.'); await loadSetoran(); return; }
+  const { data: del, error } = await db.from('setoran_spp').delete().eq('id', id).eq('status','pending').select('id');
+  if (error) { alert('❌ Gagal menghapus: ' + error.message + '\n\nPastikan SQL fitur_tolak_setoran.sql sudah dijalankan.'); return; }
+  if (!del?.length) { alert('❌ Tidak terhapus (izin database belum ada). Jalankan fitur_tolak_setoran.sql di Supabase.'); return; }
+  if (row.bukti_url) { try { await db.storage.from('bukti-setoran').remove([row.bukti_url]); } catch(e) {} }
+  await loadSetoran();
+  await loadDashboard();
+  alert('✅ Setoran ditolak & dihapus. Guru bisa menginput ulang.');
 }
 
 async function verifikasiSetoran(id) {
