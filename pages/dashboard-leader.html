@@ -1010,6 +1010,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <script src="../assets/supabase-client.js"></script>
+<script src="../assets/notifikasi.js"></script>
 <script src="../assets/kelengkapan.js"></script>
 <script>
 let currentUserId = null;
@@ -3004,7 +3005,7 @@ async function loadNotulenTodo() {
   document.getElementById('ntNotulenToolbar').innerHTML = NT_CAN_EDIT
     ? '<button class="btn btn-primary" onclick="openModalNotulen()">➕ Tambah Notulen</button>' : '';
   document.getElementById('ntTodoToolbar').innerHTML = NT_CAN_EDIT
-    ? '<button class="btn btn-primary" onclick="openModalTodo()">➕ Tambah Tugas</button>' : '';
+    ? '<button class="btn btn-primary" onclick="openModalTodo()">➕ Tambah Tugas</button> <button class="btn btn-secondary" onclick="Notif.openKirim()">🔔 Kirim Notifikasi</button>' : '';
   await loadNotulenList();
   await loadTodoList();
 }
