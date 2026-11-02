@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portal Orang Tua — Bimbel Budhi Makmur</title>
+<style>
+:root{--red:#b01020;--bg:#fff7f8;--tx:#111827;--mut:#6b7280;--bd:#e5e7eb}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--tx)}
+header{background:#fff;border-bottom:1px solid var(--bd);padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.brand{font-weight:800;font-size:14px;color:var(--red)}
+.brand small{display:block;font-weight:500;color:var(--mut);font-size:11px}
+.btn{border:1px solid var(--bd);background:#fff;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px}
+.btn.p{background:var(--red);color:#fff;border-color:var(--red);font-weight:700}
+main{max-width:720px;margin:0 auto;padding:16px}
+.card{background:#fff;border:1px solid var(--bd);border-radius:12px;padding:14px 16px;margin-bottom:12px}
+input,select{width:100%;padding:11px 12px;border:1px solid #d1d5db;border-radius:10px;font-size:15px;font-family:inherit}
+.hint{font-size:12px;color:var(--mut);margin-top:6px}
+.res{display:block;width:100%;text-align:left;background:#fff;border:1px solid var(--bd);border-radius:12px;padding:12px 14px;margin-bottom:8px;cursor:pointer;font-family:inherit}
+.res:hover{border-color:var(--red)}
+.res b{font-size:15px}.res .m{font-size:12px;color:var(--mut);margin-top:3px;line-height:1.5}
+.badge{display:inline-block;padding:6px 14px;border-radius:20px;font-weight:800;font-size:14px}
+.k-tidak{background:#fee2e2;color:#b91c1c}.k-hati{background:#fef3c7;color:#92400e}.k-aman{background:#dcfce7;color:#166534}.k-sangat{background:#d1fae5;color:#065f46}.k-none{background:#f3f4f6;color:#6b7280}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{padding:8px 6px;border-bottom:1px solid #f3f4f6;text-align:left}th{font-size:11px;color:var(--mut);text-transform:uppercase}
+td.n,th.n{text-align:center}
+.row{display:flex;gap:8px}.row>*{flex:1}
+.big{font-size:30px;font-weight:800}
+.info{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;font-size:13px;margin-top:8px}.info span{color:var(--mut)}
+.err{color:#b91c1c;font-size:13px;margin-top:8px}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">興毅南興山口洋補習所<small>BUDHI MAKMUR · Portal Orang Tua</small></div>
+  <button class="btn" onclick="keluar()">Keluar</button>
+</header>
+<main>
+  <div id="vCari">
+    <div class="card">
+      <b>Cari data anak Anda</b>
+      <div style="margin-top:10px"><input id="q" placeholder="Nama murid / nama Mandarin / kode kelas / jilid / nama guru / tanggal join" autocomplete="off"></div>
+      <button class="btn p" style="margin-top:10px;width:100%" onclick="cari()">🔍 Cari</button>
+      <div class="hint">Ketik minimal 3 huruf. Contoh: nama anak, kode kelas (SZ-1-246-16.00), "Jilid 2", nama guru, atau tanggal join (2026-01-04).</div>
+      <div class="err" id="errCari"></div>
+    </div>
+    <div id="hasil"></div>
+  </div>
+
+  <div id="vDetail" style="display:none">
+    <button class="btn" onclick="kembali()" style="margin-bottom:12px">← Kembali ke pencarian</button>
+    <div class="card">
+      <div style="font-size:18px;font-weight:800" id="dNama"></div>
+      <div style="color:var(--mut)" id="dMandarin"></div>
+      <div class="info" id="dInfo"></div>
+    </div>
+    <div class="card">
+      <div class="row">
+        <div><div class="hint" style="margin:0 0 4px">Semester</div><select id="pSem" onchange="muatDetail()"><option value="1">Semester 1 (Jan–Jun)</option><option value="2">Semester 2 (Jul–Des)</option></select></div>
+        <div><div class="hint" style="margin:0 0 4px">Tahun</div><input id="pTahun" type="number" onchange="muatDetail()"></div>
+      </div>
+    </div>
+    <div id="dIsi"></div>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/supabase-client.js"></script>
+<script>
+let siswaId = null;
+const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const JENIS = { tingshuo:'Tingshuo 听说', tingxie:'Tingxie 听写', dakao:'Ujian (Dakao) 大考', ceyuan:'Ceyuan 测验', lianxi_tk:'Latihan TK', dikte:'Dikte' };
+
+(async () => {
+  const { data: { session } } = await db.auth.getSession();
+  if (!session) { location.replace('../index.html'); return; }
+  const { data: p } = await db.from('profiles').select('role').eq('id', session.user.id).single();
+  if (!p || p.role !== 'parent') { location.replace('../index.html'); return; }
+  const w = new Date(Date.now() + 7*3600*1000), m = w.getUTCMonth() + 1;
+  document.getElementById('pSem').value = m >= 7 ? '2' : '1';
+  document.getElementById('pTahun').value = w.getUTCFullYear();
+  document.getElementById('q').addEventListener('keydown', e => { if (e.key === 'Enter') cari(); });
+})();
+
+async function keluar() { await db.auth.signOut(); location.replace('../index.html'); }
+
+async function cari() {
+  const q = document.getElementById('q').value.trim();
+  const err = document.getElementById('errCari'), box = document.getElementById('hasil');
+  err.textContent = ''; box.innerHTML = '';
+  if (q.length < 3) { err.textContent = 'Ketik minimal 3 karakter.'; return; }
+  box.innerHTML = '<div class="hint">⏳ Mencari...</div>';
+  const { data, error } = await db.rpc('ortu_cari', { q });
+  if (error) { box.innerHTML = ''; err.textContent = error.message; return; }
+  if (!data || !data.length) { box.innerHTML = '<div class="card" style="color:var(--mut)">Tidak ada murid yang cocok. Coba kata kunci lain.</div>'; return; }
+  box.innerHTML = (data.length >= 30 ? '<div class="hint" style="margin-bottom:8px">Menampilkan 30 hasil pertama — persempit pencarian jika perlu.</div>' : '') +
+    data.map(r => `<button class="res" onclick="pilih('${r.siswa_id}')">
+      <b>${esc(r.nama)}</b> ${r.nama_mandarin ? '<span style="color:var(--mut)">' + esc(r.nama_mandarin) + '</span>' : ''}
+      <div class="m">Kelas ${esc(r.kode_kelas)} · Jilid ${esc(r.jilid)} · Guru: ${esc(r.guru || '-')}<br>Tanggal join: ${r.tanggal_join ? new Date(r.tanggal_join + 'T00:00:00').toLocaleDateString('id-ID', {day:'numeric',month:'long',year:'numeric'}) : '-'}</div>
+    </button>`).join('');
+}
+
+function pilih(id) {
+  siswaId = id;
+  document.getElementById('vCari').style.display = 'none';
+  document.getElementById('vDetail').style.display = 'block';
+  muatDetail();
+}
+function kembali() {
+  siswaId = null;
+  document.getElementById('vDetail').style.display = 'none';
+  document.getElementById('vCari').style.display = 'block';
+}
+
+async function muatDetail() {
+  if (!siswaId) return;
+  const isi = document.getElementById('dIsi');
+  isi.innerHTML = '<div class="hint">⏳ Memuat...</div>';
+  const { data: d, error } = await db.rpc('ortu_detail', {
+    p_siswa: siswaId, p_semester: parseInt(document.getElementById('pSem').value),
+    p_tahun: parseInt(document.getElementById('pTahun').value) || new Date().getFullYear()
+  });
+  if (error) { isi.innerHTML = '<div class="err">' + esc(error.message) + '</div>'; return; }
+  document.getElementById('dNama').textContent = d.nama;
+  document.getElementById('dMandarin').textContent = d.nama_mandarin || '';
+  document.getElementById('dInfo').innerHTML =
+    `<div><span>Kelas</span><br>${esc(d.kode_kelas || '-')}</div><div><span>Jilid</span><br>${esc(d.jilid ?? '-')}</div>
+     <div><span>Guru</span><br>${esc(d.guru || '-')}</div>
+     <div><span>Tanggal join</span><br>${d.tanggal_join ? new Date(d.tanggal_join + 'T00:00:00').toLocaleDateString('id-ID', {day:'numeric',month:'long',year:'numeric'}) : '-'}</div>`;
+
+  const kls = { 'Kemungkinan Tidak Naik':'k-tidak', 'Hati-Hati':'k-hati', 'Aman':'k-aman', 'Sangat Aman':'k-sangat' }[d.status] || 'k-none';
+  const persen = d.total_pertemuan ? Math.round(d.hadir / d.total_pertemuan * 100) : null;
+  const nilaiRows = (d.nilai || []).map(n => `<tr><td>${esc(JENIS[n.jenis] || n.jenis)}</td><td class="n">${n.jumlah}</td><td class="n"><b>${n.rata}</b></td></tr>`).join('');
+
+  isi.innerHTML = `
+    <div class="card" style="text-align:center">
+      <div class="hint" style="margin:0 0 6px">Perkiraan kenaikan kelas · Semester ${d.semester} ${d.tahun}</div>
+      <span class="badge ${kls}">${esc(d.status || 'Belum ada nilai')}</span>
+      ${d.rata_rata != null ? `<div class="big" style="margin-top:10px">${d.rata_rata}</div><div class="hint">Rata-rata nilai dari ${d.jumlah_nilai} penilaian</div>` : ''}
+      <div class="hint" style="margin-top:10px">Ini hanya perkiraan berdasarkan rata-rata nilai. Keputusan akhir ada pada pihak bimbel.</div>
+    </div>
+    <div class="card">
+      <b>Nilai</b>
+      ${nilaiRows ? `<table style="margin-top:8px"><thead><tr><th>Jenis</th><th class="n">Jumlah</th><th class="n">Rata-rata</th></tr></thead><tbody>${nilaiRows}</tbody></table>` : '<div class="hint">Belum ada nilai pada semester ini.</div>'}
+    </div>
+    <div class="card">
+      <b>Kehadiran</b>
+      ${d.total_pertemuan ? `<div class="big" style="margin-top:6px">${persen}%</div><div class="hint">Hadir ${d.hadir} dari ${d.total_pertemuan} pertemuan · Tidak hadir ${d.total_pertemuan - d.hadir}</div>` : '<div class="hint">Belum ada data kehadiran pada semester ini.</div>'}
+    </div>`;
+}
+</script>
+</body>
+</html>
