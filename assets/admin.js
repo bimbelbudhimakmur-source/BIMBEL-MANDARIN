@@ -236,6 +236,7 @@ function switchTab(tab) {
   if (tab==='kaldik')     loadKaldik();
   if (tab==='pengaturan-wa') loadWaGroupLink();
   if (tab==='notulen-todo') loadNotulenTodo();
+  if (tab==='ortu-log') loadOrtuLog();
 }
 
 // ============================================

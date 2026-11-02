@@ -8,7 +8,8 @@ const roleRoutes = {
     bendahara        : 'pages/dashboard-bendahara.html',
     teacher_mandarin : 'pages/dashboard-teacher.html',
     teacher_calistung: 'pages/dashboard-teacher.html',
-    teacher_sd       : 'pages/dashboard-teacher.html'
+    teacher_sd       : 'pages/dashboard-teacher.html',
+    parent           : 'pages/dashboard-ortu.html'
 };
 
 const loginForm = document.getElementById('loginForm');
