@@ -343,8 +343,10 @@
       <div class="toolbar">
         <select class="filter-select" id="filterOrtuJenis" onchange="loadOrtuLog()"><option value="">Semua aktivitas</option><option value="cari">Pencarian</option><option value="lihat">Data murid dibuka</option></select>
         <button class="btn btn-secondary" onclick="loadOrtuLog()">🔄 Muat ulang</button>
+        <button class="btn btn-danger" id="btnHapusPilihOrtuLog" style="display:none" onclick="hapusOrtuLogDipilih()"></button>
+        <button class="btn btn-danger" onclick="hapusOrtuLogSemua()">🗑️ Hapus Semua</button>
       </div>
-      <div class="table-wrap"><table class="table"><thead><tr><th>Waktu</th><th>Aktivitas</th><th>Kata kunci / Murid</th><th>Hasil</th></tr></thead>
+      <div class="table-wrap"><table class="table"><thead><tr><th><input type="checkbox" id="checkAllOrtuLog" onchange="toggleAllOrtuLog(this)"></th><th>Waktu</th><th>Aktivitas</th><th>Kata kunci / Murid</th><th>Hasil</th></tr></thead>
         <tbody id="tableOrtuLog"></tbody></table></div>
     </div>
 
