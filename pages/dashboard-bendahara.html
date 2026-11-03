@@ -1004,7 +1004,7 @@ async function loadDashboard() {
 
   const rows = await Promise.all(guruList.map(async g => {
     const { count: jmlKelas } = await db.from('kelas')
-      .select('*', { count: 'exact', head: true }).eq('guru_id', g.id).eq('is_active', true);
+      .select('*', { count: 'exact', head: true }).eq('guru_id', g.id).eq('is_active', true).eq('hitung_gaji', true);
     const { data: setoran } = await db.from('setoran_spp')
       .select('total_iuran').eq('guru_id', g.id).eq('bulan', thisMonth);
     const totalSetoran = (setoran || []).reduce((s, x) => s + Number(x.total_iuran), 0);
@@ -1337,7 +1337,7 @@ async function generateSlipGaji() {
     // Hitung jumlah kelas
     const { count: jmlKelas } = await db.from('kelas')
       .select('*', { count: 'exact', head: true })
-      .eq('guru_id', guru.id).eq('is_active', true);
+      .eq('guru_id', guru.id).eq('is_active', true).eq('hitung_gaji', true);
 
     // Hitung total iuran dari setoran yang sudah diverifikasi (semua status pasca-verifikasi)
     const { data: setoran } = await db.from('setoran_spp')

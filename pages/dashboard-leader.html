@@ -1690,7 +1690,7 @@ async function loadDashboard() {
         .select('total_iuran, status').eq('guru_id', g.id).eq('bulan', thisMonth)
         .in('status', ['disetujui_leader', 'tercairkan']);
       const { count: jmlKelas } = await db.from('kelas')
-        .select('*', { count: 'exact', head: true }).eq('guru_id', g.id).eq('is_active', true);
+        .select('*', { count: 'exact', head: true }).eq('guru_id', g.id).eq('is_active', true).eq('hitung_gaji', true);
       const totalSetoran = (setoran || []).reduce((s, x) => s + Number(x.total_iuran), 0);
       const persen       = Number(g.pengaturan_gaji?.persentase_bagi_hasil || 0);
       const gajiPerKelas = Number(g.pengaturan_gaji?.gaji_per_kelas || 0);
