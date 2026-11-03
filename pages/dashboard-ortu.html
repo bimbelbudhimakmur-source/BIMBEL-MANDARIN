@@ -68,6 +68,7 @@ td.n,th.n{text-align:center}
 <script src="../assets/supabase-client.js"></script>
 <script>
 let siswaId = null;
+window._popupDilihat = {};
 const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const JENIS = {
   ceyuan:['测验','Tes'], lianxi:['练习','Latihan'], lianxi_tk:['练习','Latihan'], pinyin:['拼音','Pinyin'],
@@ -137,7 +138,37 @@ async function muatDetail() {
   const persen = d.total_pertemuan ? Math.round(d.hadir / d.total_pertemuan * 100) : null;
   const nilaiRows = (d.nilai || []).map(n => `<tr><td>${labelJenis(n.jenis)}</td><td class="n">${n.jumlah}</td><td class="n"><b>${n.rata}</b></td></tr>`).join('');
 
+  const JL = { ulangan:'📝 Ulangan', dikte:'✍️ Dikte', tugas:'📚 Tugas', lainnya:'📌 Lainnya' };
+  const hariIni = new Date(Date.now() + 7*3600*1000).toISOString().slice(0,10);
+  const selisih = j => Math.round((new Date(j.tanggal + 'T00:00:00') - new Date(hariIni + 'T00:00:00')) / 86400000);
+  const fmtT = j => new Date(j.tanggal + 'T00:00:00').toLocaleDateString('id-ID', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+  const semua = d.jadwal || [];
+  const akan = semua.filter(j => selisih(j) >= 0), lalu = semua.filter(j => selisih(j) < 0).reverse();
+  const kartu = (j, lewat) => {
+    const sel = selisih(j);
+    const when = lewat ? 'Sudah lewat' : sel === 0 ? 'HARI INI' : sel === 1 ? 'BESOK' : sel + ' hari lagi';
+    return `<div style="border:1px solid ${lewat ? '#e5e7eb' : '#fde68a'};background:${lewat ? '#f9fafb' : '#fffbeb'};border-radius:10px;padding:10px 12px;margin-top:8px;${lewat ? 'opacity:.75' : ''}">
+      <div style="font-size:11px;font-weight:700;color:${lewat ? '#6b7280' : '#92400e'}">${JL[j.jenis] || esc(j.jenis)} · ${when}</div>
+      <div style="font-weight:700">${esc(j.judul)}</div>
+      <div style="font-size:12px;color:var(--mut)">${fmtT(j)}</div>
+      ${j.keterangan ? `<div style="font-size:12px;margin-top:4px">${esc(j.keterangan)}</div>` : ''}</div>`;
+  };
+  const jadwalHtml = (akan.length ? akan.map(j => kartu(j, false)).join('') : '<div class="hint">Belum ada jadwal ulangan atau tugas yang diumumkan.</div>')
+    + (lalu.length ? `<details style="margin-top:10px"><summary style="cursor:pointer;font-size:12px;color:var(--mut)">Riwayat 30 hari terakhir (${lalu.length})</summary>${lalu.map(j => kartu(j, true)).join('')}</details>` : '');
+  const segera = akan.filter(j => selisih(j) <= 1);
+  if (segera.length && !window._popupDilihat[siswaId]) {
+    window._popupDilihat[siswaId] = 1;
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+    ov.innerHTML = `<div style="background:#fff;border-radius:14px;max-width:420px;width:100%;max-height:85vh;overflow:auto;padding:18px 20px">
+      <div style="font-weight:800;font-size:16px">🔔 Pengingat untuk ${esc(d.nama)}</div>
+      ${segera.map(j => kartu(j, false)).join('')}
+      <button class="btn p" style="width:100%;margin-top:14px" onclick="this.closest('div[style*=fixed]').remove()">✓ Mengerti</button></div>`;
+    document.body.appendChild(ov);
+  }
+
   isi.innerHTML = `
+    <div class="card"><b>🗓️ Jadwal Mendatang</b>${jadwalHtml}</div>
     <div class="card" style="text-align:center">
       <div class="hint" style="margin:0 0 6px">Perkiraan kenaikan kelas · Semester ${d.semester} ${d.tahun}</div>
       <span class="badge ${kls}">${esc(d.status || 'Belum ada nilai')}</span>

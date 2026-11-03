@@ -53,6 +53,9 @@
     <div class="sidebar-item" data-tab="penggajian">
       <span class="sidebar-icon">💰</span><span>Penggajian</span>
     </div>
+    <div class="sidebar-item" data-tab="jadwal-kelas">
+      <span class="sidebar-icon">🗓️</span><span>Jadwal Ulangan & Tugas</span>
+    </div>
     <div class="sidebar-item" data-tab="kaldik">
       <span class="sidebar-icon">📅</span><span>Kaldik Semester</span>
     </div>
@@ -531,6 +534,29 @@
       </div>
     </div>
 
+    <!-- TAB: JADWAL ULANGAN & TUGAS -->
+    <div id="tab-jadwal-kelas" class="tab-content">
+      <div class="page-header"><div class="page-title">Jadwal Ulangan, Dikte & Tugas</div><div class="page-sub">Jadwal yang Anda set akan tampil di portal orang tua murid kelas tersebut</div></div>
+      <div class="form-section" style="margin-bottom:16px">
+        <div class="form-title" id="jdFormTitle">➕ Tambah Jadwal</div>
+        <div class="form-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px">
+          <div><label style="font-size:12px;font-weight:700">Kelas</label><select id="jdKelas" class="filter-select" style="width:100%"></select></div>
+          <div><label style="font-size:12px;font-weight:700">Jenis</label>
+            <select id="jdJenis" class="filter-select" style="width:100%"><option value="ulangan">Ulangan / Ujian</option><option value="dikte">Dikte</option><option value="tugas">Tugas</option><option value="lainnya">Lainnya</option></select></div>
+          <div><label style="font-size:12px;font-weight:700">Tanggal</label><input type="date" id="jdTanggal" class="filter-select" style="width:100%"></div>
+        </div>
+        <div style="margin-top:12px"><label style="font-size:12px;font-weight:700">Judul / Materi</label><input id="jdJudul" class="filter-select" style="width:100%" maxlength="120" placeholder="contoh: Ulangan Bab 3 (第三课)"></div>
+        <div style="margin-top:12px"><label style="font-size:12px;font-weight:700">Keterangan (opsional)</label><textarea id="jdKet" rows="2" class="filter-select" style="width:100%" placeholder="Hal yang perlu disiapkan murid"></textarea></div>
+        <div style="margin-top:12px;display:flex;gap:8px">
+          <button class="btn btn-primary" onclick="simpanJadwal()">💾 Simpan</button>
+          <button class="btn btn-secondary" id="jdBatal" style="display:none" onclick="batalEditJadwal()">Batal edit</button>
+        </div>
+      </div>
+      <div class="toolbar"><label style="font-size:12px"><input type="checkbox" id="jdRiwayat" onchange="loadJadwalKelas()"> Tampilkan yang sudah lewat</label></div>
+      <div class="table-wrap"><table class="table"><thead><tr><th>Tanggal</th><th>Kelas</th><th>Jenis</th><th>Judul</th><th>Keterangan</th><th>Aksi</th></tr></thead>
+        <tbody id="tableJadwalKelas"></tbody></table></div>
+    </div>
+
     <!-- TAB: KALDIK -->
     <div id="tab-kaldik" class="tab-content">
       <div class="page-title">Kalender Pendidikan</div>
@@ -910,6 +936,7 @@ function switchTab(tab) {
   document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
   if (tab === 'penggajian') { loadSetoran(); }
   if (tab === 'kaldik')     { loadKaldikTeacher(); }
+  if (tab === 'jadwal-kelas') { loadJadwalKelas(); }
   if (tab === 'nilai')      { toggleNilaiSection(); }
   if (tab === 'notulen-todo') { loadNotulenTodo(); }
   if (tab === 'bank-soal')    { initBankSoalGuru(); }
@@ -1227,7 +1254,7 @@ function renderKelas() {
 
 function populateKelasDropdowns() {
   const opts = kelasSaya.map(k => `<option value="${k.id}">${k.kode_kelas}</option>`).join('');
-  ['absensiKelas','pelunasanKelas','nilaiKelas','setoranKelas','rekapKelas','previewKelas','perilakuKelas','calNilaiKelas'].forEach(id => {
+  ['jdKelas','absensiKelas','pelunasanKelas','nilaiKelas','setoranKelas','rekapKelas','previewKelas','perilakuKelas','calNilaiKelas'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.innerHTML = '<option value="">-- Pilih Kelas --</option>' + opts;
   });
@@ -2893,6 +2920,68 @@ async function loadTodoList() {
       <td style="font-size:12px;color:#6b7280">${t.pembuat?.nama_lengkap||'-'}</td>
     </tr>`;
   }).join('');
+}
+
+// ============================================
+// JADWAL ULANGAN / DIKTE / TUGAS (tampil di portal ortu)
+// ============================================
+let editingJadwalId = null;
+const JD_LABEL = { ulangan:'📝 Ulangan', dikte:'✍️ Dikte', tugas:'📚 Tugas', lainnya:'📌 Lainnya' };
+function jdEsc(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+async function loadJadwalKelas() {
+  const tb = document.getElementById('tableJadwalKelas'); if (!tb) return;
+  const ids = (kelasSaya || []).map(k => k.id);
+  if (!ids.length) { tb.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:#6b7280">Belum ada kelas</td></tr>'; return; }
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date());
+  let q = db.from('jadwal_kelas').select('*').in('kelas_id', ids).order('tanggal', { ascending: true });
+  if (!document.getElementById('jdRiwayat').checked) q = q.gte('tanggal', today);
+  const { data, error } = await q;
+  if (error) { tb.innerHTML = `<tr><td colspan="6" style="color:#dc2626">Error: ${jdEsc(error.message)} (jalankan fitur_jadwal_kelas.sql)</td></tr>`; return; }
+  window._jadwalRows = data || [];
+  if (!data?.length) { tb.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:#6b7280">Belum ada jadwal</td></tr>'; return; }
+  tb.innerHTML = data.map(j => {
+    const kode = kelasSaya.find(k => k.id === j.kelas_id)?.kode_kelas || '-';
+    const lewat = j.tanggal < today;
+    return `<tr style="${lewat ? 'opacity:.55' : ''}">
+      <td style="white-space:nowrap">${new Date(j.tanggal + 'T00:00:00').toLocaleDateString('id-ID', { weekday:'short', day:'numeric', month:'short', year:'numeric' })}</td>
+      <td style="font-family:monospace">${jdEsc(kode)}</td><td>${JD_LABEL[j.jenis] || jdEsc(j.jenis)}</td>
+      <td><strong>${jdEsc(j.judul)}</strong></td><td style="font-size:12px;color:#6b7280">${jdEsc(j.keterangan || '—')}</td>
+      <td style="white-space:nowrap"><button class="btn btn-secondary btn-sm" onclick="editJadwal('${j.id}')">✏️</button> <button class="btn btn-danger btn-sm" onclick="hapusJadwal('${j.id}')">🗑️</button></td></tr>`;
+  }).join('');
+}
+async function simpanJadwal() {
+  const row = {
+    kelas_id: document.getElementById('jdKelas').value, jenis: document.getElementById('jdJenis').value,
+    tanggal: document.getElementById('jdTanggal').value, judul: document.getElementById('jdJudul').value.trim(),
+    keterangan: document.getElementById('jdKet').value.trim() || null
+  };
+  if (!row.kelas_id || !row.tanggal || !row.judul) { alert('Kelas, tanggal, dan judul wajib diisi.'); return; }
+  let error;
+  if (editingJadwalId) ({ error } = await db.from('jadwal_kelas').update(row).eq('id', editingJadwalId));
+  else { const { data: { user } } = await db.auth.getUser(); ({ error } = await db.from('jadwal_kelas').insert({ ...row, created_by: user.id })); }
+  if (error) { alert('❌ Gagal: ' + error.message + '\n\nPastikan SQL fitur_jadwal_kelas.sql sudah dijalankan.'); return; }
+  alert('✅ Jadwal tersimpan. Orang tua murid kelas ini akan melihatnya.');
+  batalEditJadwal(); await loadJadwalKelas();
+}
+function editJadwal(id) {
+  const j = (window._jadwalRows || []).find(x => x.id === id); if (!j) return;
+  editingJadwalId = id;
+  document.getElementById('jdKelas').value = j.kelas_id; document.getElementById('jdJenis').value = j.jenis;
+  document.getElementById('jdTanggal').value = j.tanggal; document.getElementById('jdJudul').value = j.judul;
+  document.getElementById('jdKet').value = j.keterangan || '';
+  document.getElementById('jdFormTitle').textContent = '✏️ Edit Jadwal'; document.getElementById('jdBatal').style.display = '';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+function batalEditJadwal() {
+  editingJadwalId = null;
+  ['jdJudul','jdKet','jdTanggal'].forEach(i => document.getElementById(i).value = '');
+  document.getElementById('jdFormTitle').textContent = '➕ Tambah Jadwal'; document.getElementById('jdBatal').style.display = 'none';
+}
+async function hapusJadwal(id) {
+  if (!confirm('Hapus jadwal ini?')) return;
+  const { error } = await db.from('jadwal_kelas').delete().eq('id', id);
+  if (error) { alert('❌ ' + error.message); return; }
+  await loadJadwalKelas();
 }
 
 async function loadKaldikTeacher() {
