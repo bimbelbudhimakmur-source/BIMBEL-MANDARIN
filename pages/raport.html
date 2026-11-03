@@ -128,6 +128,8 @@
 
     .cal-footer{text-align:center;font-size:8px;color:#aaa;margin-top:14px;padding-top:6px;border-top:1px solid #ddd;font-family:Arial,sans-serif;}
 
+    /* A5: seluruh isi raport diperkecil proporsional (148/210 ≈ 0.70) — tidak ada bagian yang hilang */
+    body[data-kertas="A5"] .page{zoom:.7;}
     @page{size:210mm 297mm;margin:0;}
     @media print{
       *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
@@ -150,9 +152,12 @@
     <select id="selSem"><option value="1">Semester 1</option><option value="2">Semester 2</option></select>
   </div>
   <div class="fg"><label>学年 Tahun Ajaran</label><input id="selTahun" placeholder="cth: 2025"></div>
+  <div class="fg"><label>Ukuran Kertas</label>
+    <select id="selKertas" onchange="applyKertas()"><option value="A4">A4 (210 × 297 mm)</option><option value="A5">A5 (148 × 210 mm)</option></select>
+  </div>
   <button class="btn btn-red" onclick="generate()">📊 Generate Raport</button>
   <button class="btn btn-green" id="btnPrint" onclick="doPrint()">🖨️ Print / Download PDF</button>
-  <div style="width:100%;font-size:11px;color:#6b7280;font-family:Arial,sans-serif">Di jendela print pilih: <b>Layout/Orientation = Portrait</b>, <b>Paper = A4</b>, <b>Margins = None</b>, <b>Scale = 100</b>, centang <b>Background graphics</b>.</div>
+  <div style="width:100%;font-size:11px;color:#6b7280;font-family:Arial,sans-serif">Di jendela print pilih: <b>Layout = Portrait</b>, <b>Paper = sama dengan Ukuran Kertas di atas (A4/A5)</b>, <b>Margins = None</b>, <b>Scale = 100</b>, centang <b>Background graphics</b>. Gunakan Chrome / Edge.</div>
 </div>
 
 <!-- Panel 判定 per murid — muncul setelah generate -->
@@ -196,6 +201,18 @@ let kelasList=[], guruNama='';
     sel.appendChild(o);
   });
 })();
+
+function applyKertas(){
+  const k = document.getElementById('selKertas').value === 'A5' ? 'A5' : 'A4';
+  document.body.dataset.kertas = k;
+  let st = document.getElementById('dynPage');
+  if(!st){ st = document.createElement('style'); st.id = 'dynPage'; document.head.appendChild(st); }
+  st.textContent = k === 'A5'
+    ? '@page{size:148mm 210mm;margin:0;} @media print{html,body,#pages{width:148mm!important;}}'
+    : '@page{size:210mm 297mm;margin:0;}';
+  try{ localStorage.setItem('raport_kertas', k); }catch(e){}
+}
+(function(){ try{ const k = localStorage.getItem('raport_kertas'); if(k==='A5'){ document.getElementById('selKertas').value='A5'; } }catch(e){} document.addEventListener('DOMContentLoaded', applyKertas); if(document.readyState!=='loading') applyKertas(); })();
 
 function setMsg(t){const el=document.getElementById('msg');el.style.display=t?'block':'none';el.textContent=t||'';}
 
