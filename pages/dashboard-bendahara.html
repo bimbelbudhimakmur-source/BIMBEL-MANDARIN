@@ -2502,7 +2502,7 @@ async function loadKaldikReadOnly() {
       <td><span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:12px;font-size:12px;font-weight:600">${k.semester}</span></td>
       <td><strong>${k.judul}</strong></td>
       <td>${tm}</td><td>${ts}</td>
-      <td style="color:var(--text-2);font-size:12px">${k.keterangan||'—'}</td>
+      <td style="color:var(--text-2);font-size:12px">${kaldikKet(k.keterangan)}</td>
     </tr>`;
   }).join('');
 }
