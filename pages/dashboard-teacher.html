@@ -281,7 +281,7 @@
           </div>
           <div class="form-group">
             <label>Semester</label>
-            <select id="nilaiSemester" onchange="loadNilaiForm()">
+            <select id="nilaiSemester" onchange="onNilaiSemesterChange()">
               <option value="1">Semester 1</option>
               <option value="2">Semester 2</option>
             </select>
@@ -685,6 +685,30 @@ let kelasSaya = [];
 let muridPerKelas = {};
 let tahunAjaranId = null;
 // Tahun ajaran = tahun kalender. Semester 2 yang diisi pada bulan Januari tetap masuk tahun sebelumnya.
+// Supabase membatasi 1000 baris per permintaan -> ambil bertahap supaya nilai tidak terpotong
+async function fetchAllRows(buildQuery) {
+  let out = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await buildQuery().order('id').range(from, from + 999);
+    if (error) { console.error('fetchAllRows:', error); break; }
+    out = out.concat(data || []);
+    if (!data || data.length < 1000) break;
+  }
+  return out;
+}
+function semesterBerjalan() {
+  const m = new Date(Date.now() + 7*3600*1000).getUTCMonth() + 1;
+  return (m >= 7 || m === 1) ? '2' : '1';
+}
+function setDefaultSemesterNilai() {
+  ['nilaiSemester', 'previewSemester'].forEach(id => { const el = document.getElementById(id); if (el) el.value = semesterBerjalan(); });
+}
+function onNilaiSemesterChange() {
+  const v = document.getElementById('nilaiSemester').value;
+  const pv = document.getElementById('previewSemester'); if (pv) pv.value = v;
+  loadNilaiForm();
+  loadPreviewNilai();
+}
 function tahunSemester(sem) {
   const wib = new Date(Date.now() + 7*3600*1000);
   const y = wib.getUTCFullYear(), m = wib.getUTCMonth() + 1;
@@ -1253,6 +1277,7 @@ function renderKelas() {
 }
 
 function populateKelasDropdowns() {
+  setDefaultSemesterNilai();
   const opts = kelasSaya.map(k => `<option value="${k.id}">${k.kode_kelas}</option>`).join('');
   ['jdKelas','absensiKelas','pelunasanKelas','nilaiKelas','setoranKelas','rekapKelas','previewKelas','perilakuKelas','calNilaiKelas'].forEach(id => {
     const el = document.getElementById(id);
@@ -2005,7 +2030,7 @@ async function loadNilaiForm() {
     q = q.eq('sub_jenis', sub);
   }
   if (babPilih) q = q.eq('bab', parseInt(babPilih));
-  const { data: nilaiData } = await q;
+  const nilaiData = await fetchAllRows(() => q);
 
   const nilaiMap = {};
   (nilaiData||[]).forEach(n => {
@@ -2102,10 +2127,10 @@ async function loadPreviewNilai() {
   const murid = (kelas?.enrollment || []).filter(e => e.is_active && e.siswa?.status);
   const siswaIds = murid.map(e => e.siswa.id);
 
-  const { data: nilaiData } = await db.from('nilai_detail')
+  const nilaiData = (await fetchAllRows(() => db.from('nilai_detail')
     .select('*').in('siswa_id', siswaIds)
     .eq('kelas_id', kelasId).eq('semester', semester).eq('tahun', tahunSemester(semester))
-    .order('jenis_penilaian').order('sub_jenis').order('bab');
+    )).sort((x, y) => String(x.jenis_penilaian).localeCompare(String(y.jenis_penilaian)) || String(x.sub_jenis||'').localeCompare(String(y.sub_jenis||'')) || (x.bab||0) - (y.bab||0));
 
   const container = document.getElementById('previewNilaiContainer');
   const juriHtml = await buildJuriPreview(kelasId, murid);
@@ -2186,7 +2211,7 @@ async function loadPreviewNilai() {
       });
 
       // Sort kolom
-      kolom = [...kolomSet].sort((a,b) => a.localeCompare(b));
+      kolom = [...kolomSet].sort((a,b) => a.localeCompare(b, undefined, { numeric: true }));  // numeric: B2 sebelum B10
 
       // Build kolom headers yang readable
       getKolomLabel = function(colKey) {

@@ -249,10 +249,16 @@ async function generate(){
   const siswaIds=murid.map(e=>e.siswa.id);
 
   // Load nilai dari nilai_detail (integer semester)
-  const {data:nilaiAll}=await db.from('nilai_detail')
-    .select('*')
-    .eq('kelas_id',kelasId).eq('semester',parseInt(sem)).eq('tahun',parseInt(tahun))
-    .in('siswa_id',siswaIds);
+  // Ambil bertahap (Supabase membatasi 1000 baris/permintaan; satu kelas bisa > 1000 nilai)
+  let nilaiAll=[];
+  for(let from=0;;from+=1000){
+    const {data:part,error:errN}=await db.from('nilai_detail').select('*')
+      .eq('kelas_id',kelasId).eq('semester',parseInt(sem)).eq('tahun',parseInt(tahun))
+      .in('siswa_id',siswaIds).order('id').range(from,from+999);
+    if(errN){console.error('nilai_detail:',errN);break;}
+    nilaiAll=nilaiAll.concat(part||[]);
+    if(!part||part.length<1000)break;
+  }
 
   // Load absensi
   const {data:absAll}=await db.from('absensi')
