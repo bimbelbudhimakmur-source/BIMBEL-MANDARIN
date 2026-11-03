@@ -1547,6 +1547,23 @@ function labelPeriodeKelas(k) {
   var e = k.periode_selesai_tahun ? (k.periode_selesai_tahun + ' Sem ' + k.periode_selesai_semester) : '<span style="color:#16a34a;font-weight:600">Berjalan</span>';
   return '<span style="font-size:12px;white-space:nowrap">' + m + '<br>s/d ' + e + '</span>' + (k.is_active === false ? '<br><small style="color:#dc2626">nonaktif</small>' : '');
 }
+function toggleGajiHTML(k) {
+  var on = k.hitung_gaji !== false;
+  return '<label title="'+(on?'Dihitung ke gaji guru':'TIDAK dihitung ke gaji guru')+'" style="position:relative;display:inline-block;width:44px;height:24px;cursor:pointer">'
+    +'<input type="checkbox" '+(on?'checked ':'')+'onchange="toggleHitungGaji(\''+k.id+'\', this)" style="opacity:0;width:0;height:0">'
+    +'<span style="position:absolute;inset:0;border-radius:24px;background:'+(on?'#16a34a':'#cbd5e1')+';transition:.2s"></span>'
+    +'<span style="position:absolute;top:3px;left:'+(on?'23px':'3px')+';width:18px;height:18px;border-radius:50%;background:#fff;transition:.2s"></span></label>'
+    +'<div style="font-size:10px;margin-top:2px;color:'+(on?'#16a34a':'#9ca3af')+'">'+(on?'ON':'OFF')+'</div>';
+}
+async function toggleHitungGaji(id, cb) {
+  var on = cb.checked;
+  var kode = ''; for (var i=0;i<allKelas.length;i++){ if(allKelas[i].id===id){ kode=allKelas[i].kode_kelas; break; } }
+  if (!confirm((on ? 'Aktifkan kelas '+kode+'?\n\nKelas ini AKAN dihitung ke gaji guru.' : 'Matikan kelas '+kode+'?\n\nKelas ini TIDAK akan dihitung ke gaji guru.'))) { cb.checked = !on; return; }
+  var r = await db.from('kelas').update({ hitung_gaji: on }).eq('id', id);
+  if (r.error) { alert('❌ Gagal: '+r.error.message+'\n\nPastikan SQL fitur_kelas_hitung_gaji.sql sudah dijalankan.'); cb.checked = !on; return; }
+  for (var j=0;j<allKelas.length;j++){ if(allKelas[j].id===id){ allKelas[j].hitung_gaji = on; break; } }
+  renderKelas(allKelas);
+}
 function renderKelas(list) {
   var thJilid = document.getElementById('thJilidKelas');
   if (thJilid) {
@@ -1555,7 +1572,7 @@ function renderKelas(list) {
   }
 
   var tbody=document.getElementById('tableKelas');
-  if (!list.length) { tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:40px;color:#6b7280">Belum ada kelas</td></tr>'; return; }
+  if (!list.length) { tbody.innerHTML='<tr><td colspan="9" style="text-align:center;padding:40px;color:#6b7280">Belum ada kelas</td></tr>'; return; }
   var html='';
   for (var i=0;i<list.length;i++) {
     var k=list[i];
@@ -1575,6 +1592,7 @@ function renderKelas(list) {
       +'<td>'+hari+'<br><small style="color:#6b7280">'+jam+'</small></td>'
       +'<td>'+muridCell+'</td>'
       +'<td>'+labelPeriodeKelas(k)+'</td>'
+      +'<td>'+toggleGajiHTML(k)+'</td>'
       +'<td style="display:flex;gap:4px">'
       +'<button class="btn btn-secondary btn-sm" onclick="viewKelasStudents(\''+k.id+'\',\''+k.kode_kelas+'\')">👥</button>'
       +'<button class="btn btn-secondary btn-sm" onclick="openEditKelas(\''+k.id+'\')">✏️</button>'
