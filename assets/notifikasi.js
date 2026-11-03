@@ -11,6 +11,17 @@
   function fmtTgl(s) { try { return new Date(s + 'T00:00:00').toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }); } catch (e) { return s; } }
   function ls(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) {} return null; }
 
+  // Keterangan Kaldik: baris pertama jadi judul, sisanya bisa dibuka (dropdown)
+  window.kaldikKet = function (t) {
+    var s = String(t == null ? '' : t).trim();
+    if (!s) return '—';
+    var first = s.split('\n')[0];
+    var short = first.length > 48 ? first.slice(0, 48) + '…' : first;
+    if (s.length === short.length) return esc(s);
+    return '<details class="kd-det"><summary style="cursor:pointer;color:#b01020;font-weight:600;font-size:12px;list-style:revert">' + esc(short)
+      + '</summary><div style="margin-top:6px;padding:8px 10px;background:#fff7f8;border:1px solid #fecdd3;border-radius:8px;white-space:pre-wrap;font-size:12px;color:#374151;line-height:1.55">' + esc(s) + '</div></details>';
+  };
+
   function curProgram() {
     try {
       if (S.group === 'guru') return (typeof guruData !== 'undefined' && guruData) ? (guruData.program_id || (guruData.program && guruData.program.id) || null) : null;
@@ -81,11 +92,12 @@
     var html = items.map(function (it) {
       if (it.type === 'kaldik') {
         var when = it.days === 0 ? 'HARI INI' : (it.days === 1 ? 'BESOK' : it.days + ' hari lagi');
-        return '<div style="border:1px solid #fde68a;background:#fffbeb;border-radius:10px;padding:12px 14px;margin-bottom:10px">'
+        return '<div class="nk-kaldik" title="Klik untuk membuka Kaldik" style="cursor:pointer;border:1px solid #fde68a;background:#fffbeb;border-radius:10px;padding:12px 14px;margin-bottom:10px">'
           + '<div style="font-size:11px;font-weight:700;color:#92400e">📅 KALENDER PENDIDIKAN · ' + when + '</div>'
           + '<div style="font-weight:700;font-size:15px;color:#111827;margin:3px 0">' + esc(it.judul) + '</div>'
           + '<div style="font-size:12px;color:#6b7280">' + esc(fmtTgl(it.tanggal)) + (it.selesai && it.selesai !== it.tanggal ? ' s/d ' + esc(fmtTgl(it.selesai)) : '') + '</div>'
-          + (it.ket ? '<div style="font-size:12px;color:#6b7280;margin-top:4px">' + esc(it.ket) + '</div>' : '') + '</div>';
+          + (it.ket ? '<div style="font-size:12px;color:#6b7280;margin-top:4px;white-space:pre-wrap;max-height:60px;overflow:hidden">' + esc(it.ket) + '</div>' : '')
+          + '<div style="font-size:11px;color:#b01020;font-weight:700;margin-top:6px">Lihat di Kaldik →</div></div>';
       }
       return '<div style="border:1px solid #fecdd3;background:#fff1f2;border-radius:10px;padding:12px 14px;margin-bottom:10px">'
         + '<div style="font-size:11px;font-weight:700;color:#9f1239">📢 PEMBERITAHUAN</div>'
@@ -100,13 +112,16 @@
       + '<div style="padding:14px 18px;overflow:auto">' + html + '</div>'
       + '<div style="padding:12px 18px;border-top:1px solid #e5e7eb;text-align:right"><button id="notifOk" style="background:#b01020;color:#fff;border:0;border-radius:8px;padding:9px 20px;font-weight:700;cursor:pointer">✓ Mengerti</button></div></div>';
     document.body.appendChild(ov);
-    document.getElementById('notifOk').onclick = async function () {
-      this.disabled = true;
+    var selesai = async function () {
       var ids = [];
       items.forEach(function (it) { if (it.type === 'kaldik') ls(it.key, '1'); else ids.push({ notif_id: it.id, user_id: S.uid }); });
-      if (ids.length) { try { await db.from('notifikasi_dibaca').upsert(ids, { onConflict: 'notif_id,user_id' }); } catch (e) {} }
       ov.remove();
+      if (ids.length) { try { await db.from('notifikasi_dibaca').upsert(ids, { onConflict: 'notif_id,user_id' }); } catch (e) {} }
     };
+    document.getElementById('notifOk').onclick = function () { this.disabled = true; selesai(); };
+    ov.querySelectorAll('.nk-kaldik').forEach(function (el) {
+      el.onclick = function () { selesai(); try { if (typeof switchTab === 'function') switchTab('kaldik'); } catch (e) {} };
+    });
   }
 
   // ===== Kirim notifikasi (Leader & Admin) =====

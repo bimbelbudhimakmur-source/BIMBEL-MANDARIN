@@ -2414,7 +2414,7 @@ async function loadKaldik() {
       +'<td><strong>'+k.judul+'</strong></td>'
       +'<td>'+tglMulai+'</td>'
       +'<td>'+tglSelesai+'</td>'
-      +'<td style="color:var(--text-2);font-size:12px">'+(k.keterangan||'—')+'</td>'
+      +'<td style="color:var(--text-2);font-size:12px">'+kaldikKet(k.keterangan)+'</td>'
       +'<td style="display:flex;gap:4px">'
       +'<button class="btn btn-secondary btn-sm" onclick="openEditKaldik(\''+k.id+'\')">✏️</button>'
       +'<button class="btn btn-danger btn-sm" onclick="deleteKaldik(\''+k.id+'\',\''+k.judul.replace(/'/g,'\\\'')+'\')" >🗑️</button>'
