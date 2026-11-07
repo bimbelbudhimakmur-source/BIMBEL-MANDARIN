@@ -1877,10 +1877,15 @@ async function loadMurid() {
     var plIds=await getPlacementWaitingIds();
     var list=(res.data||[]).filter(function(s){return plIds.indexOf(s.id)<0;});
     if (activeProgramId) {
+      // Murid tampil jika punya kelas aktif di program ini, ATAU pernah/masih terdaftar di kelas program ini
+      // (murid yang dinonaktifkan tetap muncul supaya bisa diaktifkan lagi), ATAU belum punya kelas sama sekali.
       list = list.filter(function(s){
-        var ae=null;
-        if(s.enrollment){for(var ei=0;ei<s.enrollment.length;ei++){if(s.enrollment[ei].is_active){ae=s.enrollment[ei];break;}}}
-        return ae && ae.kelas && ae.kelas.program_id===activeProgramId;
+        var en = s.enrollment || [];
+        if (!en.length) return true;
+        for (var ei=0; ei<en.length; ei++) {
+          if (en[ei].kelas && en[ei].kelas.program_id===activeProgramId) return true;
+        }
+        return false;
       });
     }
     allMurid=list; filterMurid();
@@ -1899,12 +1904,14 @@ function renderMurid(list) {
     var ae=null;
     if(s.enrollment){for(var ei=0;ei<s.enrollment.length;ei++){if(s.enrollment[ei].is_active){ae=s.enrollment[ei];break;}}}
     var kelas=ae?ae.kelas:null;
+    var kelasLama=null;
+    if(!kelas && s.enrollment && s.enrollment.length){ for(var eq=s.enrollment.length-1;eq>=0;eq--){ if(s.enrollment[eq].kelas){ kelasLama=s.enrollment[eq].kelas; break; } } }
     html += '<tr>'
       +'<td><input type="checkbox" class="row-checkbox chk-murid" value="'+s.id+'" onchange="updateBulkMurid()"></td>'
       +'<td>'+s.nomor_induk+'</td>'
       +'<td><span class="table-link" onclick="showDetailMurid(\''+s.id+'\')">'+s.nama_lengkap+'</span></td>'
       +(showMandarin ? '<td style="color:#6b7280">'+(s.nama_mandarin||'—')+'</td>' : '')
-      +'<td style="font-family:monospace">'+(kelas?kelas.kode_kelas:'—')+'</td>'
+      +'<td style="font-family:monospace">'+(kelas?kelas.kode_kelas:(kelasLama?'<span style="color:#9ca3af" title="Kelas sebelumnya (sudah tidak aktif)">'+kelasLama.kode_kelas+' ·lama</span>':'—'))+'</td>'
       +'<td>'
       +'<label class="toggle"><input type="checkbox" '+(s.status?'checked':'')+' onchange="updateStatusMurid(\''+s.id+'\',this.checked)"><span class="toggle-slider"></span></label>'
       +'<span style="margin-left:6px;font-size:11px;color:'+(s.status?'var(--green)':'#9ca3af')+'">'+(s.status?'Aktif':'Nonaktif')+'</span>'
@@ -1924,6 +1931,19 @@ async function updateStatusMurid(id, active) {
     // Sync enrollment: kalau nonaktif → nonaktifkan semua enrollment aktif
     if (!active) {
       await db.from('enrollment').update({is_active:false}).eq('siswa_id',id).eq('is_active',true);
+    } else {
+      // Diaktifkan lagi: kembalikan ke kelas terakhirnya jika kelas itu masih aktif
+      var er = await db.from('enrollment').select('id,is_active,kelas:kelas_id(kode_kelas,is_active)').eq('siswa_id',id);
+      var rows = er.data||[];
+      var sudahAktif = rows.some(function(x){return x.is_active;});
+      var kandidat = rows.filter(function(x){return !x.is_active && x.kelas && x.kelas.is_active;});
+      if (!sudahAktif && kandidat.length) {
+        if (confirm('Murid diaktifkan.\n\nKembalikan ke kelas '+kandidat[kandidat.length-1].kelas.kode_kelas+'?\n\nOK = ya, Cancel = tidak (atur kelas nanti lewat Edit Murid).')) {
+          await db.from('enrollment').update({is_active:true}).eq('id',kandidat[kandidat.length-1].id);
+        }
+      } else if (!sudahAktif) {
+        alert('Murid sudah aktif, tetapi belum punya kelas aktif. Masukkan ke kelas lewat Edit Murid atau menu Kelas.');
+      }
     }
     await loadMurid(); await loadStats();
   }
