@@ -278,11 +278,17 @@ async function generate(){
   }
 
   // Load absensi
-  const {data:absAll}=await db.from('absensi')
-    .select('siswa_id,tanggal,hadir,catatan')
-    .eq('kelas_id',kelasId)
-    .gte('tanggal',tglMulai).lte('tanggal',tglAkhir)
-    .in('siswa_id',siswaIds);
+  let absAll=[];
+  for(let from=0;;from+=1000){
+    const {data:part,error:errA}=await db.from('absensi')
+      .select('id,siswa_id,tanggal,hadir,catatan')
+      .eq('kelas_id',kelasId)
+      .gte('tanggal',tglMulai).lte('tanggal',tglAkhir)
+      .in('siswa_id',siswaIds).order('id').range(from,from+999);
+    if(errA){console.error('absensi:',errA);break;}
+    absAll=absAll.concat(part||[]);
+    if(!part||part.length<1000)break;
+  }
 
   // Load perilaku per murid dari DB
   const {data:perilakuAll}=await db.from('penilaian_perilaku')

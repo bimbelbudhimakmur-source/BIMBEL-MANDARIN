@@ -1382,11 +1382,13 @@ async function loadHistory() {
 
   // Ambil SEMUA riwayat (bukan cuma 20 terakhir) supaya "Pertemuan ke-" bisa dihitung
   // dengan benar berdasarkan urutan tanggal dari awal.
-  const { data } = await db.from('absensi')
-    .select('tanggal, hadir, catatan, siswa:siswa_id(nama_lengkap, nama_mandarin)')
+  // Diambil bertahap: satu kelas bisa punya >1000 baris absensi (murid x pertemuan),
+  // dan batas 1000 baris membuat pertemuan terbaru "hilang" dari riwayat.
+  const data = (await fetchAllRows(() => db.from('absensi')
+    .select('id, tanggal, hadir, catatan, siswa:siswa_id(nama_lengkap, nama_mandarin)')
     .eq('kelas_id', kelasId)
     .gte('tanggal', tahunSemester(1) + '-01-01').lte('tanggal', tahunSemester(1) + '-12-31')
-    .order('tanggal', { ascending: true });
+  )).sort((x, y) => String(x.tanggal).localeCompare(String(y.tanggal)));
 
   if (!data?.length) { histEl.style.display='none'; return; }
 
@@ -1528,12 +1530,12 @@ async function loadRekap() {
   const tglAkhir = sem==='1' ? tahun+'-06-30' : tahun+'-12-31';
 
   const siswaIds = murid.map(e => e.siswa.id);
-  const { data: absensiData } = await db.from('absensi')
-    .select('siswa_id, tanggal, hadir, catatan')
+  const absensiData = (await fetchAllRows(() => db.from('absensi')
+    .select('id, siswa_id, tanggal, hadir, catatan')
     .eq('kelas_id', kelasId)
     .gte('tanggal', tglMulai).lte('tanggal', tglAkhir)
     .in('siswa_id', siswaIds)
-    .order('tanggal');
+  )).sort((x, y) => String(x.tanggal).localeCompare(String(y.tanggal)));
 
   if (!absensiData?.length) {
     container.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-2)">Belum ada data absensi untuk periode ini</div>';
