@@ -47,6 +47,7 @@
     <div class="sidebar-item active" data-tab="dashboard"><span class="sidebar-icon">📊</span><span>Dashboard</span></div>
     <div class="sidebar-item" data-tab="register"><span class="sidebar-icon">📋</span><span>Pendaftaran</span></div>
     <div class="sidebar-item" data-tab="reregister"><span class="sidebar-icon">🔄</span><span>Pendaftaran Ulang</span></div>
+    <div class="sidebar-item" data-tab="semester-baru"><span class="sidebar-icon">🕒</span><span>Semester Baru</span><span id="badgeSemBaru" class="badge badge-yellow" style="margin-left:auto;display:none"></span></div>
     <div class="sidebar-item" data-tab="placement"><span class="sidebar-icon">🧭</span><span>PLACEMENT</span><span id="badgePlacement" class="badge badge-yellow" style="margin-left:auto;display:none"></span></div>
     <div class="sidebar-section">Data</div>
     <div class="sidebar-item" data-tab="kelas"><span class="sidebar-icon">📚</span><span>Data Kelas</span></div>
@@ -181,6 +182,13 @@
       <div class="page-title">Kelengkapan Data</div>
       <div class="page-sub">Pantau data murid dan guru yang belum lengkap supaya tidak ada yang terlewat</div>
       <div id="kelengkapanRoot"></div>
+    </div>
+
+    <!-- ===== SEMESTER BARU ===== -->
+    <div id="tab-semester-baru" class="tab-content">
+      <div class="page-title">Semester Baru</div>
+      <div class="page-sub">Pendaftar yang memilih kelas semester depan. Mereka belum resmi terdata sampai kelasnya aktif (otomatis saat semester dimulai) dan admin klik "Masukkan".</div>
+      <div id="semBaruBox"><div style="padding:24px;color:#6b7280">⏳ Memuat...</div></div>
     </div>
 
     <!-- ===== PLACEMENT ===== -->
