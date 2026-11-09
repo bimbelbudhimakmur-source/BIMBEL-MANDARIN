@@ -110,10 +110,6 @@
       <div class="section-title">Data Pendaftaran</div>
       <div class="form-grid">
         <div class="form-group">
-          <label>Tanggal Join <span style="color:red">*</span></label>
-          <input type="date" id="tanggalJoin" required>
-        </div>
-        <div class="form-group">
           <label>Kelas yang Dipilih <span style="color:red">*</span></label>
           <select id="kelasDipilih" required onchange="tampilkanBiaya(this)">
             <option value="">-- Pilih Kelas --</option>
@@ -209,7 +205,6 @@
       }).join('');
 
       // Set default tanggal join ke hari ini
-      document.getElementById('tanggalJoin').value = new Date().toISOString().split('T')[0];
     })();
 
     async function pilihProgram(programId) {
@@ -226,7 +221,7 @@
 
       // Load kelas sesuai program yang dipilih
       const { data } = await db.from('kelas')
-        .select('id, kode_kelas, jilid, menunggu_semester, periode_mulai_tahun, periode_mulai_semester').or('is_active.eq.true,menunggu_semester.eq.true').eq('program_id', programId).order('kode_kelas');
+        .select('id, kode_kelas, jilid, menunggu_semester, periode_mulai_tahun, periode_mulai_semester').eq('menunggu_semester', true).eq('program_id', programId).order('kode_kelas');
       const sel = document.getElementById('kelasDipilih');
       sel.innerHTML = '<option value="">-- Pilih Kelas --</option>';
       (data||[]).forEach(k => {
@@ -240,7 +235,7 @@
         sel.appendChild(opt);
       });
       if (!data?.length) {
-        sel.innerHTML = '<option value="">-- Belum ada kelas untuk program ini --</option>';
+        sel.innerHTML = '<option value="">-- Belum ada kelas semester baru (pilih PLACEMENT di bawah) --</option>';
       }
       const optPl = document.createElement('option');
       optPl.value = '__PLACEMENT__';
@@ -310,12 +305,11 @@
     async function kirimPendaftaran() {
       const namaIndo    = document.getElementById('namaIndo').value.trim();
       const hpOrtu      = document.getElementById('hpOrtu').value.trim();
-      const tanggalJoin = document.getElementById('tanggalJoin').value;
       const kelasDipilih = document.getElementById('kelasDipilih').value;
       const errEl       = document.getElementById('errMsgDaftar');
       const isPlacement = (kelasDipilih === '__PLACEMENT__');
 
-      if (!namaIndo || !hpOrtu || !tanggalJoin || !kelasDipilih) {
+      if (!namaIndo || !hpOrtu || !kelasDipilih) {
         errEl.textContent = 'Lengkapi semua field wajib (*)'; return;
       }
 
