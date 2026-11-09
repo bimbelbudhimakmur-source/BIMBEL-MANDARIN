@@ -226,7 +226,7 @@
 
       // Load kelas sesuai program yang dipilih
       const { data } = await db.from('kelas')
-        .select('id, kode_kelas, jilid').eq('is_active', true).eq('program_id', programId).order('kode_kelas');
+        .select('id, kode_kelas, jilid, menunggu_semester, periode_mulai_tahun, periode_mulai_semester').or('is_active.eq.true,menunggu_semester.eq.true').eq('program_id', programId).order('kode_kelas');
       const sel = document.getElementById('kelasDipilih');
       sel.innerHTML = '<option value="">-- Pilih Kelas --</option>';
       (data||[]).forEach(k => {
@@ -234,6 +234,7 @@
         opt.value = k.id;
         const jilidLabel = (k.jilid === 0 || k.jilid === '0') ? 'TK' : (k.jilid ?? '');
         opt.textContent = jilidLabel ? `${k.kode_kelas} — Jilid ${jilidLabel}` : k.kode_kelas;
+        if (k.menunggu_semester) opt.textContent += ` 🕒 Semester Baru (mulai ${k.periode_mulai_tahun} Sem ${k.periode_mulai_semester})`;
         opt.dataset.jilid = k.jilid ?? '';
         kelasJilidMap[k.id] = k.jilid;
         sel.appendChild(opt);
