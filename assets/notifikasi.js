@@ -38,6 +38,7 @@
       var p = await db.from('profiles').select('role').eq('id', u.id).single();
       if (!p.data) return;
       S.uid = u.id; S.role = p.data.role;
+      try { await db.rpc('aktifkan_kelas_terjadwal'); } catch (e) {}
       S.group = (S.role === 'admin' || S.role === 'bendahara' || S.role === 'leader') ? S.role : (String(S.role).indexOf('teacher') === 0 ? 'guru' : null);
       if (!S.group) return;
       S.started = true;

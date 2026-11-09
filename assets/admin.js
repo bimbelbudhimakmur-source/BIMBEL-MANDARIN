@@ -69,8 +69,9 @@ async function generateNomorInduk(prefix) {
     await populateGuruDropdowns();
     await populateProgramDropdownKelas();
     await initProgramSwitcherAdmin();
+    try { await db.rpc('aktifkan_kelas_terjadwal'); } catch(e) {}
     await loadStats();
-    updateBadgePlacement();
+    updateBadgePlacement(); updateBadgeSemesterBaru();
     updateBadgeKelengkapan();
     await loadKelasHariIni();
     setupStatCardClicks();
@@ -133,7 +134,7 @@ async function switchActiveProgramAdmin(programId) {
   await initProgramSwitcherAdmin();
   await populateGuruDropdowns();
   await loadStats();
-  updateBadgePlacement();
+  updateBadgePlacement(); updateBadgeSemesterBaru();
   updateBadgeKelengkapan();
   await loadKelasHariIni();
   var activeTab = document.querySelector('.tab-content.active');
@@ -229,6 +230,7 @@ function switchTab(tab) {
   if (tab==='reregister') loadRR().then(function(){ initDU(); });
   if (tab==='kelengkapan') loadKelengkapan();
   if (tab==='placement')  loadPlacement();
+  if (tab==='semester-baru') loadSemesterBaru();
   if (tab==='kelas')      loadKelas();
   if (tab==='murid')      loadMurid();
   if (tab==='approval-status') loadApprovalStatus();
@@ -253,7 +255,7 @@ async function loadStats() {
   try {
     var plIds = await getPlacementWaitingIds();
     var notPl = function(q){ return plIds.length ? q.not('id','in','('+plIds.join(',')+')') : q; };
-    var qPending = db.from('pendaftaran').select('*',{count:'exact',head:true}).eq('status','pending');
+    var qPending = db.from('pendaftaran').select('*',{count:'exact',head:true}).eq('status','pending').or('semester_baru.is.null,semester_baru.eq.false');
     var qKelas = db.from('kelas').select('*',{count:'exact',head:true}).eq('is_active',true);
     if (activeProgramId) { qPending = qPending.eq('program_id', activeProgramId); qKelas = qKelas.eq('program_id', activeProgramId); }
 
@@ -485,6 +487,7 @@ async function loadPendaftaran() {
     var q = db.from('pendaftaran').select('*, kelas:kelas_dipilih(kode_kelas,jilid)').order('created_at',{ascending:false});
     if (activeProgramId) q=q.eq('program_id',activeProgramId);
     if (status) q=q.eq('status',status);
+    q=q.or('semester_baru.is.null,semester_baru.eq.false,status.neq.pending'); // pendaftar kelas semester baru ada di tab Semester Baru
     var data = (await q).data || [];
     var showMandarin = isMandarinActive();
     var thM = document.getElementById('thNamaMandarinDaftar');
@@ -625,7 +628,7 @@ function openModalDaftarAdmin(presetKelasId) {
   document.getElementById('da_namaMandarinWrap').style.display = isMandarinActive() ? '' : 'none';
   document.getElementById('da_level').value='';
   document.getElementById('da_levelWrap').style.display='none';
-  populateKelasSelect('da_kelas').then(function() {
+  populateKelasSelect('da_kelas', true).then(function() {
     var sel=document.getElementById('da_kelas');
     var o=document.createElement('option'); o.value='__PLACEMENT__'; o.textContent='🧭 PLACEMENT (level belum ada kelasnya / belum tahu)';
     sel.appendChild(o);
@@ -649,6 +652,24 @@ async function simpanDaftarAdmin() {
     var nonAktif=dup.filter(function(x){return !x.status;});
     if (aktif.length>0) { alert('⚠️ Murid "'+namaIndo+'" sudah AKTIF terdaftar!\nCek tab Data Murid.'); return; }
     if (nonAktif.length>0) { if(!confirm('⚠️ Ditemukan murid "'+namaIndo+'" yang TIDAK AKTIF.\nApakah ini murid berbeda?\n• OK → Daftar baru\n• Batal → Aktifkan murid lama via toggle')) return; }
+    if (kelasId!=='__PLACEMENT__') {
+      var kw=(await db.from('kelas').select('menunggu_semester,program_id,kode_kelas,periode_mulai_tahun,periode_mulai_semester').eq('id',kelasId).single()).data;
+      if (kw && kw.menunggu_semester) {
+        var ipw=await db.from('pendaftaran').insert({
+          nama_lengkap:namaIndo,nama_mandarin:document.getElementById('da_namaMandarin').value.trim()||null,
+          telepon:document.getElementById('da_hpMurid').value.trim()||null,telepon_ortu:hpOrtu,
+          tempat_lahir:document.getElementById('da_tempatLahir').value.trim()||null,
+          tanggal_lahir:document.getElementById('da_tanggalLahir').value||null,
+          alamat:document.getElementById('da_alamat').value.trim()||null,
+          kelas_dipilih:kelasId,placement:false,program_id:kw.program_id||activeProgramId||null,status:'pending'
+        });
+        if (ipw.error) { alert('Error: '+ipw.error.message+'\n(Sudah menjalankan fitur_semester_baru.sql?)'); return; }
+        closeModal('modalDaftarAdmin');
+        alert('🕒 '+namaIndo+' dicatat ke tab SEMESTER BARU (kelas '+kw.kode_kelas+', mulai '+kw.periode_mulai_tahun+' Sem '+kw.periode_mulai_semester+').\nBelum resmi terdata; masuk otomatis saat admin klik Masukkan setelah semester dimulai.');
+        await updateBadgeSemesterBaru();
+        return;
+      }
+    }
     var pfx=currentProgramPrefix()+'S';
     var noInduk=await generateNomorInduk(pfx);
     var sr=await db.from('siswa').insert({
@@ -687,6 +708,135 @@ async function simpanDaftarAdmin() {
     // Refresh kelas detail if open
     if (currentKelasDetailId===kelasId) viewKelasStudents(kelasId, '');
   } catch(e) { console.error('simpanDaftarAdmin:',e); alert('Error: '+e.message); }
+}
+
+
+// ============================================
+// SEMESTER BARU — pendaftar kelas semester depan (belum resmi terdata)
+// ============================================
+async function updateBadgeSemesterBaru() {
+  try {
+    var q = db.from('pendaftaran').select('*',{count:'exact',head:true}).eq('status','pending').eq('semester_baru',true);
+    if (activeProgramId) q = q.eq('program_id', activeProgramId);
+    var r = await q; var n = r.count || 0;
+    var el = document.getElementById('badgeSemBaru');
+    if (el) { el.textContent = n; el.style.display = n ? '' : 'none'; }
+  } catch(e) {}
+}
+
+var semBaruGroups = [];
+async function loadSemesterBaru() {
+  var box = document.getElementById('semBaruBox');
+  if (!box) return;
+  try {
+    try { await db.rpc('aktifkan_kelas_terjadwal'); } catch(e) {}
+    var q = db.from('pendaftaran').select('*, kelas:kelas_dipilih(id,kode_kelas,jilid,nama_level,hari_belajar,sesi,is_active,menunggu_semester,periode_mulai_tahun,periode_mulai_semester)')
+      .eq('status','pending').eq('semester_baru',true).order('created_at');
+    if (activeProgramId) q = q.eq('program_id', activeProgramId);
+    var res = await q;
+    if (res.error) { box.innerHTML = '<div style="padding:24px;color:#dc2626">Error: '+res.error.message+'<br>(Sudah menjalankan fitur_semester_baru.sql?)</div>'; return; }
+    var data = res.data || [];
+    var map = {};
+    data.forEach(function(d){ if(!d.kelas) return; (map[d.kelas.id] = map[d.kelas.id] || {kelas:d.kelas, list:[]}).list.push(d); });
+    semBaruGroups = Object.keys(map).map(function(k){return map[k];});
+    semBaruGroups.sort(function(a,b){
+      var ka=(a.kelas.hari_belajar||'')+'|'+(a.kelas.sesi||'')+'|'+a.kelas.kode_kelas, kb=(b.kelas.hari_belajar||'')+'|'+(b.kelas.sesi||'')+'|'+b.kelas.kode_kelas;
+      return ka<kb?-1:ka>kb?1:0;
+    });
+    var siap = semBaruGroups.filter(function(g){return g.kelas.is_active && !g.kelas.menunggu_semester;});
+    var totalSiap = siap.reduce(function(a,g){return a+g.list.length;},0);
+    var showM = isMandarinActive();
+    var html = '';
+    if (totalSiap) html += '<div style="margin-bottom:14px"><button class="btn btn-success" onclick="aktifkanSemuaSemesterBaru()">⚡ Masukkan SEMUA yang siap ('+totalSiap+' murid)</button></div>';
+    if (!semBaruGroups.length) html = '<div style="text-align:center;padding:48px;color:#6b7280">Belum ada pendaftar kelas semester baru.</div>';
+    semBaruGroups.forEach(function(g){
+      var k = g.kelas, ready = k.is_active && !k.menunggu_semester;
+      var lvl = (typeof kelasLevelLabel==='function') ? kelasLevelLabel(k) : '';
+      html += '<div class="table-wrap" style="margin-bottom:18px"><div style="padding:12px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;border-bottom:1px solid #e5e7eb">'
+        +'<div style="flex:1;min-width:200px"><strong style="font-family:monospace;font-size:15px">'+k.kode_kelas+'</strong>'+(lvl?' <span style="color:#6b7280">— '+lvl+'</span>':'')
+        +'<div style="font-size:12px;color:#6b7280">Jadwal: '+(k.hari_belajar||'')+' '+(k.sesi||'')+' · Mulai '+k.periode_mulai_tahun+' Sem '+k.periode_mulai_semester+'</div></div>'
+        +(ready ? '<span class="badge badge-green">✅ Kelas sudah aktif</span>' : '<span class="badge badge-yellow">🕒 Menunggu semester dimulai</span>')
+        +(ready ? '<button class="btn btn-success" onclick="aktifkanGrupSemesterBaru(\''+k.id+'\')">▶ Masukkan '+g.list.length+' murid ke kelas</button>' : '<button class="btn btn-secondary" disabled title="Aktif otomatis saat semester dimulai">Belum bisa dimasukkan</button>')
+        +'</div><table class="table"><thead><tr><th>Nama</th>'+(showM?'<th>Nama Mandarin</th>':'')+'<th>HP Ortu</th><th>Daftar</th><th></th></tr></thead><tbody>';
+      g.list.forEach(function(d){
+        html += '<tr><td><strong>'+(d.nama_lengkap||'')+'</strong></td>'+(showM?'<td style="color:#6b7280">'+(d.nama_mandarin||'—')+'</td>':'')
+          +'<td>'+(d.telepon_ortu||'—')+'</td><td>'+(d.created_at?new Date(d.created_at).toLocaleDateString('id-ID'):'—')+'</td>'
+          +'<td><button class="btn-icon" onclick="showDetailDaftar(\''+d.id+'\')">👁</button> <button class="btn btn-danger btn-sm" onclick="hapusSemBaru(\''+d.id+'\',\''+(d.nama_lengkap||'').replace(/[\'\\]/g,'')+'\')">🗑️</button></td></tr>';
+      });
+      html += '</tbody></table></div>';
+    });
+    box.innerHTML = html;
+    updateBadgeSemesterBaru();
+  } catch(e) { console.error('loadSemesterBaru:',e); box.innerHTML = '<div style="padding:24px;color:#dc2626">Error: '+e.message+'</div>'; }
+}
+
+async function hapusSemBaru(id, nama) {
+  if (!confirm('Hapus pendaftaran "'+nama+'"?')) return;
+  var r = await db.from('pendaftaran').delete().eq('id', id);
+  if (r.error) { alert('Gagal: '+r.error.message); return; }
+  loadSemesterBaru();
+}
+
+async function aktifkanGrupSemesterBaru(kelasId) {
+  var g = semBaruGroups.find(function(x){return x.kelas.id===kelasId;});
+  if (!g) return;
+  if (!confirm('Masukkan '+g.list.length+' murid ke kelas '+g.kelas.kode_kelas+'?\n\nMereka langsung resmi terdata, tagihan masuk Bendahara, dan tercatat di periode '+g.kelas.periode_mulai_tahun+' Sem '+g.kelas.periode_mulai_semester+'.')) return;
+  var msg = await prosesGrupSemesterBaru([g]);
+  alert(msg);
+  await loadSemesterBaru(); await loadStats(); await updateBadgePlacement();
+}
+async function aktifkanSemuaSemesterBaru() {
+  var siap = semBaruGroups.filter(function(g){return g.kelas.is_active && !g.kelas.menunggu_semester;});
+  var tot = siap.reduce(function(a,g){return a+g.list.length;},0);
+  if (!tot) return;
+  if (!confirm('Masukkan SEMUA '+tot+' murid dari '+siap.length+' kelas yang sudah aktif?')) return;
+  var msg = await prosesGrupSemesterBaru(siap);
+  alert(msg);
+  await loadSemesterBaru(); await loadStats(); await updateBadgePlacement();
+}
+
+async function prosesGrupSemesterBaru(groups) {
+  var userId = (await db.auth.getUser()).data.user.id;
+  var ok = 0, gagal = [], tagGagal = 0, dupLewat = [];
+  var semua = [];
+  groups.forEach(function(g){ g.list.forEach(function(d){ semua.push({d:d, k:g.kelas}); }); });
+  // cek nama kembar yang sudah aktif — tanya sekali
+  var kembar = [];
+  for (var i=0;i<semua.length;i++) {
+    var dup=(await db.from('siswa').select('id').ilike('nama_lengkap',semua[i].d.nama_lengkap).eq('status',true)).data||[];
+    if (dup.length) kembar.push(semua[i]);
+  }
+  var lewati = [];
+  if (kembar.length) {
+    var lanjutDup = confirm('⚠️ Nama berikut sudah ada sebagai murid AKTIF:\n• '+kembar.map(function(x){return x.d.nama_lengkap;}).join('\n• ')+'\n\nOK = tetap daftarkan (murid berbeda)\nBatal = lewati nama-nama ini');
+    if (!lanjutDup) lewati = kembar.map(function(x){return x.d.id;});
+  }
+  for (var j=0;j<semua.length;j++) {
+    var it = semua[j], d = it.d, k = it.k;
+    if (lewati.indexOf(d.id)>=0) { dupLewat.push(d.nama_lengkap); continue; }
+    try {
+      var noInduk = await generateNomorInduk(currentProgramPrefix()+'S');
+      var sr = await db.from('siswa').insert({
+        nomor_induk:noInduk,nama_lengkap:d.nama_lengkap,nama_mandarin:d.nama_mandarin||null,
+        tempat_lahir:d.tempat_lahir,tanggal_lahir:d.tanggal_lahir,alamat:d.alamat,
+        telepon:d.telepon,telepon_ortu:d.telepon_ortu,
+        tanggal_join:new Date().toISOString().split('T')[0],status:true,
+        periode_daftar_tahun:k.periode_mulai_tahun,periode_daftar_semester:k.periode_mulai_semester
+      }).select().single();
+      if (sr.error) { gagal.push(d.nama_lengkap+' ('+sr.error.message+')'); continue; }
+      var en = await db.from('enrollment').insert({siswa_id:sr.data.id,kelas_id:k.id,tahun_ajaran_id:tahunAjaranId,is_active:true});
+      if (en.error) { await db.from('siswa').delete().eq('id',sr.data.id); gagal.push(d.nama_lengkap+' ('+en.error.message+')'); continue; }
+      var inf = await terbitkanTagihanPendaftaran(sr.data.id, k.id);
+      if (inf.indexOf('gagal dibuat')>=0) tagGagal++;
+      await db.from('pendaftaran').update({status:'approved',diproses_oleh:userId,waktu_proses:new Date().toISOString()}).eq('id',d.id);
+      ok++;
+    } catch(e) { gagal.push(d.nama_lengkap+' ('+e.message+')'); }
+  }
+  var m = '✅ '+ok+' murid resmi masuk kelas & terdata.\n🧾 Tagihan pendaftaran masuk ke Bendahara.';
+  if (tagGagal) m += '\n⚠️ '+tagGagal+' murid tagihannya gagal dibuat (cek Bendahara).';
+  if (dupLewat.length) m += '\n⏭ Dilewati (nama kembar): '+dupLewat.join(', ');
+  if (gagal.length) m += '\n❌ Gagal:\n• '+gagal.join('\n• ');
+  return m;
 }
 
 // ============================================
@@ -1542,6 +1692,7 @@ function periodeNow() {
   return { tahun: w.getUTCFullYear(), semester: (w.getUTCMonth()+1) >= 7 ? 2 : 1 };
 }
 function labelPeriodeKelas(k) {
+  if (k.menunggu_semester) return '<span style="font-size:12px;white-space:nowrap">'+k.periode_mulai_tahun+' Sem '+k.periode_mulai_semester+'</span><br><span class="badge badge-yellow">🕒 Semester Baru</span>';
   if (!k.periode_mulai_tahun) return '<span style="color:#9ca3af">—</span>';
   var m = k.periode_mulai_tahun + ' Sem ' + k.periode_mulai_semester;
   var e = k.periode_selesai_tahun ? (k.periode_selesai_tahun + ' Sem ' + k.periode_selesai_semester) : '<span style="color:#16a34a;font-weight:600">Berjalan</span>';
@@ -1774,6 +1925,8 @@ async function simpanKelas() {
   if (!pmT || pmT < 2000 || pmT > 2100) { alert('Isi tahun mulai periode kelas dengan benar.'); return; }
   if (psT && (psT < 2000 || psT > 2100)) { alert('Tahun selesai periode tidak valid.'); return; }
   if (psT && (psT * 2 + psS) < (pmT * 2 + pmS)) { alert('Periode selesai tidak boleh sebelum periode mulai.'); return; }
+  var pnK = periodeNow();
+  var kelasMenunggu = (pmT * 2 + pmS) > (pnK.tahun * 2 + pnK.semester); // mulai di semester depan → status 'Semester Baru'
   var periodeKelas = { periode_mulai_tahun: pmT, periode_mulai_semester: pmS, periode_selesai_tahun: psT, periode_selesai_semester: psS };
   try {
     if (editingKelasId) {
@@ -1781,6 +1934,11 @@ async function simpanKelas() {
       var jilidBerubah = isMandarin && oldK && oldK.jilid !== jilidDB;
       if (jilidBerubah && !confirm('Jilid kelas berubah ('+oldK.jilid+' → '+jilidDB+').\n\nPastikan:\n• Raport tahun ini sudah dicetak/disimpan\n• Murid TINGGAL KELAS sudah diarahkan ke kelas lain\n\nNilai tahun ini tetap tersimpan (dipisah per tahun ajaran), jadi tahun depan mulai dari kosong. Lanjutkan?')) return;
       var er=(await db.from('kelas').update({kode_kelas:kodeKelas,guru_id:guruId,jilid:jilidDB,nama_level:namaLevel,hari_belajar:hari,sesi:sesi,jam_mulai:jamMulai,jam_selesai:jamSelesai,program_id:programId,periode_mulai_tahun:pmT,periode_mulai_semester:pmS,periode_selesai_tahun:psT,periode_selesai_semester:psS}).eq('id',editingKelasId)).error;
+      if(!er && oldK){
+        if (kelasMenunggu && !oldK.menunggu_semester && oldK.is_active!==false) { var nEn=(oldK.enrollment||[]).filter(function(e){return e.is_active;}).length; if(!nEn) er=(await db.from('kelas').update({is_active:false,menunggu_semester:true}).eq('id',editingKelasId)).error; }
+        else if (kelasMenunggu && oldK.menunggu_semester) { /* tetap menunggu */ }
+        else if (!kelasMenunggu && oldK.menunggu_semester) { er=(await db.from('kelas').update({is_active:true,menunggu_semester:false}).eq('id',editingKelasId)).error; }
+      }
       if(er){alert('Error: '+er.message);return;}
       if (jilidBerubah) {
         // bersihkan penentuan 升班 murid di kelas ini (sudah naik)
@@ -1790,8 +1948,9 @@ async function simpanKelas() {
       }
       alert('✅ Kelas diupdate!');
     } else {
-      var er2=(await db.from('kelas').insert({kode_kelas:kodeKelas,guru_id:guruId,jilid:jilidDB,nama_level:namaLevel,hari_belajar:hari,sesi:sesi,jam_mulai:jamMulai,jam_selesai:jamSelesai,tahun_ajaran_id:tahunAjaranId,program_id:programId,periode_mulai_tahun:pmT,periode_mulai_semester:pmS,periode_selesai_tahun:psT,periode_selesai_semester:psS})).error;
-      if(er2){alert('Error: '+er2.message);return;} alert('✅ Kelas '+kodeKelas+' ditambahkan!');
+      var er2=(await db.from('kelas').insert({kode_kelas:kodeKelas,guru_id:guruId,jilid:jilidDB,nama_level:namaLevel,hari_belajar:hari,sesi:sesi,jam_mulai:jamMulai,jam_selesai:jamSelesai,tahun_ajaran_id:tahunAjaranId,program_id:programId,periode_mulai_tahun:pmT,periode_mulai_semester:pmS,periode_selesai_tahun:psT,periode_selesai_semester:psS,is_active:!kelasMenunggu,menunggu_semester:kelasMenunggu})).error;
+      if(er2){alert('Error: '+er2.message+(kelasMenunggu?'\n(Sudah menjalankan fitur_semester_baru.sql?)':''));return;}
+      alert('✅ Kelas '+kodeKelas+' ditambahkan!'+(kelasMenunggu?'\n\n🕒 Status: KELAS SEMESTER BARU. Nonaktif dulu dan aktif otomatis saat '+pmT+' Sem '+pmS+' dimulai. Pendaftar ke kelas ini masuk tab Semester Baru.':''));
     }
     closeModal('modalKelas'); await loadKelas(); await loadStats();
   } catch(e){console.error('simpanKelas:',e);alert('Error: '+e.message);}
@@ -2211,15 +2370,16 @@ async function onProgramKelasChange() {
   updateGuruRekomendasi();
 }
 
-async function populateKelasSelect(elId) {
+async function populateKelasSelect(elId, includeWaiting) {
   try {
-    var q=db.from('kelas').select('id,kode_kelas,jilid,nama_level').eq('is_active',true).order('kode_kelas');
+    var q=db.from('kelas').select('id,kode_kelas,jilid,nama_level,menunggu_semester,periode_mulai_tahun,periode_mulai_semester').order('kode_kelas');
+    q = includeWaiting ? q.or('is_active.eq.true,menunggu_semester.eq.true') : q.eq('is_active',true);
     if (typeof activeProgramId !== 'undefined' && activeProgramId) q = q.eq('program_id', activeProgramId);
     var data=(await q).data||[];
     var html='<option value="">-- Pilih Kelas --</option>';
     for(var i=0;i<data.length;i++){
       var lvl = kelasLevelLabel(data[i]);
-      html+='<option value="'+data[i].id+'">'+data[i].kode_kelas+(lvl?' — '+lvl:'')+'</option>';
+      html+='<option value="'+data[i].id+'">'+data[i].kode_kelas+(lvl?' — '+lvl:'')+(data[i].menunggu_semester?' 🕒 Semester Baru '+data[i].periode_mulai_tahun+' Sem '+data[i].periode_mulai_semester:'')+'</option>';
     }
     document.getElementById(elId).innerHTML=html;
   } catch(e){console.error('populateKelasSelect:',e);}
