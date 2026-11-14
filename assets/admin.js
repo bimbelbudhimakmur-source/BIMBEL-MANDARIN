@@ -2688,6 +2688,7 @@ var editingKaldikId = null;
 async function loadKaldik() {
   var tbody = document.getElementById('tableKaldik');
   if (!tbody) return;
+  loadRiwayatKaldik();
   tbody.innerHTML = '<tr class="loading-row"><td colspan="6">⏳ Memuat...</td></tr>';
 
   var filterEl = document.getElementById('filterSemesterKaldik');
@@ -2773,6 +2774,63 @@ async function deleteKaldik(id, judul) {
   var { error } = await db.from('kaldik').delete().eq('id', id);
   if (error) { alert('❌ Gagal hapus: '+error.message); return; }
   await loadKaldik();
+}
+
+// ============================================
+// RIWAYAT KALDIK — simpan ke web sebagai referensi semester berikutnya
+// ============================================
+async function simpanRiwayatKaldik() {
+  try {
+    var filterEl = document.getElementById('filterSemesterKaldik');
+    var sem = filterEl ? filterEl.value : '';
+    var q = db.from('kaldik').select('semester,judul,tanggal_mulai,tanggal_selesai,keterangan').order('tanggal_mulai', {ascending:true});
+    if (typeof activeProgramId !== 'undefined' && activeProgramId) q = q.eq('program_id', activeProgramId);
+    if (sem) q = q.eq('semester', sem);
+    var r = await q;
+    if (r.error) { alert('❌ Gagal membaca kaldik: ' + r.error.message); return; }
+    var data = r.data || [];
+    if (!data.length) { alert('Belum ada event kaldik untuk disimpan.'); return; }
+    var nama = prompt('Simpan ' + data.length + ' event ke RIWAYAT.\n\nBeri nama riwayat ini:', sem ? ('Kaldik ' + sem) : ('Kaldik ' + new Date().toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'})));
+    if (nama === null) return;
+    nama = nama.trim();
+    if (!nama) { alert('Nama riwayat wajib diisi.'); return; }
+    var uid = (await db.auth.getUser()).data.user.id;
+    var ins = await db.from('kaldik_riwayat').insert({ nama: nama, program_id: (typeof activeProgramId !== 'undefined' && activeProgramId) ? activeProgramId : null, jumlah_event: data.length, data: data, dibuat_oleh: uid });
+    if (ins.error) { alert('❌ Gagal menyimpan: ' + ins.error.message + '\n(Sudah menjalankan fitur_kaldik_riwayat.sql?)'); return; }
+    alert('✅ Tersimpan ke Riwayat Kaldik: "' + nama + '" (' + data.length + ' event).');
+    loadRiwayatKaldik();
+  } catch (e) { console.error('simpanRiwayatKaldik:', e); alert('Error: ' + e.message); }
+}
+
+async function loadRiwayatKaldik() {
+  var box = document.getElementById('kaldikRiwayatBox');
+  if (!box) return;
+  try {
+    var q = db.from('kaldik_riwayat').select('*').order('created_at', {ascending:false});
+    if (typeof activeProgramId !== 'undefined' && activeProgramId) q = q.eq('program_id', activeProgramId);
+    var r = await q;
+    if (r.error) { box.innerHTML = '<div style="color:#9ca3af;font-size:12px">Riwayat belum aktif (jalankan fitur_kaldik_riwayat.sql).</div>'; return; }
+    var list = r.data || [];
+    if (!list.length) { box.innerHTML = '<div style="color:#9ca3af;font-size:13px;padding:8px 0">Belum ada riwayat. Klik "Simpan ke Riwayat" untuk menyimpan kaldik semester ini.</div>'; return; }
+    var fmt = function(v){ return v ? new Date(v).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}) : '—'; };
+    box.innerHTML = list.map(function(h) {
+      var rows = (h.data || []).map(function(k) {
+        return '<tr><td>' + escH(k.semester || '') + '</td><td><strong>' + escH(k.judul || '') + '</strong></td><td>' + fmt(k.tanggal_mulai) + '</td><td>' + fmt(k.tanggal_selesai) + '</td><td style="font-size:12px;color:#6b7280">' + kaldikKet(k.keterangan) + '</td></tr>';
+      }).join('');
+      return '<details style="border:1px solid #e5e7eb;border-radius:8px;margin-bottom:8px;background:#fff">'
+        + '<summary style="cursor:pointer;padding:10px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><strong>📚 ' + escH(h.nama) + '</strong>'
+        + '<span style="color:#6b7280;font-size:12px">' + h.jumlah_event + ' event · disimpan ' + fmt(h.created_at) + '</span>'
+        + '<button class="btn btn-danger btn-sm" style="margin-left:auto" onclick="event.preventDefault();hapusRiwayatKaldik(\'' + h.id + '\')">🗑️ Hapus</button></summary>'
+        + '<div class="table-wrap" style="margin:0"><table class="table"><thead><tr><th>Semester</th><th>Judul Event</th><th>Mulai</th><th>Selesai</th><th>Keterangan</th></tr></thead><tbody>' + rows + '</tbody></table></div></details>';
+    }).join('');
+  } catch (e) { console.error('loadRiwayatKaldik:', e); }
+}
+
+async function hapusRiwayatKaldik(id) {
+  if (!confirm('Hapus riwayat kaldik ini? Event kaldik yang sedang aktif tidak ikut terhapus.')) return;
+  var r = await db.from('kaldik_riwayat').delete().eq('id', id);
+  if (r.error) { alert('❌ Gagal hapus: ' + r.error.message); return; }
+  loadRiwayatKaldik();
 }
 
 // ============================================
