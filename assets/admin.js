@@ -765,19 +765,16 @@ async function previewIdentitasPdf() {
 async function simpanIdentitasPdf() {
   var kelasId = document.getElementById('idpKelas').value;
   if (!kelasId) { alert('Pilih kelas dulu.'); return; }
-  var w = window.open('', '_blank'); // dibuka sekarang supaya tidak diblokir popup-blocker
-  if (!w) { alert('Pop-up diblokir browser. Izinkan pop-up untuk situs ini lalu coba lagi.'); return; }
-  w.document.write('<p style="font-family:Arial;padding:30px">⏳ Menyiapkan PDF...</p>');
   try {
     var list = await idpAmbilMurid(kelasId);
-    if (!list.length) { w.close(); alert('Kelas ini belum punya murid aktif.'); return; }
+    if (!list.length) { alert('Kelas ini belum punya murid aktif.'); return; }
     var cek = await idpCekKelengkapan();
     var kurang = list.filter(function(x){ var c = cek[x.siswa.id]; return c && c.wajib.length; });
     if (kurang.length) {
       var pesan = '⚠️ ' + kurang.length + ' murid datanya BELUM LENGKAP:\n\n' +
         kurang.map(function(x){ return '• ' + x.siswa.nama_lengkap + ' — ' + cek[x.siswa.id].wajib.join(', '); }).join('\n') +
         '\n\nOK = tetap simpan PDF (bagian yang kosong dibiarkan kosong untuk diisi manual)\nBatal = lengkapi datanya dulu (menu Kelengkapan Data)';
-      if (!confirm(pesan)) { w.close(); return; }
+      if (!confirm(pesan)) return;
     }
     var kelas = list[0].kelas;
         var showM = isMandarinActive();
@@ -818,10 +815,25 @@ async function simpanIdentitasPdf() {
       + '.foto{width:30mm;height:40mm;border:1px solid #888;display:flex;align-items:center;justify-content:center;text-align:center;font-size:11px;color:#888;flex-shrink:0}'
       + '.ft{position:absolute;left:20mm;right:20mm;bottom:10mm;text-align:center;font-size:9px;color:#999;border-top:1px solid #ddd;padding-top:5px}'
       + '@media print{body{background:#fff}.page{margin:0}}';
-    w.document.open();
-    w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+escH(judul)+'</title><style>'+css+'</style></head><body>'+halaman+'<script>window.onload=function(){setTimeout(function(){window.print();},400);};<\/script></body></html>');
-    w.document.close();
-  } catch (e) { try { w.close(); } catch(_) {} console.error('simpanIdentitasPdf:', e); alert('Error: ' + e.message); }
+    // dicetak lewat iframe tersembunyi: tidak butuh pop-up, dan kotak konfirmasi tidak ikut terblokir
+    var lama = document.getElementById('idpFrame'); if (lama) lama.remove();
+    var fr = document.createElement('iframe');
+    fr.id = 'idpFrame';
+    fr.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
+    document.body.appendChild(fr);
+    var fd = fr.contentWindow.document;
+    fd.open();
+    fd.write('<!doctype html><html><head><meta charset="utf-8"><title>'+escH(judul)+'</title><style>'+css+'</style></head><body>'+halaman+'</body></html>');
+    fd.close();
+    var titleAsli = document.title;
+    document.title = judul; // nama file PDF mengikuti judul ini
+    var pulih = function(){ document.title = titleAsli; };
+    fr.contentWindow.onafterprint = function(){ pulih(); setTimeout(function(){ fr.remove(); }, 1000); };
+    setTimeout(function(){
+      try { fr.contentWindow.focus(); fr.contentWindow.print(); } catch (e2) { pulih(); alert('Gagal membuka dialog cetak: ' + e2.message); }
+      setTimeout(pulih, 60000);
+    }, 500);
+  } catch (e) { console.error('simpanIdentitasPdf:', e); alert('Error: ' + e.message); }
 }
 
 // ============================================
