@@ -51,7 +51,8 @@
     <div class="sidebar-item" data-tab="placement"><span class="sidebar-icon">🧭</span><span>PLACEMENT</span><span id="badgePlacement" class="badge badge-yellow" style="margin-left:auto;display:none"></span></div>
     <div class="sidebar-section">Data</div>
     <div class="sidebar-item" data-tab="kelas"><span class="sidebar-icon">📚</span><span>Data Kelas</span></div>
-    <div class="sidebar-item" data-tab="murid"><span class="sidebar-icon">👨‍🎓</span><span>Data Murid</span></div>
+    <div class="sidebar-item" data-tab="murid">
+    <div class="sidebar-item" data-tab="identitas-pdf"><span class="sidebar-icon">🪪</span><span>Identitas Murid (PDF)</span></div><span class="sidebar-icon">👨‍🎓</span><span>Data Murid</span></div>
     <div class="sidebar-item" data-tab="approval-status"><span class="sidebar-icon">✅</span><span>Approval Status Murid</span></div>
     <div class="sidebar-item" data-tab="guru"><span class="sidebar-icon">👩‍🏫</span><span>Data Guru</span></div>
     <div class="sidebar-item" data-tab="kelengkapan"><span class="sidebar-icon">🧾</span><span>Kelengkapan Data</span><span id="badgeKelengkapan" class="badge badge-red" style="margin-left:auto;display:none"></span></div>
@@ -182,6 +183,18 @@
       <div class="page-title">Kelengkapan Data</div>
       <div class="page-sub">Pantau data murid dan guru yang belum lengkap supaya tidak ada yang terlewat</div>
       <div id="kelengkapanRoot"></div>
+    </div>
+
+    <!-- ===== IDENTITAS MURID PDF ===== -->
+    <div id="tab-identitas-pdf" class="tab-content">
+      <div class="page-title">Identitas Murid (PDF)</div>
+      <div class="page-sub">Cetak identitas murid sebagai bagian raport. Hasil: kertas A4, satu murid satu halaman.</div>
+      <div class="toolbar">
+        <select class="filter-select" id="idpKelas" onchange="previewIdentitasPdf()"><option value="">-- Pilih Kelas --</option></select>
+        <button class="btn btn-primary" onclick="simpanIdentitasPdf()">🖨️ Simpan PDF (A4)</button>
+      </div>
+      <div id="idpInfo" style="margin-top:14px;font-size:14px;line-height:1.6"></div>
+      <div style="margin-top:10px;font-size:12px;color:#6b7280">Di jendela yang terbuka, pilih tujuan <b>Simpan sebagai PDF</b>, ukuran kertas <b>A4</b>, lalu Simpan.</div>
     </div>
 
     <!-- ===== SEMESTER BARU ===== -->
