@@ -231,6 +231,7 @@ function switchTab(tab) {
   if (tab==='kelengkapan') loadKelengkapan();
   if (tab==='placement')  loadPlacement();
   if (tab==='semester-baru') loadSemesterBaru();
+  if (tab==='identitas-pdf') loadIdentitasPdf();
   if (tab==='kelas')      loadKelas();
   if (tab==='murid')      loadMurid();
   if (tab==='approval-status') loadApprovalStatus();
@@ -710,6 +711,124 @@ async function simpanDaftarAdmin() {
   } catch(e) { console.error('simpanDaftarAdmin:',e); alert('Error: '+e.message); }
 }
 
+
+// ============================================
+// IDENTITAS MURID (PDF A4) — bagian raport
+// ============================================
+function escH(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+
+async function loadIdentitasPdf() {
+  await populateKelasSelect('idpKelas');
+  var info = document.getElementById('idpInfo');
+  if (info) info.innerHTML = 'Pilih kelas, lalu klik <b>Simpan PDF</b>. Satu murid = satu halaman A4.';
+}
+
+async function idpAmbilMurid(kelasId) {
+  var r = await db.from('enrollment')
+    .select('siswa:siswa_id(*), kelas:kelas_id(id,kode_kelas,jilid,nama_level,guru:guru_id(nama_lengkap))')
+    .eq('kelas_id', kelasId).eq('is_active', true);
+  if (r.error) throw new Error(r.error.message);
+  var list = (r.data || []).filter(function(x){ return x.siswa && x.siswa.status; });
+  list.sort(function(a,b){ return (a.siswa.nama_lengkap||'').localeCompare(b.siswa.nama_lengkap||''); });
+  return list;
+}
+
+// hasil: { id: {wajib:[...], detail:{...}} } memakai aturan yang sama dengan menu Kelengkapan Data
+async function idpCekKelengkapan() {
+  var map = {};
+  try {
+    if (window.Kelengkapan && Kelengkapan._hitung) {
+      var st = await Kelengkapan._hitung(activeProgramId, isMandarinActive());
+      (st.murid || []).forEach(function(m){ map[m.id] = m; });
+    }
+  } catch (e) { console.warn('idpCekKelengkapan:', e); }
+  return map;
+}
+
+async function previewIdentitasPdf() {
+  var kelasId = document.getElementById('idpKelas').value;
+  var info = document.getElementById('idpInfo');
+  if (!kelasId) { info.innerHTML = 'Pilih kelas, lalu klik <b>Simpan PDF</b>. Satu murid = satu halaman A4.'; return; }
+  info.innerHTML = '⏳ Memeriksa data murid...';
+  try {
+    var list = await idpAmbilMurid(kelasId);
+    var cek = await idpCekKelengkapan();
+    var kurang = list.filter(function(x){ var c = cek[x.siswa.id]; return c && c.wajib.length; });
+    var h = '<b>' + list.length + ' murid</b> di kelas ini.';
+    if (kurang.length) h += ' <span style="color:#b45309">⚠️ ' + kurang.length + ' murid datanya belum lengkap:</span><ul style="margin:6px 0 0 18px">' +
+      kurang.map(function(x){ return '<li>' + escH(x.siswa.nama_lengkap) + ' — <span style="color:#dc2626">' + escH(cek[x.siswa.id].wajib.join(', ')) + '</span></li>'; }).join('') + '</ul>';
+    else if (list.length) h += ' <span style="color:#16a34a">✅ Semua data wajib lengkap.</span>';
+    info.innerHTML = h;
+  } catch (e) { info.innerHTML = '<span style="color:#dc2626">Error: ' + escH(e.message) + '</span>'; }
+}
+
+async function simpanIdentitasPdf() {
+  var kelasId = document.getElementById('idpKelas').value;
+  if (!kelasId) { alert('Pilih kelas dulu.'); return; }
+  var w = window.open('', '_blank'); // dibuka sekarang supaya tidak diblokir popup-blocker
+  if (!w) { alert('Pop-up diblokir browser. Izinkan pop-up untuk situs ini lalu coba lagi.'); return; }
+  w.document.write('<p style="font-family:Arial;padding:30px">⏳ Menyiapkan PDF...</p>');
+  try {
+    var list = await idpAmbilMurid(kelasId);
+    if (!list.length) { w.close(); alert('Kelas ini belum punya murid aktif.'); return; }
+    var cek = await idpCekKelengkapan();
+    var kurang = list.filter(function(x){ var c = cek[x.siswa.id]; return c && c.wajib.length; });
+    if (kurang.length) {
+      var pesan = '⚠️ ' + kurang.length + ' murid datanya BELUM LENGKAP:\n\n' +
+        kurang.map(function(x){ return '• ' + x.siswa.nama_lengkap + ' — ' + cek[x.siswa.id].wajib.join(', '); }).join('\n') +
+        '\n\nOK = tetap simpan PDF (bagian kosong tertulis "belum diisi")\nBatal = lengkapi datanya dulu (menu Kelengkapan Data)';
+      if (!confirm(pesan)) { w.close(); return; }
+    }
+    var kelas = list[0].kelas;
+    var lvl = (typeof kelasLevelLabel === 'function') ? kelasLevelLabel(kelas) : '';
+    var showM = isMandarinActive();
+    var tgl = function(v){ return v ? new Date(v).toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'}) : ''; };
+    var val = function(v){ return (v && String(v).trim()) ? escH(v) : '<span class="kosong">belum diisi</span>'; };
+    var cetak = new Date().toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'});
+    var halaman = list.map(function(x){
+      var s = x.siswa;
+      var ttl = [s.tempat_lahir, s.tanggal_lahir ? tgl(s.tanggal_lahir) : ''].filter(Boolean).join(', ');
+      var per = s.periode_daftar_tahun ? (s.periode_daftar_tahun + ' Semester ' + s.periode_daftar_semester) : '';
+      return '<section class="page">'
+        + '<div class="hdr"><div><h1>BIMBEL BUDHI MAKMUR MANDARIN</h1><p>興毅南興山口洋補習所 &nbsp;·&nbsp; Raport Murid</p></div></div>'
+        + '<div class="judul">IDENTITAS MURID<br><span>学生资料</span></div>'
+        + '<div class="body"><table class="idt">'
+        + '<tr><td class="l">学号 No. Induk</td><td class="c">:</td><td class="v">'+val(s.nomor_induk)+'</td></tr>'
+        + '<tr><td class="l">姓名 Nama Lengkap</td><td class="c">:</td><td class="v b">'+val(s.nama_lengkap)+'</td></tr>'
+        + (showM ? '<tr><td class="l">中文名 Nama Mandarin</td><td class="c">:</td><td class="v zh">'+val(s.nama_mandarin)+'</td></tr>' : '')
+        + '<tr><td class="l">班级 Kelas</td><td class="c">:</td><td class="v">'+val(kelas.kode_kelas)+(lvl?' ('+escH(lvl)+')':'')+'</td></tr>'
+        + '<tr><td class="l">班主任 Wali Kelas</td><td class="c">:</td><td class="v">'+val(kelas.guru && kelas.guru.nama_lengkap)+'</td></tr>'
+        + '<tr><td class="l">出生 Tempat, Tanggal Lahir</td><td class="c">:</td><td class="v">'+val(ttl)+'</td></tr>'
+        + '<tr><td class="l">地址 Alamat</td><td class="c">:</td><td class="v">'+val(s.alamat)+'</td></tr>'
+        + '<tr><td class="l">No. HP Murid</td><td class="c">:</td><td class="v">'+val(s.telepon)+'</td></tr>'
+        + '<tr><td class="l">No. HP Orang Tua / Wali</td><td class="c">:</td><td class="v">'+val(s.telepon_ortu)+'</td></tr>'
+        + '<tr><td class="l">入学 Tanggal Bergabung</td><td class="c">:</td><td class="v">'+val(tgl(s.tanggal_join))+'</td></tr>'
+        + (per ? '<tr><td class="l">Periode Pendaftaran</td><td class="c">:</td><td class="v">'+escH(per)+'</td></tr>' : '')
+        + '</table><div class="foto">Pas Foto<br>3 × 4</div></div>'
+        + '<div class="ttd"><div><p>Orang Tua / Wali Murid</p><div class="gar"></div></div><div><p>Admin</p><div class="gar"></div></div></div>'
+        + '<div class="ft">Dicetak '+cetak+' · Bimbel Budhi Makmur Mandarin</div>'
+        + '</section>';
+    }).join('');
+    var judul = 'Identitas_' + (kelas.kode_kelas || 'kelas');
+    var css = '@page{size:A4 portrait;margin:0}*{box-sizing:border-box;margin:0;padding:0}'
+      + 'body{font-family:"Times New Roman","Noto Serif CJK SC","Microsoft YaHei",serif;color:#222;background:#e5e5e5}'
+      + '.page{width:210mm;height:296mm;padding:20mm 20mm 14mm;background:#fff;margin:0 auto 8px;position:relative;page-break-after:always;overflow:hidden}'
+      + '.hdr{border-bottom:3px double #b01020;padding-bottom:8px;margin-bottom:16px}'
+      + '.hdr h1{font-size:18px;color:#b01020}.hdr p{font-size:12px;color:#555;margin-top:2px}'
+      + '.judul{text-align:center;font-size:20px;font-weight:bold;letter-spacing:1px;margin:10px 0 20px}.judul span{font-size:14px;font-weight:normal;color:#555}'
+      + '.body{display:flex;gap:16px;align-items:flex-start}.idt{flex:1;border-collapse:collapse;font-size:13px}'
+      + '.idt td{padding:7px 4px;border-bottom:1px dotted #bbb;vertical-align:top}.l{width:46%;color:#444}.c{width:3%}.v{font-weight:bold}.b{font-size:15px}.zh{color:#b01020;font-size:15px}'
+      + '.kosong{font-weight:normal;font-style:italic;color:#b0b0b0}'
+      + '.foto{width:30mm;height:40mm;border:1px solid #888;display:flex;align-items:center;justify-content:center;text-align:center;font-size:11px;color:#888;flex-shrink:0}'
+      + '.ttd{position:absolute;left:20mm;right:20mm;bottom:34mm;display:flex;justify-content:space-between;font-size:12px;text-align:center}'
+      + '.ttd>div{width:60mm}.gar{height:24mm;border-bottom:1px solid #333}'
+      + '.ft{position:absolute;left:20mm;right:20mm;bottom:10mm;text-align:center;font-size:9px;color:#999;border-top:1px solid #ddd;padding-top:5px}'
+      + '@media print{body{background:#fff}.page{margin:0}}';
+    w.document.open();
+    w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+escH(judul)+'</title><style>'+css+'</style></head><body>'+halaman+'<script>window.onload=function(){setTimeout(function(){window.print();},400);};<\/script></body></html>');
+    w.document.close();
+  } catch (e) { try { w.close(); } catch(_) {} console.error('simpanIdentitasPdf:', e); alert('Error: ' + e.message); }
+}
 
 // ============================================
 // SEMESTER BARU — pendaftar kelas semester depan (belum resmi terdata)
