@@ -337,6 +337,7 @@
           <option value="">Semua Semester</option>
         </select>
         <button class="btn btn-primary" onclick="openModalTambahKaldik()">➕ Tambah Event</button>
+        <button class="btn btn-secondary" onclick="simpanRiwayatKaldik()" title="Simpan kaldik (sesuai filter semester) ke riwayat">💾 Simpan ke Riwayat</button>
       </div>
       <div id="kaldikContainer">
         <div class="table-wrap">
@@ -346,6 +347,9 @@
           </table>
         </div>
       </div>
+      <div style="margin-top:26px"><div style="font-weight:700;font-size:15px;margin-bottom:4px">📚 Riwayat Kaldik</div>
+        <div style="font-size:12px;color:#6b7280;margin-bottom:10px">Kaldik semester sebelumnya yang disimpan sebagai referensi. Klik untuk membuka isinya.</div>
+        <div id="kaldikRiwayatBox"></div></div>
     </div>
 
     <!-- ===== PENGATURAN WA GRUP ===== -->

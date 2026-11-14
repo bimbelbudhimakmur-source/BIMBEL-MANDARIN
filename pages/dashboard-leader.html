@@ -1231,6 +1231,20 @@ async function bukaDetailStat(tipe) {
 // ============================================
 // HISTORICAL
 // ============================================
+// Ambil SEMUA baris (Supabase membatasi 1000 baris per permintaan)
+async function fetchAllRows(build) {
+  let all = [], from = 0; const size = 1000;
+  while (true) {
+    const r = await build().order('id').range(from, from + size - 1);
+    if (r.error) throw new Error(r.error.message);
+    const d = r.data || [];
+    all = all.concat(d);
+    if (d.length < size) break;
+    from += size;
+  }
+  return all;
+}
+
 async function initHistorical() {
   // batch removed — populate tahun only
   const now = new Date(); 
@@ -1266,9 +1280,9 @@ async function loadHistorical() {
   let filterPeriode;
   if (sem === '1' || sem === '2') filterPeriode = `and(periode_daftar_tahun.eq.${y},periode_daftar_semester.eq.${sem})`;
   else filterPeriode = `periode_daftar_tahun.eq.${y}`;
-  const { data: muridBaruRaw } = await db.from('siswa')
+  const muridBaruRaw = await fetchAllRows(() => db.from('siswa')
     .select('id, status, nama_lengkap, enrollment(is_active, kelas:kelas_id(kode_kelas,jilid,program_id))')
-    .or(`${filterPeriode},and(periode_daftar_tahun.is.null,created_at.gte.${tglMulai}T00:00:00,created_at.lte.${tglAkhir}T23:59:59)`);
+    .or(`${filterPeriode},and(periode_daftar_tahun.is.null,created_at.gte.${tglMulai}T00:00:00,created_at.lte.${tglAkhir}T23:59:59)`));
 
   // murid PLACEMENT (belum punya kelas) tetap dihitung sebagai murid baru
   let plProgIds = [];
@@ -1357,17 +1371,15 @@ async function loadHistorical() {
   document.getElementById('histAdminSection').style.display = 'block';
 
   // ===== KEUANGAN =====
-  let qTrxHist = db.from('transaksi').select('*').gte('tanggal',tglMulai).lte('tanggal',tglAkhir).eq('status','approved').order('tanggal');
   let qSetoranHist = db.from('setoran_spp').select('*, guru:guru_id!inner(nama_lengkap,kode_guru,program_id), kelas:kelas_id(kode_kelas)')
     .gte('tanggal_setor',tglMulai).lte('tanggal_setor',tglAkhir).in('status',['disetujui_leader','tercairkan']);
   let qGajiHist = db.from('penggajian').select('*, guru:guru_id!inner(nama_lengkap,kode_guru,program_id)')
     .gte('bulan',tglMulai.slice(0,7)).lte('bulan',tglAkhir.slice(0,7)).in('status',['disetujui_leader','dibayar']);
   if (activeProgramId) {
-    qTrxHist = qTrxHist.eq('program_id', activeProgramId);
     qSetoranHist = qSetoranHist.eq('guru.program_id', activeProgramId);
     qGajiHist = qGajiHist.eq('guru.program_id', activeProgramId);
   }
-  const { data: trx } = await qTrxHist;
+  const trx = await fetchAllRows(() => { let q = db.from('transaksi').select('*').gte('tanggal',tglMulai).lte('tanggal',tglAkhir).eq('status','approved'); if (activeProgramId) q = q.eq('program_id', activeProgramId); return q; });
   const { data: setoran } = await qSetoranHist;
   const { data: gaji } = await qGajiHist;
 
@@ -2255,22 +2267,20 @@ async function generateLaporanLeader() {
   const lastDay = new Date(y, m, 0).getDate();
   const endDate = bulan + '-' + String(lastDay).padStart(2,'0');
 
-  let qTrx = db.from('transaksi').select('*').gte('tanggal', bulan+'-01').lte('tanggal', endDate).eq('status', 'approved').order('tanggal');
+  const qTrx = fetchAllRows(() => { let q = db.from('transaksi').select('*').gte('tanggal', bulan+'-01').lte('tanggal', endDate).eq('status', 'approved').order('tanggal'); if (activeProgramId) q = q.eq('program_id', activeProgramId); return q; }).then(d => ({ data: d }));
   let qPendaftaran = daftarBaruRange(bulan+'-01T00:00:00', endDate+'T23:59:59').then(l => ({ count: l.filter(x => x.hitung).length })).catch(() => ({ count: 0 }));
   let qGaji = db.from('penggajian').select('*, guru:guru_id!inner(nama_lengkap,kode_guru,program_id)').eq('bulan', bulan);
   if (activeProgramId) {
-    qTrx = qTrx.eq('program_id', activeProgramId);
     qGaji = qGaji.eq('guru.program_id', activeProgramId);
   }
 
   let cMuridAktif, cMuridStop;
   if (activeProgramId) {
-    const { data: enrData } = await db.from('enrollment')
-      .select('siswa_id, siswa:siswa_id(status), kelas:kelas_id(program_id)')
-      .eq('is_active', true);
-    const scoped = (enrData||[]).filter(e => e.kelas?.program_id === activeProgramId);
-    cMuridAktif = scoped.filter(e => e.siswa?.status).length;
-    cMuridStop  = scoped.filter(e => !e.siswa?.status).length;
+    // aturan SAMA dengan Statistik Bimbel: aktif = jumlah murid unik; berhenti = murid nonaktif yang pernah di program ini
+    const enrData = await fetchAllRows(() => db.from('enrollment').select('id, siswa_id, siswa:siswa_id(status), kelas:kelas_id(program_id)').eq('is_active', true));
+    cMuridAktif = new Set(enrData.filter(e => e.kelas?.program_id === activeProgramId && e.siswa?.status).map(e => e.siswa_id)).size;
+    const stopRaw = await fetchAllRows(() => db.from('siswa').select('id, enrollment(kelas:kelas_id(program_id))').eq('status', false));
+    cMuridStop = stopRaw.filter(x => (x.enrollment||[]).some(e => e.kelas?.program_id === activeProgramId)).length;
   }
 
   const plIdsR = await getPlacementWaitingIds();
@@ -2770,31 +2780,38 @@ async function loadStatistikBimbel() {
   const rp = v => 'Rp ' + Number(v||0).toLocaleString('id-ID');
 
   // ===== STATISTIK MURID =====
-  const { data: muridBaruRaw } = await db.from('siswa')
-    .select('id, status, created_at, enrollment(is_active, kelas:kelas_id(program_id))')
-    .gte('created_at', tglMulai+'T00:00:00').lte('created_at', tglAkhir+'T23:59:59');
+  // Aturan "murid baru" SAMA dengan menu Historical: Periode Pendaftaran siswa (murid lama tanpa periode memakai tanggal dibuat)
+  const filterPeriodeS = `and(periode_daftar_tahun.eq.${tahun},periode_daftar_semester.eq.${sem})`;
+  const muridBaruRaw = await fetchAllRows(() => db.from('siswa')
+    .select('id, status, enrollment(is_active, kelas:kelas_id(program_id))')
+    .or(`${filterPeriodeS},and(periode_daftar_tahun.is.null,created_at.gte.${tglMulai}T00:00:00,created_at.lte.${tglAkhir}T23:59:59)`));
   const plIdsS = await getPlacementWaitingIds();
+  let plProgS = [];
+  try {
+    let qPlS = db.from('placement').select('siswa_id,program_id');
+    if (activeProgramId) qPlS = qPlS.eq('program_id', activeProgramId);
+    plProgS = ((await qPlS).data || []).map(x => x.siswa_id);
+  } catch (e) {}
   const muridBaru = activeProgramId
-    ? (muridBaruRaw||[]).filter(s => (s.enrollment||[]).some(e => e.kelas?.program_id === activeProgramId))
-    : (muridBaruRaw||[]).filter(s => !plIdsS.includes(s.id));
+    ? (muridBaruRaw||[]).filter(s => plProgS.includes(s.id) || (s.enrollment||[]).some(e => e.kelas?.program_id === activeProgramId))
+    : (muridBaruRaw||[]);
   const jumlahBaru = muridBaru.length;
+  // murid baru yang SAAT INI aktif & sudah punya kelas (supaya pengurangan "bertahan" tidak meleset)
+  const baruAktifBerkelas = muridBaru.filter(s => s.status !== false && !plIdsS.includes(s.id)).length;
 
   // Total murid aktif SAAT INI di program ini
-  let qAktif = db.from('siswa').select('id, enrollment(is_active, kelas:kelas_id(program_id))').eq('status', true);
-  const { data: aktifRaw } = await qAktif;
+  const aktifRaw = await fetchAllRows(() => db.from('siswa').select('id, enrollment(is_active, kelas:kelas_id(program_id))').eq('status', true));
   const aktifSekarang = activeProgramId
     ? (aktifRaw||[]).filter(s => (s.enrollment||[]).some(e => e.is_active && e.kelas?.program_id === activeProgramId)).length
     : (aktifRaw||[]).filter(s => !plIdsS.includes(s.id)).length;
 
-  // Total murid nonaktif (berhenti) — data histori tanggal berhenti belum tersedia di sistem,
-  // jadi ini menampilkan TOTAL murid berhenti sepanjang waktu (bukan spesifik periode ini)
-  const { data: nonaktifRaw } = await db.from('siswa')
-    .select('id, enrollment(kelas:kelas_id(program_id))').eq('status', false);
+  // Murid berhenti = murid nonaktif sepanjang waktu (sistem belum mencatat tanggal berhenti per periode)
+  const nonaktifRaw = await fetchAllRows(() => db.from('siswa').select('id, enrollment(kelas:kelas_id(program_id))').eq('status', false));
   const jumlahBerhenti = activeProgramId
     ? (nonaktifRaw||[]).filter(s => (s.enrollment||[]).some(e => e.kelas?.program_id === activeProgramId)).length
     : (nonaktifRaw||[]).length;
 
-  const jumlahBertahan = Math.max(aktifSekarang - jumlahBaru, 0);
+  const jumlahBertahan = Math.max(aktifSekarang - baruAktifBerkelas, 0);
 
   document.getElementById('sbBaruVal').textContent = jumlahBaru;
   document.getElementById('sbBertahanVal').textContent = jumlahBertahan;
@@ -2820,9 +2837,7 @@ async function loadStatistikBimbel() {
   });
 
   // ===== STATISTIK KEUANGAN =====
-  let qTrx = db.from('transaksi').select('*').gte('tanggal', tglMulai).lte('tanggal', tglAkhir).eq('status','approved');
-  if (activeProgramId) qTrx = qTrx.eq('program_id', activeProgramId);
-  const { data: trx } = await qTrx;
+  const trx = await fetchAllRows(() => { let q = db.from('transaksi').select('*').gte('tanggal', tglMulai).lte('tanggal', tglAkhir).eq('status','approved'); if (activeProgramId) q = q.eq('program_id', activeProgramId); return q; });
 
   const masuk  = (trx||[]).filter(t=>t.jenis==='masuk').reduce((s,t)=>s+Number(t.jumlah),0);
   const keluar = (trx||[]).filter(t=>t.jenis==='keluar').reduce((s,t)=>s+Number(t.jumlah),0);
@@ -2848,10 +2863,8 @@ async function loadStatistikBimbel() {
   });
 
   // Tren bulanan sepanjang TAHUN yang dipilih (Jan-Des), pemasukan saja
-  let qTrxTahun = db.from('transaksi').select('tanggal,jumlah,jenis')
-    .gte('tanggal', tahun+'-01-01').lte('tanggal', tahun+'-12-31').eq('status','approved').eq('jenis','masuk');
-  if (activeProgramId) qTrxTahun = qTrxTahun.eq('program_id', activeProgramId);
-  const { data: trxTahun } = await qTrxTahun;
+  const trxTahun = await fetchAllRows(() => { let q = db.from('transaksi').select('id,tanggal,jumlah,jenis')
+    .gte('tanggal', tahun+'-01-01').lte('tanggal', tahun+'-12-31').eq('status','approved').eq('jenis','masuk'); if (activeProgramId) q = q.eq('program_id', activeProgramId); return q; });
 
   const bulanLabel = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
   const perBulan = new Array(12).fill(0);

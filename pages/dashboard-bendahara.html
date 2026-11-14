@@ -984,7 +984,7 @@ async function loadDashboard() {
     { count: cGaji },
   ] = await Promise.all([qSetoran, qIuran, qGaji]);
 
-  let qTrxMasuk = db.from('transaksi').select('jumlah').eq('jenis', 'masuk').like('tanggal', thisMonth + '%');
+  let qTrxMasuk = db.from('transaksi').select('jumlah').eq('jenis', 'masuk').eq('status', 'approved').like('tanggal', thisMonth + '%'); // hanya yang sudah approved, sama dengan Laporan
   if (activeProgramId) qTrxMasuk = qTrxMasuk.eq('program_id', activeProgramId);
   const { data: trxMasuk } = await qTrxMasuk;
   const totalMasuk = (trxMasuk || []).reduce((s, t) => s + Number(t.jumlah), 0);
