@@ -499,7 +499,7 @@ async function loadPendaftaran() {
     for (var i=0;i<data.length;i++) {
       var d=data[i];
       var sb=d.status==='pending'?'<span class="badge badge-yellow">Pending</span>':d.status==='approved'?'<span class="badge badge-green">Disetujui</span>':'<span class="badge badge-red">Ditolak</span>';
-      var ab=d.status==='pending'?'<button class="btn btn-success btn-sm" onclick="proseskan(\''+d.id+'\',\'approved\')">✓</button> <button class="btn btn-danger btn-sm" onclick="proseskan(\''+d.id+'\',\'rejected\')">✗</button>':'';
+      var ab=d.status==='pending'?'<button class="btn btn-success btn-sm" onclick="proseskan(\''+d.id+'\',\'approved\')">✓</button> <button class="btn btn-danger btn-sm" onclick="proseskan(\''+d.id+'\',\'rejected\')">✗</button>':(d.status==='approved'?'<button class="btn btn-success btn-sm" onclick="kirimBuktiDaftar(\''+d.id+'\')" title="Kirim bukti pendaftaran lewat WhatsApp">🧾 Kirim Bukti</button>':'');
       html += '<tr>'
         +'<td><strong>'+(d.nama_lengkap||'')+'</strong></td>'
         +(showMandarin ? '<td style="color:#6b7280">'+(d.nama_mandarin||'—')+'</td>' : '')
@@ -510,6 +510,92 @@ async function loadPendaftaran() {
     }
     tbody.innerHTML=html;
   } catch(e) { console.error('loadPendaftaran:',e); }
+}
+
+// ============================================
+// BUKTI PENDAFTARAN → WhatsApp (khusus pendaftaran, bukan iuran SPP)
+// ============================================
+function nomorWA(raw) {
+  var n = String(raw || '').replace(/[^0-9]/g, '');
+  if (!n) return '';
+  if (n.indexOf('62') === 0) return n;
+  if (n.indexOf('0') === 0) return '62' + n.slice(1);
+  if (n.indexOf('8') === 0) return '62' + n;
+  return n;
+}
+
+async function kirimBuktiDaftar(id) {
+  try {
+    var d = (await db.from('pendaftaran').select('*, kelas:kelas_dipilih(id,kode_kelas,jilid,nama_level,hari_belajar,sesi,program_id)').eq('id', id).single()).data;
+    if (!d) { alert('Data pendaftaran tidak ditemukan.'); return; }
+    // cari murid yang terbentuk dari pendaftaran ini
+    var siswa = null;
+    if (d.siswa_id) siswa = (await db.from('siswa').select('*').eq('id', d.siswa_id).maybeSingle()).data;
+    if (!siswa) {
+      var cand = (await db.from('siswa').select('*').ilike('nama_lengkap', d.nama_lengkap).order('created_at', {ascending:false})).data || [];
+      siswa = cand.find(function(x){ return (x.telepon_ortu || '') === (d.telepon_ortu || ''); }) || cand[0] || null;
+    }
+    if (!siswa) { alert('Murid belum ditemukan di Data Murid. Pastikan pendaftaran sudah disetujui.'); return; }
+
+    var tg = (await db.from('tagihan').select('*').eq('siswa_id', siswa.id).eq('jenis', 'pendaftaran').order('created_at', {ascending:false}).limit(1)).data;
+    tg = tg && tg[0];
+    if (!tg) {
+      alert(d.placement
+        ? 'Murid ini masih PLACEMENT, tagihan pendaftaran belum ada.\nBukti bisa dikirim setelah murid diarahkan ke kelas.'
+        : 'Tagihan pendaftaran murid ini belum ada, jadi nominal belum bisa dicantumkan.\nCek menu Tagihan di akun Bendahara.');
+      return;
+    }
+    var kelas = d.kelas;
+    if (!kelas && tg.kelas_id) kelas = (await db.from('kelas').select('id,kode_kelas,jilid,nama_level,hari_belajar,sesi,program_id').eq('id', tg.kelas_id).maybeSingle()).data;
+
+    var tujuan = nomorWA(siswa.telepon_ortu || d.telepon_ortu) || nomorWA(siswa.telepon || d.telepon);
+    if (!tujuan) { alert('Nomor HP orang tua maupun murid belum diisi.'); return; }
+
+    var prog = null;
+    var pid = (kelas && kelas.program_id) || d.program_id || activeProgramId;
+    if (pid) prog = (await db.from('program').select('*').eq('id', pid).maybeSingle()).data;
+    var namaProg = (prog && (prog.nama || prog.nama_program)) || 'Mandarin';
+
+    var fmtTgl = function(v){ var x = v ? new Date(v) : new Date(); return String(x.getDate()).padStart(2,'0') + '/' + String(x.getMonth()+1).padStart(2,'0') + '/' + x.getFullYear(); };
+    var rp = function(v){ return 'Rp ' + Number(v || 0).toLocaleString('id-ID'); };
+    var isi = function(v){ return (v && String(v).trim()) ? String(v).trim() : '-'; };
+
+    var hari = !kelas ? '' : kelas.hari_belajar === '135' ? 'Sen·Rab·Jum' : kelas.hari_belajar === '246' ? 'Sel·Kam·Sab' : (kelas.hari_belajar || '');
+    var jamM = kelas && (kelas.kode_kelas || '').match(/(\d{2})\.(\d{2})$/);
+    var jadwal = !kelas ? '-' : [hari, kelas.sesi, jamM ? ('pukul ' + jamM[1] + '.' + jamM[2]) : ''].filter(Boolean).join(' · ') || '-';
+    var lvl = kelas ? kelasLevelLabel(kelas) : '';
+    var lunas = tg.status === 'lunas';
+
+    var rincian = (tg.rincian || []).map(function(x){ return '   • ' + x.label + ': ' + rp(x.jumlah); }).join('\n');
+    var pesan =
+      '*BUKTI PENDAFTARAN*\n' +
+      '*Bimbel ' + namaProg + ' Budhi Makmur*\n' +
+      'Tanggal : ' + fmtTgl(d.waktu_proses) + '\n' +
+      '━━━━━━━━━━━━━━\n' +
+      '*DATA MURID*\n' +
+      'Nama Murid : ' + isi(siswa.nama_lengkap) + (siswa.nama_mandarin ? ' (' + siswa.nama_mandarin + ')' : '') + '\n' +
+      'No. Induk : ' + isi(siswa.nomor_induk) + '\n' +
+      'No. Telp Ortu : ' + isi(siswa.telepon_ortu || d.telepon_ortu) + '\n' +
+      'No. Telp Murid : ' + isi(siswa.telepon || d.telepon) + '\n' +
+      'Alamat : ' + isi(siswa.alamat || d.alamat) + '\n' +
+      '\n*PENDAFTARAN*\n' +
+      'Kelas : ' + (kelas ? kelas.kode_kelas + (lvl ? ' (' + lvl + ')' : '') : '-') + '\n' +
+      'Jadwal : ' + jadwal + '\n' +
+      'Periode : ' + tg.tahun + ' Semester ' + tg.semester + '\n' +
+      (rincian ? 'Rincian :\n' + rincian + '\n' : '') +
+      '*Nominal Pembayaran : ' + rp(tg.total) + '*\n' +
+      'Status : *' + (lunas ? 'LUNAS' : 'BELUM LUNAS') + '*' + (lunas && tg.tanggal_bayar ? ' (' + fmtTgl(tg.tanggal_bayar) + ')' : '') + '\n' +
+      '━━━━━━━━━━━━━━\n' +
+      '*CATATAN*\n' +
+      '• Mohon simpan bukti ini sebagai tanda pendaftaran yang sah.\n' +
+      '• Jadwal mulai kelas akan diinformasikan nanti melalui grup WhatsApp kelas yang akan dibuat.\n' +
+      '• Mohon periksa kembali data di atas. Jika ada yang kurang tepat, segera hubungi admin.\n' +
+      '• Bukti ini diterbitkan oleh sistem administrasi Bimbel, sah tanpa tanda tangan.\n\n' +
+      'Terima kasih telah mempercayakan pendidikan putra/putri Anda kepada Bimbel ' + namaProg + ' Budhi Makmur. 🙏';
+
+    var w = window.open('https://wa.me/' + tujuan + '?text=' + encodeURIComponent(pesan), '_blank');
+    if (!w) alert('Pop-up diblokir browser. Izinkan pop-up untuk situs ini, lalu klik Kirim Bukti lagi.');
+  } catch (e) { console.error('kirimBuktiDaftar:', e); alert('Error: ' + e.message); }
 }
 
 async function showDetailDaftar(id) {
@@ -604,6 +690,7 @@ async function prosesPendaftaran(id, status, periode) {
         periode_daftar_tahun:periode?periode.tahun:null,periode_daftar_semester:periode?periode.semester:null
       }).select().single();
       if (sr.error) { alert('Gagal menyimpan murid: '+sr.error.message+'\n(Sudah menjalankan fitur_periode_pendaftaran.sql?)'); return; }
+      if (sr.data) { try { await db.from('pendaftaran').update({siswa_id:sr.data.id}).eq('id',id); } catch(e) {} }
       if (sr.data&&regData.placement) {
         var plRes=await db.from('placement').insert({siswa_id:sr.data.id,program_id:regData.program_id||activeProgramId||null,level_diinginkan:regData.level_diinginkan||null});
         if (plRes.error) { alert('⚠️ Murid tersimpan tapi gagal masuk PLACEMENT: '+plRes.error.message); }
@@ -953,7 +1040,7 @@ async function prosesGrupSemesterBaru(groups) {
       if (en.error) { await db.from('siswa').delete().eq('id',sr.data.id); gagal.push(d.nama_lengkap+' ('+en.error.message+')'); continue; }
       var inf = await terbitkanTagihanPendaftaran(sr.data.id, k.id);
       if (inf.indexOf('gagal dibuat')>=0) tagGagal++;
-      await db.from('pendaftaran').update({status:'approved',diproses_oleh:userId,waktu_proses:new Date().toISOString()}).eq('id',d.id);
+      await db.from('pendaftaran').update({status:'approved',diproses_oleh:userId,waktu_proses:new Date().toISOString(),siswa_id:sr.data.id}).eq('id',d.id);
       ok++;
     } catch(e) { gagal.push(d.nama_lengkap+' ('+e.message+')'); }
   }
