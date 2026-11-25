@@ -45,9 +45,8 @@
   <aside class="dash-sidebar">
     <div class="sidebar-section">Menu</div>
     <div class="sidebar-item active" data-tab="dashboard"><span class="sidebar-icon">📊</span><span>Dashboard</span></div>
-    <div class="sidebar-item" data-tab="register"><span class="sidebar-icon">📋</span><span>Pendaftaran</span></div>
+    <div class="sidebar-item" data-tab="register"><span class="sidebar-icon">📋</span><span>Pendaftaran Semester Baru</span><span id="badgeSemBaru" class="badge badge-yellow" style="margin-left:auto;display:none"></span></div>
     <div class="sidebar-item" data-tab="reregister"><span class="sidebar-icon">🔄</span><span>Pendaftaran Ulang</span></div>
-    <div class="sidebar-item" data-tab="semester-baru"><span class="sidebar-icon">🕒</span><span>Semester Baru</span><span id="badgeSemBaru" class="badge badge-yellow" style="margin-left:auto;display:none"></span></div>
     <div class="sidebar-item" data-tab="placement"><span class="sidebar-icon">🧭</span><span>PLACEMENT</span><span id="badgePlacement" class="badge badge-yellow" style="margin-left:auto;display:none"></span></div>
     <div class="sidebar-section">Data</div>
     <div class="sidebar-item" data-tab="kelas"><span class="sidebar-icon">📚</span><span>Data Kelas</span></div>
@@ -96,20 +95,20 @@
 
     <!-- ===== PENDAFTARAN ===== -->
     <div id="tab-register" class="tab-content">
-      <div class="page-title">Pendaftaran Murid</div>
-      <div class="page-sub">Kelola pendaftaran masuk dan daftarkan murid baru</div>
+      <div class="page-title">Pendaftaran Semester Baru</div>
+      <div class="page-sub">Pendaftar dikelompokkan per kelas. Aktifkan toggle bila pembayaran sudah dicek. Pendaftar kelas semester depan resmi terdata saat semester dimulai dan admin klik "Masukkan".</div>
       <div class="toolbar">
         <button class="btn btn-primary" onclick="openModalDaftarAdmin()">➕ Daftar Murid Baru</button>
         <select class="filter-select" id="filterStatusDaftar" onchange="loadPendaftaran()">
-          <option value="pending">Pending</option>
-          <option value="approved">Disetujui</option>
-          <option value="rejected">Ditolak</option>
+          <option value="pending">Belum resmi terdata</option>
+          <option value="approved">Sudah resmi terdata</option>
           <option value="">Semua</option>
+          <option value="rejected">Ditolak (lama)</option>
         </select>
       </div>
       <div class="table-wrap">
         <table class="table">
-          <thead><tr><th>Nama Indonesia</th><th id="thNamaMandarinDaftar">Nama Mandarin</th><th>Tanggal Join</th><th>Kelas</th><th>Status</th><th>Aksi</th></tr></thead>
+          <thead><tr><th>Nama Indonesia</th><th id="thNamaMandarinDaftar">Nama Mandarin</th><th>Tanggal Daftar</th><th style="text-align:center">Status Pembayaran</th><th>Aksi</th></tr></thead>
           <tbody id="tablePendaftaran"><tr class="loading-row"><td colspan="7">⏳ Memuat...</td></tr></tbody>
         </table>
       </div>
@@ -195,13 +194,6 @@
       </div>
       <div id="idpInfo" style="margin-top:14px;font-size:14px;line-height:1.6"></div>
       <div style="margin-top:10px;font-size:12px;color:#6b7280">Di jendela yang terbuka, pilih tujuan <b>Simpan sebagai PDF</b>, ukuran kertas <b>A4</b>, lalu Simpan.</div>
-    </div>
-
-    <!-- ===== SEMESTER BARU ===== -->
-    <div id="tab-semester-baru" class="tab-content">
-      <div class="page-title">Semester Baru</div>
-      <div class="page-sub">Pendaftar yang memilih kelas semester depan. Mereka belum resmi terdata sampai kelasnya aktif (otomatis saat semester dimulai) dan admin klik "Masukkan".</div>
-      <div id="semBaruBox"><div style="padding:24px;color:#6b7280">⏳ Memuat...</div></div>
     </div>
 
     <!-- ===== PLACEMENT ===== -->
