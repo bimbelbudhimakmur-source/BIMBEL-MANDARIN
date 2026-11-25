@@ -482,34 +482,132 @@ async function viewKelasStudents(kelasId, kelasKode) {
 // ============================================
 // PENDAFTARAN
 // ============================================
+// ============================================
+// PENDAFTARAN SEMESTER BARU (gabungan Pendaftaran + Semester Baru)
+// ============================================
+var daftarGroups = [];
+var daftarRowsById = {};
+
+function toggleBayarHTML(on, disabled, id) {
+  var tip = disabled ? 'Sudah resmi terdata' : (on ? 'Pembayaran disetujui' : 'Belum disetujui');
+  return '<label title="'+tip+'" style="position:relative;display:inline-block;width:44px;height:24px;'+(disabled?'cursor:not-allowed;opacity:.7':'cursor:pointer')+'">'
+    +'<input type="checkbox" '+(on?'checked ':'')+(disabled?'disabled ':'')+'onchange="toggleBayarDaftar(\''+id+'\', this)" style="opacity:0;width:0;height:0">'
+    +'<span style="position:absolute;inset:0;border-radius:24px;background:'+(on?'#16a34a':'#cbd5e1')+';transition:.2s"></span>'
+    +'<span style="position:absolute;top:3px;left:'+(on?'23px':'3px')+';width:18px;height:18px;border-radius:50%;background:#fff;transition:.2s"></span></label>'
+    +'<div style="font-size:10px;margin-top:2px;color:'+(on?'#16a34a':'#9ca3af')+'">'+(disabled?'Terdata':(on?'Setuju':'Belum'))+'</div>';
+}
+
 async function loadPendaftaran() {
   try {
-    var status = document.getElementById('filterStatusDaftar').value;
-    var q = db.from('pendaftaran').select('*, kelas:kelas_dipilih(kode_kelas,jilid)').order('created_at',{ascending:false});
-    if (activeProgramId) q=q.eq('program_id',activeProgramId);
-    if (status) q=q.eq('status',status);
-    q=q.or('semester_baru.is.null,semester_baru.eq.false,status.neq.pending'); // pendaftar kelas semester baru ada di tab Semester Baru
-    var data = (await q).data || [];
-    var showMandarin = isMandarinActive();
+    try { await db.rpc('aktifkan_kelas_terjadwal'); } catch(e) {}
+    var filter = document.getElementById('filterStatusDaftar').value;
+    var q = db.from('pendaftaran').select('*, kelas:kelas_dipilih(id,kode_kelas,jilid,nama_level,hari_belajar,sesi,is_active,menunggu_semester,periode_mulai_tahun,periode_mulai_semester)').order('created_at',{ascending:true}).limit(1000);
+    if (activeProgramId) q = q.eq('program_id', activeProgramId);
+    if (filter) q = q.eq('status', filter); else q = q.neq('status','rejected');
+    var res = await q;
+    if (res.error) { document.getElementById('tablePendaftaran').innerHTML = '<tr><td colspan="5" style="color:#dc2626;padding:20px">Error: '+res.error.message+'<br>(Sudah menjalankan fitur_semester_baru.sql dan fitur_pendaftaran_gabung.sql?)</td></tr>'; return; }
+    var data = res.data || [];
+    var showM = isMandarinActive();
     var thM = document.getElementById('thNamaMandarinDaftar');
-    if (thM) thM.style.display = showMandarin ? '' : 'none';
+    if (thM) thM.style.display = showM ? '' : 'none';
     var tbody = document.getElementById('tablePendaftaran');
-    if (!data.length) { tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:40px;color:#6b7280">Tidak ada data pendaftaran</td></tr>'; return; }
-    var html='';
-    for (var i=0;i<data.length;i++) {
-      var d=data[i];
-      var sb=d.status==='pending'?'<span class="badge badge-yellow">Pending</span>':d.status==='approved'?'<span class="badge badge-green">Disetujui</span>':'<span class="badge badge-red">Ditolak</span>';
-      var ab=d.status==='pending'?'<button class="btn btn-success btn-sm" onclick="proseskan(\''+d.id+'\',\'approved\')">✓</button> <button class="btn btn-danger btn-sm" onclick="proseskan(\''+d.id+'\',\'rejected\')">✗</button>':(d.status==='approved'?'<button class="btn btn-success btn-sm" onclick="kirimBuktiDaftar(\''+d.id+'\')" title="Kirim bukti pendaftaran lewat WhatsApp">🧾 Kirim Bukti</button>':'');
-      html += '<tr>'
-        +'<td><strong>'+(d.nama_lengkap||'')+'</strong></td>'
-        +(showMandarin ? '<td style="color:#6b7280">'+(d.nama_mandarin||'—')+'</td>' : '')
-        +'<td>'+(d.created_at?new Date(d.created_at).toLocaleDateString('id-ID'):'—')+'</td>'
-        +'<td style="font-family:monospace">'+(d.placement?'🧭 PLACEMENT'+(d.level_diinginkan?' <span style="font-family:inherit;color:#6b7280">('+d.level_diinginkan+')</span>':''):(d.kelas?d.kelas.kode_kelas:'—'))+'</td>'
-        +'<td>'+sb+'</td>'
-        +'<td><button class="btn-icon" onclick="showDetailDaftar(\''+d.id+'\')">👁</button> '+ab+' <button class="btn btn-danger btn-sm" onclick="hapusPendaftaran(\''+d.id+'\',\''+(d.nama_lengkap||'').replace(/['\\]/g,'')+'\')">🗑️</button></td></tr>';
-    }
-    tbody.innerHTML=html;
+    var cols = showM ? 5 : 4;
+    if (!data.length) { tbody.innerHTML = '<tr><td colspan="'+cols+'" style="text-align:center;padding:40px;color:#6b7280">Tidak ada data pendaftaran</td></tr>'; daftarGroups = []; return; }
+
+    daftarRowsById = {};
+    var map = {};
+    data.forEach(function(d) {
+      daftarRowsById[d.id] = d;
+      var key = d.kelas ? d.kelas.id : 'PLACEMENT';
+      (map[key] = map[key] || { key:key, kelas:d.kelas || null, rows:[] }).rows.push(d);
+    });
+    daftarGroups = Object.keys(map).map(function(k){ return map[k]; });
+    var urut = function(g){ return g.kelas ? ((g.kelas.hari_belajar||'')+'|'+(g.kelas.sesi||'')+'|'+g.kelas.kode_kelas) : '~~PLACEMENT'; };
+    daftarGroups.sort(function(a,b){ var x=urut(a), y=urut(b); return x<y?-1:x>y?1:0; });
+
+    var siapTotal = 0;
+    var html = '';
+    daftarGroups.forEach(function(g) {
+      var k = g.kelas;
+      var pendingRows = g.rows.filter(function(r){ return r.status==='pending'; });
+      var semBaru = pendingRows.some(function(r){ return r.semester_baru; });
+      var siap = k && k.is_active && !k.menunggu_semester;
+      var okRows = pendingRows.filter(function(r){ return r.semester_baru && r.pembayaran_ok; });
+      var belumOk = pendingRows.filter(function(r){ return r.semester_baru && !r.pembayaran_ok; }).length;
+      var judul, badge = '', tombol = '';
+      if (!k) {
+        judul = '<strong>🧭 PLACEMENT</strong> <span style="color:#6b7280;font-size:12px">— menunggu diarahkan ke kelas</span>';
+      } else {
+        var lvl = (typeof kelasLevelLabel==='function') ? kelasLevelLabel(k) : '';
+        judul = '<strong style="font-family:monospace;font-size:14px">'+k.kode_kelas+'</strong>'+(lvl?' <span style="color:#6b7280">— '+lvl+'</span>':'')
+          +'<span style="color:#6b7280;font-size:12px"> · '+(k.hari_belajar||'')+' '+(k.sesi||'')+(k.menunggu_semester||semBaru?' · Mulai '+k.periode_mulai_tahun+' Sem '+k.periode_mulai_semester:'')+'</span>';
+        if (semBaru) {
+          badge = siap ? '<span class="badge badge-green">✅ Kelas sudah aktif</span>' : '<span class="badge badge-yellow">🕒 Menunggu semester dimulai</span>';
+          if (siap && okRows.length) { siapTotal += okRows.length; tombol = '<button class="btn btn-success btn-sm" onclick="masukkanGrupDaftar(\''+k.id+'\')">▶ Masukkan '+okRows.length+' murid</button>'; }
+          else if (!siap) tombol = '<button class="btn btn-secondary btn-sm" disabled title="Aktif otomatis saat semester dimulai">Belum bisa dimasukkan</button>';
+          if (siap && belumOk) badge += ' <span style="font-size:11px;color:#b45309">'+belumOk+' belum disetujui, tidak ikut dimasukkan</span>';
+        } else { badge = '<span class="badge badge-green">Kelas aktif</span>'; }
+      }
+      html += '<tr style="background:#fdf2f8"><td colspan="'+cols+'" style="padding:10px 14px"><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><div>'+judul+'</div>'+badge+'<div style="margin-left:auto">'+tombol+'</div></div></td></tr>';
+      g.rows.forEach(function(d) {
+        var approved = d.status==='approved', rejected = d.status==='rejected';
+        var on = approved || (d.semester_baru && d.pembayaran_ok);
+        var bolehBukti = approved || (d.semester_baru && d.pembayaran_ok);
+        html += '<tr>'
+          +'<td><strong>'+escH(d.nama_lengkap||'')+'</strong>'+(d.placement&&d.level_diinginkan?'<div style="font-size:11px;color:#6b7280">Level: '+escH(d.level_diinginkan)+'</div>':'')+'</td>'
+          +(showM ? '<td style="color:#6b7280">'+escH(d.nama_mandarin||'—')+'</td>' : '')
+          +'<td>'+(d.created_at?new Date(d.created_at).toLocaleDateString('id-ID'):'—')+'</td>'
+          +'<td style="text-align:center">'+(rejected?'<span class="badge badge-red">Ditolak</span>':toggleBayarHTML(on, approved, d.id))+'</td>'
+          +'<td style="white-space:nowrap"><button class="btn-icon" title="Detail data" onclick="showDetailDaftar(\''+d.id+'\')">👁</button> '
+          +(bolehBukti?'<button class="btn btn-success btn-sm" onclick="kirimBuktiDaftar(\''+d.id+'\')" title="Kirim bukti pendaftaran lewat WhatsApp">🧾 Kirim Bukti</button> ':'')
+          +'<button class="btn btn-danger btn-sm" onclick="hapusPendaftaran(\''+d.id+'\',\''+(d.nama_lengkap||'').replace(/['\\]/g,'')+'\')">🗑️</button></td></tr>';
+      });
+    });
+    if (siapTotal) html = '<tr><td colspan="'+cols+'" style="padding:10px 14px"><button class="btn btn-success" onclick="masukkanSemuaDaftar()">⚡ Masukkan SEMUA yang siap ('+siapTotal+' murid)</button></td></tr>' + html;
+    tbody.innerHTML = html;
+    updateBadgeSemesterBaru();
   } catch(e) { console.error('loadPendaftaran:',e); }
+}
+
+async function toggleBayarDaftar(id, cb) {
+  var d = daftarRowsById[id];
+  if (!d) return;
+  var on = cb.checked;
+  if (!d.semester_baru) {
+    // kelas aktif / placement: setuju = langsung resmi terdata (pilih periode dulu)
+    cb.checked = false;
+    if (on) proseskan(id, 'approved');
+    return;
+  }
+  var r = await db.from('pendaftaran').update({ pembayaran_ok: on }).eq('id', id);
+  if (r.error) { cb.checked = !on; alert('Gagal: '+r.error.message+'\n(Sudah menjalankan fitur_pendaftaran_gabung.sql?)'); return; }
+  loadPendaftaran();
+}
+
+async function masukkanGrupDaftar(kelasId) {
+  var g = daftarGroups.find(function(x){ return x.key === kelasId; });
+  if (!g) return;
+  var ok = g.rows.filter(function(r){ return r.status==='pending' && r.semester_baru && r.pembayaran_ok; });
+  if (!ok.length) { alert('Belum ada pendaftar yang pembayarannya disetujui.'); return; }
+  var belum = g.rows.filter(function(r){ return r.status==='pending' && r.semester_baru && !r.pembayaran_ok; }).length;
+  if (!confirm('Masukkan '+ok.length+' murid ke kelas '+g.kelas.kode_kelas+'?\n\nMereka langsung resmi terdata, tagihan masuk Bendahara, dan tercatat di periode '+g.kelas.periode_mulai_tahun+' Sem '+g.kelas.periode_mulai_semester+'.'+(belum?'\n\n('+belum+' pendaftar yang belum disetujui TIDAK ikut dimasukkan.)':''))) return;
+  var msg = await prosesGrupSemesterBaru([{ kelas: g.kelas, list: ok }]);
+  alert(msg);
+  await loadPendaftaran(); await loadStats(); await updateBadgePlacement();
+}
+
+async function masukkanSemuaDaftar() {
+  var groups = [], tot = 0;
+  daftarGroups.forEach(function(g) {
+    if (!g.kelas || !g.kelas.is_active || g.kelas.menunggu_semester) return;
+    var ok = g.rows.filter(function(r){ return r.status==='pending' && r.semester_baru && r.pembayaran_ok; });
+    if (ok.length) { groups.push({ kelas: g.kelas, list: ok }); tot += ok.length; }
+  });
+  if (!tot) return;
+  if (!confirm('Masukkan SEMUA '+tot+' murid (pembayaran disetujui) dari '+groups.length+' kelas yang sudah aktif?')) return;
+  var msg = await prosesGrupSemesterBaru(groups);
+  alert(msg);
+  await loadPendaftaran(); await loadStats(); await updateBadgePlacement();
 }
 
 // ============================================
@@ -526,10 +624,19 @@ function nomorWA(raw) {
 
 async function kirimBuktiDaftar(id) {
   try {
-    var d = (await db.from('pendaftaran').select('*, kelas:kelas_dipilih(id,kode_kelas,jilid,nama_level,hari_belajar,sesi,program_id)').eq('id', id).single()).data;
+    var d = (await db.from('pendaftaran').select('*, kelas:kelas_dipilih(id,kode_kelas,jilid,nama_level,hari_belajar,sesi,program_id,periode_mulai_tahun,periode_mulai_semester)').eq('id', id).single()).data;
     if (!d) { alert('Data pendaftaran tidak ditemukan.'); return; }
+    var preview = d.status === 'pending' && d.semester_baru && d.pembayaran_ok; // belum resmi masuk kelas: nominal dihitung dari tarif
+    var siswa = null, tg = null;
+    if (preview) {
+      if (!d.kelas) { alert('Kelas pilihan tidak ditemukan.'); return; }
+      var tarif = await Tagihan.muatTarif();
+      var h = Tagihan.hitung(tarif, 'pendaftaran', { jilid: d.kelas.jilid, nama_level: d.kelas.nama_level });
+      if (!h.total) { alert('Tarif pendaftaran kelas ini belum diatur di Setting Biaya (Bendahara), nominal belum bisa dicantumkan.'); return; }
+      siswa = { nama_lengkap: d.nama_lengkap, nama_mandarin: d.nama_mandarin, nomor_induk: null, telepon_ortu: d.telepon_ortu, telepon: d.telepon, alamat: d.alamat };
+      tg = { status: 'lunas', tahun: d.kelas.periode_mulai_tahun, semester: d.kelas.periode_mulai_semester, total: h.total, rincian: h.rincian, tanggal_bayar: null, kelas_id: d.kelas.id };
+    } else {
     // cari murid yang terbentuk dari pendaftaran ini
-    var siswa = null;
     if (d.siswa_id) siswa = (await db.from('siswa').select('*').eq('id', d.siswa_id).maybeSingle()).data;
     if (!siswa) {
       var cand = (await db.from('siswa').select('*').ilike('nama_lengkap', d.nama_lengkap).order('created_at', {ascending:false})).data || [];
@@ -537,13 +644,14 @@ async function kirimBuktiDaftar(id) {
     }
     if (!siswa) { alert('Murid belum ditemukan di Data Murid. Pastikan pendaftaran sudah disetujui.'); return; }
 
-    var tg = (await db.from('tagihan').select('*').eq('siswa_id', siswa.id).eq('jenis', 'pendaftaran').order('created_at', {ascending:false}).limit(1)).data;
+    tg = (await db.from('tagihan').select('*').eq('siswa_id', siswa.id).eq('jenis', 'pendaftaran').order('created_at', {ascending:false}).limit(1)).data;
     tg = tg && tg[0];
     if (!tg) {
       alert(d.placement
         ? 'Murid ini masih PLACEMENT, tagihan pendaftaran belum ada.\nBukti bisa dikirim setelah murid diarahkan ke kelas.'
         : 'Tagihan pendaftaran murid ini belum ada, jadi nominal belum bisa dicantumkan.\nCek menu Tagihan di akun Bendahara.');
       return;
+    }
     }
     var kelas = d.kelas;
     if (!kelas && tg.kelas_id) kelas = (await db.from('kelas').select('id,kode_kelas,jilid,nama_level,hari_belajar,sesi,program_id').eq('id', tg.kelas_id).maybeSingle()).data;
@@ -574,7 +682,7 @@ async function kirimBuktiDaftar(id) {
       '━━━━━━━━━━━━━━\n' +
       '*DATA MURID*\n' +
       'Nama Murid : ' + isi(siswa.nama_lengkap) + (siswa.nama_mandarin ? ' (' + siswa.nama_mandarin + ')' : '') + '\n' +
-      'No. Induk : ' + isi(siswa.nomor_induk) + '\n' +
+      (siswa.nomor_induk ? 'No. Induk : ' + siswa.nomor_induk + '\n' : '') +
       'No. Telp Ortu : ' + isi(siswa.telepon_ortu || d.telepon_ortu) + '\n' +
       'No. Telp Murid : ' + isi(siswa.telepon || d.telepon) + '\n' +
       'Alamat : ' + isi(siswa.alamat || d.alamat) + '\n' +
@@ -928,7 +1036,7 @@ async function simpanIdentitasPdf() {
 // ============================================
 async function updateBadgeSemesterBaru() {
   try {
-    var q = db.from('pendaftaran').select('*',{count:'exact',head:true}).eq('status','pending').eq('semester_baru',true);
+    var q = db.from('pendaftaran').select('*',{count:'exact',head:true}).eq('status','pending').or('semester_baru.eq.false,pembayaran_ok.eq.false');
     if (activeProgramId) q = q.eq('program_id', activeProgramId);
     var r = await q; var n = r.count || 0;
     var el = document.getElementById('badgeSemBaru');
