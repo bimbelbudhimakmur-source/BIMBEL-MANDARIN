@@ -646,10 +646,17 @@ async function kirimBuktiDaftar(id) {
 
     tg = (await db.from('tagihan').select('*').eq('siswa_id', siswa.id).eq('jenis', 'pendaftaran').order('created_at', {ascending:false}).limit(1)).data;
     tg = tg && tg[0];
+    if (!tg && d.placement) {
+      // PLACEMENT: belum ada kelas & tagihan, jadi nominal yang diterima diisi admin
+      var inp = prompt('Murid PLACEMENT belum punya tagihan.\nMasukkan NOMINAL pembayaran yang sudah diterima (Rp, angka saja):', '');
+      if (inp === null) return;
+      var nom = parseInt(String(inp).replace(/[^0-9]/g, ''), 10);
+      if (!nom) { alert('Nominal wajib diisi dengan angka.'); return; }
+      var pr = (siswa.periode_daftar_tahun && siswa.periode_daftar_semester) ? { tahun: siswa.periode_daftar_tahun, semester: siswa.periode_daftar_semester } : Tagihan.periodeSekarang();
+      tg = { status: 'lunas', tahun: pr.tahun, semester: pr.semester, total: nom, rincian: [], tanggal_bayar: null };
+    }
     if (!tg) {
-      alert(d.placement
-        ? 'Murid ini masih PLACEMENT, tagihan pendaftaran belum ada.\nBukti bisa dikirim setelah murid diarahkan ke kelas.'
-        : 'Tagihan pendaftaran murid ini belum ada, jadi nominal belum bisa dicantumkan.\nCek menu Tagihan di akun Bendahara.');
+      alert('Tagihan pendaftaran murid ini belum ada, jadi nominal belum bisa dicantumkan.\nCek menu Tagihan di akun Bendahara.');
       return;
     }
     }
@@ -687,8 +694,8 @@ async function kirimBuktiDaftar(id) {
       'No. Telp Murid : ' + isi(siswa.telepon || d.telepon) + '\n' +
       'Alamat : ' + isi(siswa.alamat || d.alamat) + '\n' +
       '\n*PENDAFTARAN*\n' +
-      'Kelas : ' + (kelas ? kelas.kode_kelas + (lvl ? ' (' + lvl + ')' : '') : '-') + '\n' +
-      'Jadwal : ' + jadwal + '\n' +
+      (kelas ? 'Kelas : ' + kelas.kode_kelas + (lvl ? ' (' + lvl + ')' : '') + '\n' + 'Jadwal : ' + jadwal + '\n'
+        : 'Kelas : PLACEMENT' + (d.level_diinginkan ? ' (level diinginkan: ' + d.level_diinginkan + ')' : '') + '\n') +
       'Periode : ' + tg.tahun + ' Semester ' + tg.semester + '\n' +
       (rincian ? 'Rincian :\n' + rincian + '\n' : '') +
       '*Nominal Pembayaran : ' + rp(tg.total) + '*\n' +
@@ -696,7 +703,8 @@ async function kirimBuktiDaftar(id) {
       '━━━━━━━━━━━━━━\n' +
       '*CATATAN*\n' +
       '• Mohon simpan bukti ini sebagai tanda pendaftaran yang sah.\n' +
-      '• Jadwal mulai kelas akan diinformasikan nanti melalui grup WhatsApp kelas yang akan dibuat.\n' +
+      (kelas ? '• Jadwal mulai kelas akan diinformasikan nanti melalui grup WhatsApp kelas yang akan dibuat.\n'
+        : '• Penempatan kelas akan diinformasikan oleh admin setelah proses placement. Jadwal mulai kelas akan diinformasikan melalui grup WhatsApp kelas yang akan dibuat.\n') +
       '• Mohon periksa kembali data di atas. Jika ada yang kurang tepat, segera hubungi admin.\n' +
       '• Bukti ini diterbitkan oleh sistem administrasi Bimbel, sah tanpa tanda tangan.\n\n' +
       'Terima kasih telah mempercayakan pendidikan putra/putri Anda kepada Bimbel ' + namaProg + ' Budhi Makmur. 🙏';
