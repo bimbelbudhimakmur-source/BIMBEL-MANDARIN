@@ -640,7 +640,9 @@ async function kirimBuktiDaftar(id) {
     if (d.siswa_id) siswa = (await db.from('siswa').select('*').eq('id', d.siswa_id).maybeSingle()).data;
     if (!siswa) {
       var cand = (await db.from('siswa').select('*').ilike('nama_lengkap', d.nama_lengkap).order('created_at', {ascending:false})).data || [];
-      siswa = cand.find(function(x){ return (x.telepon_ortu || '') === (d.telepon_ortu || ''); }) || cand[0] || null;
+      var dig = function(v){ return String(v || '').replace(/[^0-9]/g, ''); };
+      // hanya cocok jika nomor ortu sama persis (tanpa tebak-tebakan nama kembar)
+      siswa = cand.find(function(x){ return dig(x.telepon_ortu) && dig(x.telepon_ortu) === dig(d.telepon_ortu); }) || null;
     }
     if (!siswa) { alert('Murid belum ditemukan di Data Murid. Pastikan pendaftaran sudah disetujui.'); return; }
 
@@ -714,6 +716,54 @@ async function kirimBuktiDaftar(id) {
   } catch (e) { console.error('kirimBuktiDaftar:', e); alert('Error: ' + e.message); }
 }
 
+
+// ===== Edit manual data pendaftar =====
+async function editDaftar(id) {
+  try {
+    var d = (await db.from('pendaftaran').select('*').eq('id', id).single()).data;
+    if (!d) return;
+    var inp = function(label, key, type, val) {
+      return '<div class="modal-row"><span class="modal-label">' + label + '</span><span class="modal-value">'
+        + '<input id="edd_' + key + '" type="' + (type || 'text') + '" value="' + escH(val == null ? '' : val) + '" style="width:100%;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px"></span></div>';
+    };
+    document.getElementById('detailDaftarContent').innerHTML =
+      inp('Nama Indonesia', 'nama_lengkap', 'text', d.nama_lengkap)
+      + (isMandarinActive() ? inp('Nama Mandarin', 'nama_mandarin', 'text', d.nama_mandarin) : '')
+      + inp('HP Murid', 'telepon', 'text', d.telepon)
+      + inp('HP Orang Tua', 'telepon_ortu', 'text', d.telepon_ortu)
+      + inp('Tempat Lahir', 'tempat_lahir', 'text', d.tempat_lahir)
+      + inp('Tgl Lahir', 'tanggal_lahir', 'date', d.tanggal_lahir ? String(d.tanggal_lahir).slice(0, 10) : '')
+      + '<div class="modal-row"><span class="modal-label">Alamat</span><span class="modal-value"><textarea id="edd_alamat" rows="3" style="width:100%;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px">' + escH(d.alamat || '') + '</textarea></span></div>'
+      + (d.siswa_id ? '<div style="font-size:12px;color:#6b7280;margin-top:8px">Murid ini sudah terdata di Data Murid; perubahan juga ikut tersimpan di sana.</div>' : '');
+    document.getElementById('detailDaftarAksi').innerHTML =
+      '<button class="btn btn-success" onclick="simpanEditDaftar(\'' + d.id + '\')">💾 Simpan</button>'
+      + '<button class="btn btn-secondary" onclick="showDetailDaftar(\'' + d.id + '\')">Batal</button>';
+  } catch (e) { console.error('editDaftar:', e); alert('Error: ' + e.message); }
+}
+
+async function simpanEditDaftar(id) {
+  try {
+    var g = function(k) { var el = document.getElementById('edd_' + k); return el ? el.value.trim() : undefined; };
+    var nama = g('nama_lengkap');
+    if (!nama) { alert('Nama Indonesia wajib diisi.'); return; }
+    var upd = { nama_lengkap: nama };
+    ['nama_mandarin', 'telepon', 'telepon_ortu', 'tempat_lahir', 'alamat'].forEach(function(k) {
+      var v = g(k); if (v !== undefined) upd[k] = v || null;
+    });
+    var tl = g('tanggal_lahir'); if (tl !== undefined) upd.tanggal_lahir = tl || null;
+
+    var r = await db.from('pendaftaran').update(upd).eq('id', id).select('siswa_id').single();
+    if (r.error) throw r.error;
+    if (r.data && r.data.siswa_id) {
+      var r2 = await db.from('siswa').update(upd).eq('id', r.data.siswa_id);
+      if (r2.error) throw r2.error;
+    }
+    alert('Data pendaftar berhasil disimpan.');
+    closeModal('modalDetailDaftar');
+    if (typeof loadPendaftaran === 'function') loadPendaftaran();
+  } catch (e) { console.error('simpanEditDaftar:', e); alert('Gagal menyimpan: ' + e.message); }
+}
+
 async function showDetailDaftar(id) {
   try {
     var d=(await db.from('pendaftaran').select('*, kelas:kelas_dipilih(kode_kelas,jilid)').eq('id',id).single()).data;
@@ -741,10 +791,12 @@ async function showDetailDaftar(id) {
       +'<div class="modal-row"><span class="modal-label">Kelas Dipilih</span><span class="modal-value" style="font-family:monospace">'+(d.placement?'🧭 PLACEMENT'+(d.level_diinginkan?' — level diinginkan: '+d.level_diinginkan:''):(d.kelas?d.kelas.kode_kelas:'—'))+'</span></div>'
       +'<div class="modal-row"><span class="modal-label">Bukti Bayar</span><span class="modal-value">'+fileHtml+'</span></div>';
 
-    document.getElementById('detailDaftarAksi').innerHTML = d.status==='pending'
+    document.getElementById('detailDaftarAksi').innerHTML =
+      '<button class="btn btn-secondary" onclick="editDaftar(\''+d.id+'\')">✏️ Edit Data</button>'
+      + (d.status==='pending'
       ? '<button class="btn btn-success" onclick="proseskan(\''+d.id+'\',\'approved\');closeModal(\'modalDetailDaftar\')">✓ Setujui</button>'
         +'<button class="btn btn-danger" onclick="proseskan(\''+d.id+'\',\'rejected\');closeModal(\'modalDetailDaftar\')">✗ Tolak</button>'
-      : '';
+      : '');
     document.getElementById('modalDetailDaftar').classList.remove('hidden');
   } catch(e) { console.error('showDetailDaftar:',e); }
 }
