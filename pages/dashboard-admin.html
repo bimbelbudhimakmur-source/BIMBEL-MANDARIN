@@ -17,6 +17,13 @@
     .bulk-bar { background:#1c1c2e;color:white;padding:10px 16px;border-radius:8px;margin-bottom:12px;display:none;align-items:center;gap:12px;font-size:13px; }
     .bulk-bar.show { display:flex; }
   </style>
+    <link rel="manifest" href="../manifest.json">
+    <meta name="theme-color" content="#c2185b">
+    <link rel="icon" type="image/png" href="../icons/favicon.png">
+    <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Budhi Makmur">
 </head>
 <body class="dash-page">
 
@@ -611,5 +618,6 @@
 <script src="../assets/kelengkapan.js"></script>
 <script src="../assets/tagihan.js"></script>
 <script src="../assets/admin.js"></script>
+<script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('../sw.js').catch(function(){});});}</script>
 </body>
 </html>
