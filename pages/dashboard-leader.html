@@ -109,7 +109,7 @@
     </div>
     <div class="sidebar-section">Kolaborasi</div>
     <div class="sidebar-item" data-tab="notulen-todo">
-      <span class="sidebar-icon">📌</span><span>Notulen & To Do List</span>
+      <span class="sidebar-icon">📌</span><span>Catatan & To Do List</span>
     </div>
     <div class="sidebar-item" data-tab="ortu-log">
       <span class="sidebar-icon">👪</span><span>Log Akun Orang Tua</span>
@@ -878,12 +878,12 @@
     </div>
 
     <div id="tab-notulen-todo" class="tab-content">
-      <div class="page-title">Notulen Rapat & To Do List</div>
+      <div class="page-title">Catatan Rapat & To Do List</div>
       <div class="page-sub">Catatan rapat dan daftar tugas tim — sesuai program yang aktif</div>
 
       <div style="display:flex;gap:4px;margin-bottom:20px;border-bottom:2px solid #e5e7eb">
         <button class="btn-subtab-nt active" data-subtab="notulen" onclick="switchSubtabNT('notulen')"
-          style="padding:10px 18px;border:none;background:none;cursor:pointer;font-weight:700;font-size:13px;border-bottom:3px solid #b01020;color:#b01020">📝 Notulen Rapat</button>
+          style="padding:10px 18px;border:none;background:none;cursor:pointer;font-weight:700;font-size:13px;border-bottom:3px solid #b01020;color:#b01020">📝 Catatan Rapat</button>
         <button class="btn-subtab-nt" data-subtab="todo" onclick="switchSubtabNT('todo')"
           style="padding:10px 18px;border:none;background:none;cursor:pointer;font-weight:700;font-size:13px;border-bottom:3px solid transparent;color:#6b7280">✅ To Do List</button>
       </div>
@@ -969,15 +969,15 @@
   </div>
 </div>
 
-<!-- Modal: Notulen Rapat -->
+<!-- Modal: Catatan Rapat -->
 <div class="modal-overlay hidden" id="modalNotulen">
   <div class="modal-box" style="max-width:640px">
-    <div class="modal-header"><span class="modal-title" id="modalNotulenTitle">Tambah Notulen</span><button class="modal-close" onclick="closeModal('modalNotulen')">✕</button></div>
+    <div class="modal-header"><span class="modal-title" id="modalNotulenTitle">Tambah Catatan</span><button class="modal-close" onclick="closeModal('modalNotulen')">✕</button></div>
     <div class="form-grid">
       <div class="form-group"><label>Judul <span style="color:red">*</span></label><input type="text" id="nt_judul" placeholder="Contoh: Rapat Evaluasi Semester 1"></div>
       <div class="form-group"><label>Tanggal <span style="color:red">*</span></label><input type="date" id="nt_tanggal"></div>
     </div>
-    <div class="form-group" style="margin-top:12px"><label>Isi Notulen <span style="color:red">*</span></label><textarea id="nt_isi" style="height:180px" placeholder="Tulis poin-poin rapat di sini..."></textarea></div>
+    <div class="form-group" style="margin-top:12px"><label>Isi Catatan <span style="color:red">*</span></label><textarea id="nt_isi" style="height:180px" placeholder="Tulis poin-poin rapat di sini..."></textarea></div>
     <input type="hidden" id="nt_id">
     <div class="form-actions"><button class="btn btn-primary" onclick="simpanNotulen()">💾 Simpan</button><button class="btn btn-secondary" onclick="closeModal('modalNotulen')">Batal</button></div>
   </div>
@@ -3040,7 +3040,7 @@ function switchSubtabNT(sub) {
 
 async function loadNotulenTodo() {
   document.getElementById('ntNotulenToolbar').innerHTML = NT_CAN_EDIT
-    ? '<button class="btn btn-primary" onclick="openModalNotulen()">➕ Tambah Notulen</button>' : '';
+    ? '<button class="btn btn-primary" onclick="openModalNotulen()">➕ Tambah Catatan</button>' : '';
   document.getElementById('ntTodoToolbar').innerHTML = NT_CAN_EDIT
     ? '<button class="btn btn-primary" onclick="openModalTodo()">➕ Tambah Tugas</button> <button class="btn btn-secondary" onclick="Notif.openKirim()">🔔 Kirim Notifikasi</button>' : '';
   await loadNotulenList();
@@ -3052,7 +3052,7 @@ async function loadNotulenList() {
   if (activeProgramId) q = q.eq('program_id', activeProgramId);
   const { data } = await q;
   const wrap = document.getElementById('listNotulen');
-  if (!data?.length) { wrap.innerHTML = '<div style="text-align:center;padding:40px;color:#6b7280">Belum ada notulen</div>'; return; }
+  if (!data?.length) { wrap.innerHTML = '<div style="text-align:center;padding:40px;color:#6b7280">Belum ada catatan</div>'; return; }
   wrap.innerHTML = data.map(n => `
     <div style="background:white;border:1px solid #e5e7eb;border-radius:10px;padding:16px 20px;margin-bottom:12px">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
@@ -3071,7 +3071,7 @@ async function loadNotulenList() {
 }
 
 function openModalNotulen(n) {
-  document.getElementById('modalNotulenTitle').textContent = n ? 'Edit Notulen' : 'Tambah Notulen';
+  document.getElementById('modalNotulenTitle').textContent = n ? 'Edit Catatan' : 'Tambah Catatan';
   document.getElementById('nt_id').value = n?.id || '';
   document.getElementById('nt_judul').value = n?.judul || '';
   document.getElementById('nt_tanggal').value = n?.tanggal || new Date().toISOString().slice(0,10);
@@ -3098,7 +3098,7 @@ async function simpanNotulen() {
 }
 
 async function hapusNotulen(id) {
-  if (!confirm('Hapus notulen ini?')) return;
+  if (!confirm('Hapus catatan ini?')) return;
   const { error } = await db.from('notulen_rapat').delete().eq('id', id);
   if (error) { alert('Error: '+error.message); return; }
   await loadNotulenList();

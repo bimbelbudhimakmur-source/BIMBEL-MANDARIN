@@ -2865,7 +2865,7 @@ function switchSubtabNT(sub) {
 
 async function loadNotulenTodo() {
   document.getElementById('ntNotulenToolbar').innerHTML = NT_CAN_EDIT
-    ? '<button class="btn btn-primary" onclick="openModalNotulen()">➕ Tambah Notulen</button>' : '';
+    ? '<button class="btn btn-primary" onclick="openModalNotulen()">➕ Tambah Catatan</button>' : '';
   document.getElementById('ntTodoToolbar').innerHTML = NT_CAN_EDIT
     ? '<button class="btn btn-primary" onclick="openModalTodo()">➕ Tambah Tugas</button> <button class="btn btn-secondary" onclick="Notif.openKirim()">🔔 Kirim Notifikasi</button>' : '';
   await loadNotulenList();
@@ -2877,7 +2877,7 @@ async function loadNotulenList() {
   if (activeProgramId) q = q.eq('program_id', activeProgramId);
   var { data } = await q;
   var wrap = document.getElementById('listNotulen');
-  if (!data || !data.length) { wrap.innerHTML = '<div style="text-align:center;padding:40px;color:#6b7280">Belum ada notulen</div>'; return; }
+  if (!data || !data.length) { wrap.innerHTML = '<div style="text-align:center;padding:40px;color:#6b7280">Belum ada catatan</div>'; return; }
   wrap.innerHTML = data.map(function(n) {
     return '<div style="background:white;border:1px solid #e5e7eb;border-radius:10px;padding:16px 20px;margin-bottom:12px">'
       + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">'
@@ -2893,7 +2893,7 @@ async function loadNotulenList() {
 }
 
 function openModalNotulen(n) {
-  document.getElementById('modalNotulenTitle').textContent = n ? 'Edit Notulen' : 'Tambah Notulen';
+  document.getElementById('modalNotulenTitle').textContent = n ? 'Edit Catatan' : 'Tambah Catatan';
   document.getElementById('nt_id').value = n ? n.id : '';
   document.getElementById('nt_judul').value = n ? n.judul : '';
   document.getElementById('nt_tanggal').value = n ? n.tanggal : new Date().toISOString().slice(0,10);
@@ -2920,7 +2920,7 @@ async function simpanNotulen() {
 }
 
 async function hapusNotulen(id) {
-  if (!confirm('Hapus notulen ini?')) return;
+  if (!confirm('Hapus catatan ini?')) return;
   var { error } = await db.from('notulen_rapat').delete().eq('id', id);
   if (error) { alert('Error: '+error.message); return; }
   await loadNotulenList();
