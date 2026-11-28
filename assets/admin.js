@@ -1091,6 +1091,87 @@ async function simpanIdentitasPdf() {
   } catch (e) { console.error('simpanIdentitasPdf:', e); alert('Error: ' + e.message); }
 }
 
+
+// ============================================
+// CETAK / SIMPAN PDF KALDIK (A4, keterangan lengkap)
+// ============================================
+async function cetakKaldikPdf() {
+  try {
+    var filterEl = document.getElementById('filterSemesterKaldik');
+    var sem = filterEl ? filterEl.value : '';
+    var q = db.from('kaldik').select('*').order('tanggal_mulai', {ascending:true});
+    if (typeof activeProgramId !== 'undefined' && activeProgramId) q = q.eq('program_id', activeProgramId);
+    if (sem) q = q.eq('semester', sem);
+    var r = await q;
+    if (r.error) { alert('❌ Gagal membaca kaldik: ' + r.error.message); return; }
+    var data = r.data || [];
+    if (!data.length) { alert('Belum ada event kaldik untuk dicetak.'); return; }
+
+    var namaProg = 'Mandarin';
+    try {
+      if (typeof activeProgramId !== 'undefined' && activeProgramId) {
+        var pr = (await db.from('program').select('*').eq('id', activeProgramId).maybeSingle()).data;
+        if (pr) namaProg = pr.nama || pr.nama_program || namaProg;
+      }
+    } catch (e0) {}
+
+    var fmt = function(v){ return v ? new Date(v + (String(v).length <= 10 ? 'T00:00:00' : '')).toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'}) : ''; };
+    var rentang = function(k){
+      var a = fmt(k.tanggal_mulai), b = fmt(k.tanggal_selesai);
+      if (!a) return '—';
+      return (!b || b === a) ? a : a + ' – ' + b;
+    };
+    // kelompokkan per semester (urutan sesuai tanggal)
+    var grup = [], idx = {};
+    data.forEach(function(k){
+      var key = k.semester || '-';
+      if (idx[key] === undefined) { idx[key] = grup.length; grup.push({ sem: key, items: [] }); }
+      grup[idx[key]].items.push(k);
+    });
+    var baris = grup.map(function(g){
+      var no = 0;
+      return '<tr class="sem"><td colspan="4">Semester ' + escH(g.sem) + '</td></tr>' + g.items.map(function(k){
+        no++;
+        return '<tr><td class="n">' + no + '</td><td class="j">' + escH(k.judul) + '</td><td class="t">' + escH(rentang(k)) + '</td><td class="k">' + (k.keterangan ? escH(k.keterangan) : '') + '</td></tr>';
+      }).join('');
+    }).join('');
+
+    var cetak = new Date().toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'});
+    var judul = 'Kaldik_' + (sem ? String(sem).replace(/[^A-Za-z0-9]+/g,'_') : 'Semua_Semester');
+    var css = '@page{size:A4 portrait;margin:15mm 14mm}*{box-sizing:border-box;margin:0;padding:0}'
+      + 'body{font-family:"Times New Roman","Noto Serif CJK SC","Microsoft YaHei",serif;color:#222}'
+      + '.hdr{border-bottom:3px double #b01020;padding-bottom:8px;margin-bottom:10px}.hdr h1{font-size:18px;color:#b01020}.hdr p{font-size:12px;color:#555;margin-top:2px}'
+      + '.judul{text-align:center;font-size:20px;font-weight:bold;letter-spacing:1px;margin:8px 0 2px}.sub{text-align:center;font-size:13px;color:#555;margin-bottom:12px}'
+      + 'table{width:100%;border-collapse:collapse;font-size:12px}th{background:#b01020;color:#fff;padding:7px 6px;text-align:left;border:1px solid #b01020}'
+      + 'td{padding:6px;border:1px solid #ccc;vertical-align:top}tr{page-break-inside:avoid}'
+      + 'td.n{width:8mm;text-align:center}td.j{width:34%;font-weight:bold}td.t{width:26%;white-space:nowrap}td.k{white-space:pre-wrap;color:#333}'
+      + 'tr.sem td{background:#fef3c7;color:#92400e;font-weight:bold;font-size:13px}'
+      + '.ft{margin-top:12px;font-size:10px;color:#888;text-align:center}';
+    var html = '<div class="hdr"><h1>BIMBEL BUDHI MAKMUR ' + escH(String(namaProg).toUpperCase()) + '</h1><p>興毅南興山口洋補習所</p></div>'
+      + '<div class="judul">KALENDER PENDIDIKAN</div><div class="sub">' + (sem ? 'Semester ' + escH(sem) : 'Semua Semester') + '</div>'
+      + '<table><thead><tr><th>No</th><th>Kegiatan</th><th>Tanggal</th><th>Keterangan</th></tr></thead><tbody>' + baris + '</tbody></table>'
+      + '<div class="ft">Dicetak ' + cetak + ' · Bimbel Budhi Makmur ' + escH(namaProg) + '</div>';
+
+    var lama = document.getElementById('kdFrame'); if (lama) lama.remove();
+    var fr = document.createElement('iframe');
+    fr.id = 'kdFrame';
+    fr.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
+    document.body.appendChild(fr);
+    var fd = fr.contentWindow.document;
+    fd.open();
+    fd.write('<!doctype html><html><head><meta charset="utf-8"><title>' + escH(judul) + '</title><style>' + css + '</style></head><body>' + html + '</body></html>');
+    fd.close();
+    var titleAsli = document.title;
+    document.title = judul;
+    var pulih = function(){ document.title = titleAsli; };
+    fr.contentWindow.onafterprint = function(){ pulih(); setTimeout(function(){ fr.remove(); }, 1000); };
+    setTimeout(function(){
+      try { fr.contentWindow.focus(); fr.contentWindow.print(); } catch (e2) { pulih(); alert('Gagal membuka dialog cetak: ' + e2.message); }
+      setTimeout(pulih, 60000);
+    }, 500);
+  } catch (e) { console.error('cetakKaldikPdf:', e); alert('Error: ' + e.message); }
+}
+
 // ============================================
 // SEMESTER BARU — pendaftar kelas semester depan (belum resmi terdata)
 // ============================================
