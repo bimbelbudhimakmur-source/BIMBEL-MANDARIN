@@ -36,6 +36,13 @@
     .biaya-row .biaya-label { color: #78350f; }
     .biaya-row .biaya-val { color: #1f2937; font-weight: 600; }
   </style>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#c2185b">
+    <link rel="icon" type="image/png" href="icons/favicon.png">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Budhi Makmur">
 </head>
 <body class="daftar-page">
   <div class="daftar-card">
@@ -365,5 +372,6 @@
       } catch (e) { /* link belum diset, abaikan */ }
     }
   </script>
+<script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});}</script>
 </body>
 </html>
