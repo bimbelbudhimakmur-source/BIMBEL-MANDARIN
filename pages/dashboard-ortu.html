@@ -68,10 +68,6 @@ td.n,th.n{text-align:center}
       </div>
     </div>
     <div id="dIsi"></div>
-    <div class="card" id="cardKaldik">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b>📅 Kalender Pendidikan</b><button class="btn" onclick="cetakKaldikOrtu()">🖨️ Cetak / PDF</button></div>
-      <div id="kaldikIsi" style="margin-top:8px"><div class="hint">⏳ Memuat...</div></div>
-    </div>
   </div>
 </main>
 
@@ -119,7 +115,6 @@ async function cari() {
 
 function pilih(id) {
   siswaId = id;
-  muatKaldik();
   document.getElementById('vCari').style.display = 'none';
   document.getElementById('vDetail').style.display = 'block';
   muatDetail();
@@ -128,47 +123,6 @@ function kembali() {
   siswaId = null;
   document.getElementById('vDetail').style.display = 'none';
   document.getElementById('vCari').style.display = 'block';
-}
-
-let _kaldikData = [];
-const fmtKd = v => v ? new Date(String(v).slice(0,10) + 'T00:00:00').toLocaleDateString('id-ID', {day:'numeric', month:'long', year:'numeric'}) : '';
-const rentangKd = k => { const a = fmtKd(k.tanggal_mulai), b = fmtKd(k.tanggal_selesai); return !a ? '—' : (!b || b === a) ? a : a + ' – ' + b; };
-async function muatKaldik() {
-  const box = document.getElementById('kaldikIsi');
-  if (!box || !siswaId) return;
-  const { data, error } = await db.rpc('ortu_kaldik', { p_siswa: siswaId });
-  if (error) { box.innerHTML = '<div class="hint">Kaldik belum bisa ditampilkan (' + esc(error.message) + ').</div>'; return; }
-  _kaldikData = data || [];
-  if (!_kaldikData.length) { box.innerHTML = '<div class="hint">Belum ada kalender pendidikan yang diumumkan.</div>'; return; }
-  const hariIni = new Date(Date.now() + 7*3600*1000).toISOString().slice(0,10);
-  const grup = {}; _kaldikData.forEach(k => { (grup[k.semester || '-'] = grup[k.semester || '-'] || []).push(k); });
-  const keys = Object.keys(grup).sort().reverse();
-  box.innerHTML = keys.map(sm => `<div style="font-weight:800;font-size:13px;color:#92400e;background:#fef3c7;border-radius:8px;padding:6px 10px;margin:12px 0 6px">Semester ${esc(sm)}</div>` +
-    grup[sm].map(k => {
-      const lewat = (k.tanggal_selesai || k.tanggal_mulai || '9999').slice(0,10) < hariIni;
-      return `<div style="border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;margin-bottom:6px;${lewat ? 'opacity:.65;background:#f9fafb' : 'background:#fff'}">
-        <div style="font-weight:700">${esc(k.judul)}${lewat ? ' <span style="font-size:11px;color:var(--mut);font-weight:500">· sudah lewat</span>' : ''}</div>
-        <div style="font-size:12px;color:var(--red);font-weight:600;margin-top:2px">${esc(rentangKd(k))}</div>
-        ${k.keterangan ? `<div style="font-size:12px;color:#374151;margin-top:6px;white-space:pre-wrap;line-height:1.55">${esc(k.keterangan)}</div>` : ''}</div>`;
-    }).join('')).join('');
-}
-function cetakKaldikOrtu() {
-  if (!_kaldikData.length) { alert('Belum ada kalender pendidikan.'); return; }
-  const grup = {}; _kaldikData.forEach(k => { (grup[k.semester || '-'] = grup[k.semester || '-'] || []).push(k); });
-  const rows = Object.keys(grup).sort().reverse().map(sm => { let n = 0;
-    return `<tr class="sem"><td colspan="4">Semester ${esc(sm)}</td></tr>` + grup[sm].map(k => `<tr><td class="n">${++n}</td><td class="j">${esc(k.judul)}</td><td class="t">${esc(rentangKd(k))}</td><td class="k">${esc(k.keterangan || '')}</td></tr>`).join(''); }).join('');
-  const css = '@page{size:A4 portrait;margin:15mm 14mm}*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Times New Roman","Noto Serif CJK SC","Microsoft YaHei",serif;color:#222}.hdr{border-bottom:3px double #b01020;padding-bottom:8px;margin-bottom:10px}.hdr h1{font-size:18px;color:#b01020}.hdr p{font-size:12px;color:#555;margin-top:2px}.judul{text-align:center;font-size:20px;font-weight:bold;letter-spacing:1px;margin:8px 0 12px}table{width:100%;border-collapse:collapse;font-size:12px}th{background:#b01020;color:#fff;padding:7px 6px;text-align:left;border:1px solid #b01020}td{padding:6px;border:1px solid #ccc;vertical-align:top}tr{page-break-inside:avoid}td.n{width:8mm;text-align:center}td.j{width:34%;font-weight:bold}td.t{width:26%}td.k{white-space:pre-wrap}tr.sem td{background:#fef3c7;color:#92400e;font-weight:bold;font-size:13px}.ft{margin-top:12px;font-size:10px;color:#888;text-align:center}';
-  const html = `<div class="hdr"><h1>BIMBEL BUDHI MAKMUR</h1><p>興毅南興山口洋補習所</p></div><div class="judul">KALENDER PENDIDIKAN</div><table><thead><tr><th>No</th><th>Kegiatan</th><th>Tanggal</th><th>Keterangan</th></tr></thead><tbody>${rows}</tbody></table><div class="ft">Dicetak ${new Date().toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'})} · Bimbel Budhi Makmur</div>`;
-  const old = document.getElementById('kdFrame'); if (old) old.remove();
-  const fr = document.createElement('iframe'); fr.id = 'kdFrame';
-  fr.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
-  document.body.appendChild(fr);
-  const fd = fr.contentWindow.document; fd.open();
-  fd.write('<!doctype html><html><head><meta charset="utf-8"><title>Kalender_Pendidikan</title><style>' + css + '</style></head><body>' + html + '</body></html>'); fd.close();
-  const t0 = document.title; document.title = 'Kalender_Pendidikan';
-  const pulih = () => { document.title = t0; };
-  fr.contentWindow.onafterprint = () => { pulih(); setTimeout(() => fr.remove(), 1000); };
-  setTimeout(() => { try { fr.contentWindow.focus(); fr.contentWindow.print(); } catch (e) { pulih(); alert('Gagal membuka dialog cetak: ' + e.message); } setTimeout(pulih, 60000); }, 500);
 }
 
 async function muatDetail() {
